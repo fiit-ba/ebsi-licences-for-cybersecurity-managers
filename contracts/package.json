@@ -1,0 +1,17 @@
+{
+  "name": "plr-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Certificate Governance Contract for the Professional License Registry (component 10)",
+  "scripts": {
+    "postinstall": "forge soldeer install",
+    "compile": "forge build && node scripts/export-abi.js",
+    "test": "forge test && node scripts/export-abi.js --check",
+    "deploy:besu": "forge script scripts/Deploy.s.sol --rpc-url \"${BESU_RPC_URL:-http://127.0.0.1:8545}\" --broadcast",
+    "deploy:local": "forge script scripts/Deploy.s.sol",
+    "rotate:besu": "forge script scripts/RotateSigners.s.sol --rpc-url \"${BESU_RPC_URL:-http://127.0.0.1:8545}\" --broadcast --slow",
+    "supervisor:besu": "forge script scripts/SupervisorAdmin.s.sol --rpc-url \"${BESU_RPC_URL:-http://127.0.0.1:8545}\" --broadcast",
+    "verify:besu": "forge script scripts/VerifyOnchain.s.sol --rpc-url \"${BESU_RPC_URL:-http://127.0.0.1:8545}\" --broadcast --slow",
+    "abi": "node scripts/export-abi.js"
+  }
+}

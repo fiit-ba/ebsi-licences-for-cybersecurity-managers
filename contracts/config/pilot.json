@@ -1,0 +1,10 @@
+{
+  "description": "The pilot on the local Besu network: 2 of the 3 roles for every decision, a 24 h timelock on permanent revocation (component 10.4), rule changes applied as soon as their quorum is reached, any of the three roles may veto, proposals open for 30 days.",
+  "policies": {
+    "suspend": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0},
+    "revoke": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 86400},
+    "reinstate": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0},
+    "admin": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0}
+  },
+  "proposalTtl": 2592000
+}

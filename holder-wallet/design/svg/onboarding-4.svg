@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="520" viewBox="0 0 600 520">
+  <!--DEFS-->
+  <!-- Check someone else's certificate: is it valid? -->
+  <circle cx="300" cy="270" r="210" fill="#FFFFFF" fill-opacity="0.04"/>
+  <circle cx="300" cy="270" r="150" fill="#FFFFFF" fill-opacity="0.04"/>
+  <rect x="120" y="90" width="260" height="330" rx="20" fill="#FFFFFF"/>
+  <rect x="120" y="90" width="260" height="60" rx="20" fill="#1F5FD1"/>
+  <rect x="120" y="130" width="260" height="20" fill="#1F5FD1"/>
+  <rect x="146" y="110" width="110" height="10" rx="5" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="146" y="128" width="70" height="8" rx="4" fill="#FFFFFF" fill-opacity="0.55"/>
+  <circle cx="172" cy="196" r="26" fill="#1F5FD1" fill-opacity="0.15"/>
+  <circle cx="172" cy="196" r="14" fill="#1F5FD1"/>
+  <rect x="212" y="184" width="130" height="10" rx="5" fill="#0B1220" fill-opacity="0.8"/>
+  <rect x="212" y="202" width="90" height="8" rx="4" fill="#0B1220" fill-opacity="0.3"/>
+  <rect x="146" y="246" width="190" height="9" rx="4.5" fill="#0B1220" fill-opacity="0.3"/>
+  <rect x="146" y="266" width="160" height="9" rx="4.5" fill="#0B1220" fill-opacity="0.3"/>
+  <rect x="146" y="286" width="176" height="9" rx="4.5" fill="#0B1220" fill-opacity="0.3"/>
+  <rect x="146" y="306" width="120" height="9" rx="4.5" fill="#0B1220" fill-opacity="0.3"/>
+  <rect x="146" y="376" width="60" height="22" rx="11" fill="#14B8A6" fill-opacity="0.18"/>
+  <circle cx="159" cy="387" r="5" fill="#14B8A6"/>
+  <rect x="169" y="383" width="28" height="8" rx="4" fill="#0F766E"/>
+  <line x1="426" y1="372" x2="482" y2="428" stroke="#2DD4BF" stroke-width="20" stroke-linecap="round"/>
+  <line x1="448" y1="394" x2="482" y2="428" stroke="#0F9F8F" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="372" cy="318" r="70" fill="#FFFFFF"/>
+  <circle cx="372" cy="318" r="70" fill="#2DD4BF" fill-opacity="0.1"/>
+  <circle cx="372" cy="318" r="70" fill="none" stroke="#2DD4BF" stroke-width="12"/>
+  <circle cx="372" cy="318" r="36" fill="#15803D"/>
+  <path d="M354 318 L367 331 L391 306" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="100" cy="120" r="6" fill="#FFFFFF" fill-opacity="0.45"/>
+  <circle cx="500" cy="110" r="8" fill="#2DD4BF" fill-opacity="0.7"/>
+  <circle cx="90" cy="400" r="5" fill="#FFFFFF" fill-opacity="0.35"/>
+</svg>

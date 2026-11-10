@@ -1,0 +1,33 @@
+<defs>
+  <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0E2750"/>
+    <stop offset="1" stop-color="#07152B"/>
+  </linearGradient>
+  <!-- The tile: the brand blue, lighter at the top left. -->
+  <linearGradient id="tile" x1="0.1" y1="0" x2="0.9" y2="1">
+    <stop offset="0" stop-color="#4C8DFF"/>
+    <stop offset="1" stop-color="#1C3FB0"/>
+  </linearGradient>
+  <radialGradient id="glow" cx="0.85" cy="0.12" r="0.7">
+    <stop offset="0" stop-color="#2563EB" stop-opacity="0.55"/>
+    <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="glow2" cx="0.1" cy="0.95" r="0.6">
+    <stop offset="0" stop-color="#2DD4BF" stop-opacity="0.18"/>
+    <stop offset="1" stop-color="#2DD4BF" stop-opacity="0"/>
+  </radialGradient>
+  <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="1.4" fill="#FFFFFF" fill-opacity="0.07"/>
+  </pattern>
+  <!-- The glyph, on a 100x100 grid: an A for Atest whose crossbar is a check
+       mark - an attestation that has been verified. -->
+  <symbol id="glyph" viewBox="0 0 100 100">
+    <path d="M25 80 L50 19 L75 80" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M33 60 L44.5 70.5 L68 49" fill="none" stroke="#6EF0D8" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <!-- The mark: the glyph on the blue tile. -->
+  <symbol id="mark" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="24" fill="url(#tile)"/>
+    <use href="#glyph" width="100" height="100"/>
+  </symbol>
+</defs>

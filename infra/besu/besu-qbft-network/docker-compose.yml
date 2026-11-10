@@ -1,0 +1,102 @@
+name: besu-qbft-network
+
+networks:
+  besu-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+services:
+
+  validator1:
+    image: hyperledger/besu:latest
+    container_name: validator1
+    networks:
+      besu-net:
+        ipv4_address: 172.20.0.2
+    command:
+      - --genesis-file=/config/genesis.json
+      - --data-path=/data
+      - --node-private-key-file=/keys/key
+      - --p2p-host=172.20.0.2
+      - --p2p-port=30303
+      - --sync-min-peers=1
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-api=ETH,NET,WEB3,ADMIN,QBFT,TXPOOL,TRACE
+      - --rpc-http-cors-origins=*
+      - --host-allowlist=*
+      - --min-gas-price=0
+    volumes:
+      - ./networkFiles/genesis.json:/config/genesis.json
+      - ./networkFiles/keys/0x7c4ef3bb59fc342febc3f41ce48092224ff0ecbe/key:/keys/key
+      - ./data/validator1:/data
+    ports:
+      - "8545:8545"
+
+  validator2:
+    image: hyperledger/besu:latest
+    container_name: validator2
+    depends_on:
+      - validator1
+    networks:
+      besu-net:
+        ipv4_address: 172.20.0.3
+    command:
+      - --genesis-file=/config/genesis.json
+      - --data-path=/data
+      - --node-private-key-file=/keys/key
+      - --p2p-host=172.20.0.3
+      - --p2p-port=30303
+      - --sync-min-peers=1
+      - --bootnodes=enode://0bf8954581b395f38e0270479d67e738fca628c30d470ef5ec37205232604f3fcbcd28c328c51c24c203577d7ac96671503a0d8475583fc9ad08a645b2cdcc97@172.20.0.2:30303
+      - --min-gas-price=0
+    volumes:
+      - ./networkFiles/genesis.json:/config/genesis.json
+      - ./networkFiles/keys/0x90bf43c6743fb0a05c9bfe5f45bf934a01e994bf/key:/keys/key
+      - ./data/validator2:/data
+
+  validator3:
+    image: hyperledger/besu:latest
+    container_name: validator3
+    depends_on:
+      - validator1
+    networks:
+      besu-net:
+        ipv4_address: 172.20.0.4
+    command:
+      - --genesis-file=/config/genesis.json
+      - --data-path=/data
+      - --node-private-key-file=/keys/key
+      - --p2p-host=172.20.0.4
+      - --p2p-port=30303
+      - --sync-min-peers=1
+      - --bootnodes=enode://0bf8954581b395f38e0270479d67e738fca628c30d470ef5ec37205232604f3fcbcd28c328c51c24c203577d7ac96671503a0d8475583fc9ad08a645b2cdcc97@172.20.0.2:30303
+      - --min-gas-price=0
+    volumes:
+      - ./networkFiles/genesis.json:/config/genesis.json
+      - ./networkFiles/keys/0x131bfef2276ea0a3fa843991acbd9e3fa0945c4a/key:/keys/key
+      - ./data/validator3:/data
+
+  validator4:
+    image: hyperledger/besu:latest
+    container_name: validator4
+    depends_on:
+      - validator1
+    networks:
+      besu-net:
+        ipv4_address: 172.20.0.5
+    command:
+      - --genesis-file=/config/genesis.json
+      - --data-path=/data
+      - --node-private-key-file=/keys/key
+      - --p2p-host=172.20.0.5
+      - --p2p-port=30303
+      - --sync-min-peers=1
+      - --bootnodes=enode://0bf8954581b395f38e0270479d67e738fca628c30d470ef5ec37205232604f3fcbcd28c328c51c24c203577d7ac96671503a0d8475583fc9ad08a645b2cdcc97@172.20.0.2:30303
+      - --min-gas-price=0
+    volumes:
+      - ./networkFiles/genesis.json:/config/genesis.json
+      - ./networkFiles/keys/0xbb518b51ea50aef68d2a26fcbdc2ee60ef3cc54b/key:/keys/key
+      - ./data/validator4:/data

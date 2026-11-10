@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="560" viewBox="0 0 720 560">
+  <!--DEFS-->
+  <use href="#mark" x="255" y="60" width="210" height="210"/>
+  <text x="360" y="420" text-anchor="middle" font-family="Inter" font-weight="700" font-size="112" letter-spacing="-2" fill="#FFFFFF"><!--BRAND--></text>
+</svg>

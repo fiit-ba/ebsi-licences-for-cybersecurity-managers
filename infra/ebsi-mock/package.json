@@ -1,0 +1,19 @@
+{
+  "name": "plr-ebsi-mock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "EBSI Core API v1 over EBSI's registry contracts on the development ledger (component 3)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ethers": "6.17.0",
+    "express": "^5.1.0"
+  }
+}

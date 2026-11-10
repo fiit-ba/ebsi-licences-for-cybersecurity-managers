@@ -1,0 +1,15 @@
+# This file was written in 2026 by the Faculty of Informatics and Information
+# Technologies for the Professional License Registry.
+# To the back-office's mTLS sidecar, as the edge.
+proxy_pass https://backend:8443;
+proxy_ssl_certificate         /tls/edge.crt;
+proxy_ssl_certificate_key     /tls/edge.key;
+proxy_ssl_trusted_certificate /tls/ca.crt;
+proxy_ssl_verify              on;
+proxy_ssl_name                plr-backend;
+proxy_ssl_server_name         on;
+proxy_ssl_protocols           TLSv1.3;
+proxy_set_header Host              ${PLR_PUBLIC_HOSTNAME};
+proxy_set_header X-Forwarded-Proto https;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_read_timeout 180s;

@@ -1,0 +1,104 @@
+# This file was written in 2026 by the Faculty of Informatics and Information
+# Technologies for the Professional License Registry.
+# The public edge (infra/docker-compose.prod.yml).
+#
+# Terminates public TLS and forwards to the back-office's mTLS sidecar,
+# presenting the edge's own client certificate. Nothing behind it listens in
+# the clear on the network (component 1).
+#
+# Two names. The registry's public face - wallets (OID4VCI, OID4VP, their
+# backups), relying parties' Verifier API - and the staff console, reachable
+# from the staff network only.
+
+server {
+    listen 80 default_server;
+    return 301 https://$host$request_uri;
+}
+
+# Unknown names get nothing.
+server {
+    listen 443 ssl default_server;
+    ssl_certificate     /tls/public.crt;
+    ssl_certificate_key /tls/public.key;
+    return 444;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${PLR_PUBLIC_HOSTNAME};
+
+    ssl_certificate     /tls/public.crt;
+    ssl_certificate_key /tls/public.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:public:10m;
+    client_max_body_size 10m;
+
+    # Retired internal signing hops are never public.
+    location ~ ^/registry/(sign-|offers/token/) { return 404; }
+
+    # Staff administration: from the staff network only.
+    location /admin/ {
+        allow ${PLR_STAFF_CIDR};
+        deny all;
+        include /etc/nginx/conf.d/backend-upstream.inc;
+    }
+
+    # Holder wallets' encrypted backups (design decisions D31) grow with the
+    # wallet - megabytes for a thousand certificates. The back-office sets
+    # their limit (PLR_WALLET_BACKUP_MAX_BYTES, 128 MiB, and the upload's
+    # envelope) and answers anything over it itself; this only lets them
+    # through to it.
+    location /wallet-backups/ {
+        client_max_body_size 129m;
+        include /etc/nginx/conf.d/backend-upstream.inc;
+    }
+
+    location = /api-ledger { return 404; }
+
+    location / {
+        include /etc/nginx/conf.d/backend-upstream.inc;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${PLR_CONSOLE_HOSTNAME};
+
+    ssl_certificate     /tls/public.crt;
+    ssl_certificate_key /tls/public.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    client_max_body_size 10m;
+
+    allow ${PLR_STAFF_CIDR};
+    deny all;
+
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${PLR_LEDGER_WALLET_RPC}; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    root /srv/console;
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # The console's API calls, under the prefixes it was built with.
+    location ~ ^/api-backend/registry/(sign-|offers/token/) { return 404; }
+    location /console/ {
+        include /etc/nginx/conf.d/backend-upstream.inc;
+    }
+
+    location /api-backend/ {
+        rewrite ^/api-backend/(.*)$ /$1 break;
+        include /etc/nginx/conf.d/backend-upstream.inc;
+    }
+
+    # Read-only contract calls for the governance view. Votes are sent by the
+    # back-office or by the supervisor's own wallet, not through here.
+    location = /api-ledger {
+        limit_except POST { deny all; }
+        proxy_pass ${PLR_LEDGER_RPC_URL};
+        proxy_ssl_server_name on;
+    }
+}

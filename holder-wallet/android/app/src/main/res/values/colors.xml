@@ -1,0 +1,9 @@
+<resources>
+  <!--
+       The brand navy (src/constants/Colors.ts) behind the splash; the brand
+       tile's blue for the icon (its gradient is mipmap/ic_launcher_background). -->
+  <color name="splashscreen_background">#0A1F3D</color>
+  <color name="iconBackground">#2456D8</color>
+  <color name="colorPrimary">#0A1F3D</color>
+  <color name="colorPrimaryDark">#07152B</color>
+</resources>

@@ -1,0 +1,15 @@
+diff --git a/node_modules/@dreson4/react-native-quick-bip39/index.ts b/node_modules/@dreson4/react-native-quick-bip39/index.ts
+index 6030e57..fcd0447 100644
+--- a/node_modules/@dreson4/react-native-quick-bip39/index.ts
++++ b/node_modules/@dreson4/react-native-quick-bip39/index.ts
+@@ -126,7 +126,9 @@ export function validateMnemonic(mnemonic: string, wordlist?: any) {
+ }
+
+ function checksumBits(entropyBuffer: Buffer) {
+-  const hash = createHash("sha256").update(entropyBuffer).digest();
++  //
++  // Bridges the current quick-crypto Buffer type without changing BIP39 checksum bytes.
++  const hash = createHash("sha256").update(entropyBuffer as any).digest();
+
+   // Calculated constants from BIP39
+   const ENT = entropyBuffer.length * 8;

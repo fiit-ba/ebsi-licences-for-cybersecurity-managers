@@ -1,0 +1,378 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<QrReader /> renders correctly 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "black",
+      "flexBasis": 0,
+      "flexGrow": 1,
+      "flexShrink": 1,
+    }
+  }
+>
+  <CameraView
+    barcodeScannerSettings={
+      {
+        "barcodeTypes": [
+          "qr",
+        ],
+      }
+    }
+    onBarcodeScanned={[Function]}
+    style={
+      {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <View
+    className="sc-gKckzE jXXQIo"
+  >
+    <View
+      className="sc-furwPO cWzLOa"
+    />
+    <View
+      className="sc-pVUti fqqaHv"
+      style={
+        {
+          "width": 320,
+        }
+      }
+    >
+      <View
+        className="sc-jrQAon cyiupH"
+        style={
+          {
+            "height": 32,
+          }
+        }
+      />
+      <View
+        className="sc-crHjOq fstsmD"
+        style={
+          {
+            "paddingBottom": 40,
+          }
+        }
+      >
+        <View
+          collapsable={false}
+          style={
+            {
+              "backgroundColor": "rgba(8, 27, 58, 0.82)",
+              "borderRadius": 20,
+              "shadowColor": "#000",
+              "shadowOffset": {
+                "height": 0,
+                "width": 0,
+              },
+              "shadowOpacity": 0,
+              "shadowRadius": 0,
+            }
+          }
+          testID="button-container-outer-layer"
+        >
+          <View
+            className="sc-iCfNyT ecvrCa"
+            collapsable={false}
+            style={
+              {
+                "backgroundColor": "rgba(8, 27, 58, 0.82)",
+                "borderColor": "transparent",
+                "borderRadius": 20,
+                "borderStyle": "solid",
+                "borderWidth": 0,
+                "flex": undefined,
+                "minWidth": 64,
+                "shadowColor": "#000",
+                "shadowOffset": {
+                  "height": 0,
+                  "width": 0,
+                },
+                "shadowOpacity": 0,
+                "shadowRadius": 0,
+              }
+            }
+            testID="button-container"
+          >
+            <View
+              accessibilityRole="button"
+              accessibilityState={
+                {
+                  "busy": undefined,
+                  "checked": undefined,
+                  "disabled": false,
+                  "expanded": undefined,
+                  "selected": undefined,
+                }
+              }
+              accessibilityValue={
+                {
+                  "max": undefined,
+                  "min": undefined,
+                  "now": undefined,
+                  "text": undefined,
+                }
+              }
+              accessible={true}
+              collapsable={false}
+              focusable={true}
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onResponderGrant={[Function]}
+              onResponderMove={[Function]}
+              onResponderRelease={[Function]}
+              onResponderTerminate={[Function]}
+              onResponderTerminationRequest={[Function]}
+              onStartShouldSetResponder={[Function]}
+              style={
+                [
+                  {
+                    "overflow": "hidden",
+                  },
+                  {
+                    "borderRadius": 20,
+                  },
+                ]
+              }
+              testID="button"
+            >
+              <View
+                style={
+                  [
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                      "justifyContent": "center",
+                    },
+                    {
+                      "height": 42,
+                      "paddingHorizontal": 4,
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "marginLeft": 12,
+                        "marginRight": -4,
+                      },
+                      {
+                        "marginLeft": 16,
+                        "marginRight": -16,
+                      },
+                      false,
+                    ]
+                  }
+                  testID="button-icon-container"
+                >
+                  <Text />
+                </View>
+                <Text
+                  numberOfLines={1}
+                  selectable={false}
+                  style={
+                    [
+                      {
+                        "textAlign": "left",
+                      },
+                      {
+                        "color": "rgba(28, 27, 31, 1)",
+                        "writingDirection": "ltr",
+                      },
+                      [
+                        {
+                          "fontFamily": "System",
+                          "fontSize": 14,
+                          "fontWeight": "500",
+                          "letterSpacing": 0.1,
+                          "lineHeight": 20,
+                        },
+                        [
+                          {
+                            "marginHorizontal": 16,
+                            "marginVertical": 9,
+                            "textAlign": "center",
+                          },
+                          false,
+                          {
+                            "marginHorizontal": 24,
+                            "marginVertical": 10,
+                          },
+                          undefined,
+                          false,
+                          {
+                            "color": "#fff",
+                            "fontFamily": "System",
+                            "fontSize": 14,
+                            "fontWeight": "500",
+                            "letterSpacing": 0.1,
+                            "lineHeight": 20,
+                          },
+                          {
+                            "color": "#fff",
+                            "fontSize": 15,
+                          },
+                        ],
+                      ],
+                    ]
+                  }
+                  testID="button-text"
+                >
+                  BACKWARD
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+        <View
+          className="sc-eggkz ffDApY"
+        >
+          <Text
+            bold={true}
+            className="sc-bdvwhi sc-hKwBjT sc-bqiQyc jTRXuf jpEgHa YgvK"
+            fontFamily="Inter"
+            style={
+              [
+                {
+                  "textAlign": "left",
+                },
+                {
+                  "color": "rgba(28, 27, 31, 1)",
+                  "fontFamily": "System",
+                  "fontWeight": "400",
+                  "letterSpacing": 0,
+                },
+                {
+                  "writingDirection": "ltr",
+                },
+                undefined,
+              ]
+            }
+          >
+            TITLE
+          </Text>
+          <Text
+            className="sc-bdvwhi sc-dkPwfY sc-ksdwth dCJWbl kqDYFX cbzOuE"
+            style={
+              [
+                {
+                  "textAlign": "left",
+                },
+                {
+                  "color": "rgba(28, 27, 31, 1)",
+                  "fontFamily": "System",
+                  "fontWeight": "400",
+                  "letterSpacing": 0,
+                },
+                {
+                  "writingDirection": "ltr",
+                },
+                undefined,
+              ]
+            }
+          >
+            SCAN_QR
+          </Text>
+        </View>
+      </View>
+      <View
+        className="sc-kDTkBQ bHVxQR"
+        style={
+          {
+            "height": 320,
+            "width": 320,
+          }
+        }
+      >
+        <View
+          className="sc-iqsgXZ cTenVJ"
+          style={
+            [
+              {
+                "borderLeftWidth": 4,
+                "borderTopLeftRadius": 10,
+                "borderTopWidth": 4,
+                "left": -8,
+                "top": -8,
+              },
+              {
+                "borderColor": "#fff",
+              },
+            ]
+          }
+          testID="qr-marker-corner-0"
+        />
+        <View
+          className="sc-iqsgXZ cTenVJ"
+          style={
+            [
+              {
+                "borderRightWidth": 4,
+                "borderTopRightRadius": 10,
+                "borderTopWidth": 4,
+                "right": -8,
+                "top": -8,
+              },
+              {
+                "borderColor": "#fff",
+              },
+            ]
+          }
+          testID="qr-marker-corner-1"
+        />
+        <View
+          className="sc-iqsgXZ cTenVJ"
+          style={
+            [
+              {
+                "borderBottomLeftRadius": 10,
+                "borderBottomWidth": 4,
+                "borderLeftWidth": 4,
+                "bottom": -8,
+                "left": -8,
+              },
+              {
+                "borderColor": "#fff",
+              },
+            ]
+          }
+          testID="qr-marker-corner-2"
+        />
+        <View
+          className="sc-iqsgXZ cTenVJ"
+          style={
+            [
+              {
+                "borderBottomRightRadius": 10,
+                "borderBottomWidth": 4,
+                "borderRightWidth": 4,
+                "bottom": -8,
+                "right": -8,
+              },
+              {
+                "borderColor": "#fff",
+              },
+            ]
+          }
+          testID="qr-marker-corner-3"
+        />
+      </View>
+      <View
+        className="sc-hBUSYK eMMayC"
+      />
+    </View>
+    <View
+      className="sc-furwPO cWzLOa"
+    />
+  </View>
+</View>
+`;
