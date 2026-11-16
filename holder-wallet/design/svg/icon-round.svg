@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="432" viewBox="0 0 432 432">
+  <!--DEFS-->
+  <circle cx="216" cy="216" r="216" fill="url(#tile)"/>
+  <use href="#glyph" x="76" y="76" width="280" height="280"/>
+</svg>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing of the wallet leaves the device in a backup or a
+  device-to-device transfer. The keychain entry (every credential, the
+  encrypted private key) is bound to this device's Keystore and would not
+  decrypt elsewhere anyway; the rest - AsyncStorage, caches - would restore a
+  wallet that believes it exists without the keys to use it. Recovery is the
+  security phrase.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

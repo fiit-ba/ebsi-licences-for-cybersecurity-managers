@@ -1,0 +1,7 @@
+export * from './walletStore'
+export * from './identity.repository'
+export * from './credential.repository'
+export * from './presentation.repository'
+export * from './history.repository'
+export * from './walletLifecycle.repository'
+export type { KeyChainData } from './keychain.types'

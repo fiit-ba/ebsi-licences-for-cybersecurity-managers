@@ -1,0 +1,89 @@
+import { TouchableOpacity, View } from 'react-native'
+import { Button, Card, Paragraph } from 'react-native-paper'
+import styled from 'styled-components'
+import ButtonStyled from '@shared/components/atomic_components/Button'
+import { safeStyledText } from '@shared/components/atomic_components/Text'
+import DescriptionText from '@shared/components/atomic_components/Text/variants/DescriptionText'
+import Title from '@shared/components/atomic_components/Text/variants/Title'
+import ScreenMarginStyle from '@shared/components/wrappers/ScreenMarginStyle'
+import { ColorKeys, getThemeColor } from '@shared/constants/Colors'
+const Subtitle = safeStyledText(DescriptionText)`
+  margin-bottom: 16px;
+  /*
+     Left-aligned: justified, the narrow column opened wide gaps between words. */
+  text-align: left;
+`
+const defaultStyles = {
+  MainContainer: styled(ScreenMarginStyle)``,
+  BackButton: styled(Button).attrs(() => ({
+    icon: 'arrow-left',
+    labelStyle: { color: getThemeColor(ColorKeys.primary) },
+  }))`
+    width: 100px;
+    margin-left: -15px;
+    /*
+       The row it sits in (SetupTopBar) carries the spacing around it. */
+  `,
+  Title: safeStyledText(Title)`
+    margin-bottom: 46px;
+  `,
+
+  Subtitle: safeStyledText(DescriptionText)`
+    margin-bottom: 16px;
+    /*
+       Left-aligned: justified, the narrow column opened wide gaps between words. */
+    text-align: left;
+  `,
+  CopyText: safeStyledText(Subtitle)`
+    color: ${getThemeColor(ColorKeys.primary)};
+    margin-top: 10px;
+  `,
+  Button: styled(ButtonStyled)``,
+
+  ContainerBottom: styled(View)`
+    flex: 1;
+    justify-content: flex-end;
+    align-items: center;
+		margin: 20px auto 90px auto;
+    width: 100%;
+  `,
+
+  Container: styled(View)`
+    flex: 1;
+  `,
+
+  PhraseContainer: styled(TouchableOpacity)`
+    width: 100%;
+    align-items: stretch;
+  `,
+
+  MainCard: styled(Card)<{ justifyContent?: string; alignItems?: string }>`
+    shadow-color: #e1f9fc;
+    shadow-offset: 5px 9px;
+    shadow-opacity: 0.5;
+    box-shadow: 5px 5px 5px #e1f9fd;
+    shadow-radius: 10px;
+    border-radius: 20px;
+    elevation: 5;
+    width: 100%;
+    max-width: 420px;
+    align-self: center;
+    ${(props) => props.justifyContent && `justify-content: ${props.justifyContent};`}
+    ${(props) => props.alignItems && `align-items: ${props.alignItems};`}
+  `,
+
+  Content: styled(Paragraph)`
+    font-size: 18px;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-top: 10px;
+    height: auto;
+    line-height: 25px;
+  `,
+  HiddenTitle: safeStyledText(Title)`
+    text-align: center;
+    width: 200px;
+  `,
+}
+
+export default defaultStyles

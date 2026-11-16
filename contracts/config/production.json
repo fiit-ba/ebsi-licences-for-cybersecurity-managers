@@ -1,0 +1,10 @@
+{
+  "description": "A production starting point: as the pilot, but a rule change waits 24 h before it applies, so the supervisory authority can veto it (DECISIONS.md D19). Requiring the supervisory authority on every revocation (component 10.2's alternative) is \"requiredRoles\": [\"C\"] under revoke. Every role may veto; \"vetoRoles\" narrows that, so one compromised key of another role cannot stop every decision (DECISIONS.md D21).",
+  "policies": {
+    "suspend": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0},
+    "revoke": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 86400},
+    "reinstate": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0},
+    "admin": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 86400}
+  },
+  "proposalTtl": 2592000
+}

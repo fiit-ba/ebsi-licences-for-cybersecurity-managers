@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="520" viewBox="0 0 600 520">
+  <!--DEFS-->
+  <!-- Share it: scan a QR code, the verifier sees it is valid. -->
+  <circle cx="300" cy="270" r="210" fill="#FFFFFF" fill-opacity="0.04"/>
+  <rect x="70" y="80" width="200" height="360" rx="32" fill="#13294B" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="4"/>
+  <rect x="132" y="98" width="76" height="10" rx="5" fill="#FFFFFF" fill-opacity="0.25"/>
+  <rect x="96" y="150" width="148" height="148" rx="14" fill="#FFFFFF"/>
+  <g fill="#0B1220">
+    <rect x="110" y="164" width="36" height="36" rx="4"/><rect x="118" y="172" width="20" height="20" rx="2" fill="#FFFFFF"/><rect x="123" y="177" width="10" height="10"/>
+    <rect x="194" y="164" width="36" height="36" rx="4"/><rect x="202" y="172" width="20" height="20" rx="2" fill="#FFFFFF"/><rect x="207" y="177" width="10" height="10"/>
+    <rect x="110" y="248" width="36" height="36" rx="4"/><rect x="118" y="256" width="20" height="20" rx="2" fill="#FFFFFF"/><rect x="123" y="261" width="10" height="10"/>
+    <rect x="156" y="164" width="10" height="10"/><rect x="172" y="176" width="10" height="10"/><rect x="156" y="190" width="10" height="10"/>
+    <rect x="156" y="212" width="10" height="10"/><rect x="172" y="212" width="10" height="10"/><rect x="188" y="212" width="10" height="10"/>
+    <rect x="110" y="212" width="10" height="10"/><rect x="126" y="228" width="10" height="10"/><rect x="214" y="212" width="16" height="10"/>
+    <rect x="156" y="232" width="10" height="16"/><rect x="176" y="240" width="10" height="10"/><rect x="194" y="232" width="10" height="10"/>
+    <rect x="160" y="262" width="10" height="10"/><rect x="180" y="258" width="10" height="16"/><rect x="200" y="252" width="30" height="10"/>
+    <rect x="212" y="270" width="18" height="14"/><rect x="156" y="276" width="10" height="8"/><rect x="194" y="276" width="10" height="8"/>
+  </g>
+  <rect x="96" y="320" width="148" height="40" rx="12" fill="#1F5FD1"/>
+  <rect x="136" y="336" width="68" height="8" rx="4" fill="#FFFFFF"/>
+  <path d="M290 250 C330 230 350 230 380 246" fill="none" stroke="#2DD4BF" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14"/>
+  <path d="M372 232 L384 247 L366 254" fill="none" stroke="#2DD4BF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="360" y="170" width="190" height="170" rx="20" fill="#FFFFFF"/>
+  <rect x="360" y="170" width="190" height="40" rx="20" fill="#E8EEF9"/>
+  <rect x="360" y="190" width="190" height="20" fill="#E8EEF9"/>
+  <circle cx="384" cy="190" r="6" fill="#1F5FD1" fill-opacity="0.5"/>
+  <rect x="398" y="186" width="70" height="8" rx="4" fill="#1F5FD1" fill-opacity="0.5"/>
+  <circle cx="455" cy="262" r="38" fill="#15803D"/>
+  <path d="M437 262 L450 275 L474 250" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="400" y="312" width="110" height="9" rx="4.5" fill="#0B1220" fill-opacity="0.35"/>
+  <circle cx="520" cy="120" r="6" fill="#FFFFFF" fill-opacity="0.45"/>
+  <circle cx="330" cy="420" r="8" fill="#2DD4BF" fill-opacity="0.7"/>
+</svg>

@@ -1,0 +1,9 @@
+<!--
+     The wallet's splash - brand navy with its lockup
+     (design/svg/logo-lockup.svg, rendered by design/render.py). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:drawable="@color/splashscreen_background"/>
+  <item>
+    <bitmap android:gravity="center" android:src="@drawable/splashscreen_image"/>
+  </item>
+</layer-list>

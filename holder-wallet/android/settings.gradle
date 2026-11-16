@@ -1,0 +1,36 @@
+// Resolves and includes the React Native Gradle plugin through the current package layout.
+pluginManagement {
+  def reactNativeGradlePlugin = new File(
+    providers.exec {
+      workingDir(rootDir)
+      commandLine("node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })")
+    }.standardOutput.asText.get().trim()
+  ).getParentFile().absolutePath
+  includeBuild(reactNativeGradlePlugin)
+  // Resolves and includes Expo's Gradle plugin so Expo modules can participate in autolinking.
+  def expoPluginsPath = new File(
+    providers.exec {
+      workingDir(rootDir)
+      commandLine("node", "--print", "require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })")
+    }.standardOutput.asText.get().trim(),
+    "../android/expo-gradle-plugin"
+  ).absolutePath
+  includeBuild(expoPluginsPath)
+}
+// Applies the current React Native settings and Expo autolinking plugins.
+plugins {
+  id("com.facebook.react.settings")
+  id("expo-autolinking-settings")
+}
+// Generates the React Native autolinking configuration through Expo and registers Expo modules.
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  ex.autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand)
+}
+expoAutolinking.useExpoModules()
+
+rootProject.name = 'atest'
+// Shares Expo's dependency catalog and current React Native Gradle plugin with the app build.
+expoAutolinking.useExpoVersionCatalog()
+
+include ':app'
+includeBuild(expoAutolinking.reactNativeGradlePlugin)

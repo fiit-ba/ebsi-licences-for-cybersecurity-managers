@@ -1,0 +1,25 @@
+// Top-level build file for the Expo 57 / React Native 0.86 Android project.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  // Uses the repositories required by the current Expo, React Native and retained native modules.
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+// Applies Expo and React Native's current root-project configuration plugins.
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"

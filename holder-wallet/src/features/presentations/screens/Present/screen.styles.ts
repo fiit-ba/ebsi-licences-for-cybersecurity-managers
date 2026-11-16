@@ -1,0 +1,65 @@
+import { StyleSheet } from 'react-native'
+import { ColorKeys, getThemeColor } from '@shared/constants/Colors'
+import { FONT_FAMILY } from '@shared/constants/fontFamily'
+
+const text = {
+  fontFamily: FONT_FAMILY.PRINCIPAL,
+  color: getThemeColor(ColorKeys.text),
+}
+
+export const screenStyles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: getThemeColor(ColorKeys.background) },
+  content: { width: '100%', maxWidth: 600, alignSelf: 'center', padding: 20, paddingBottom: 40 },
+  spinner: { marginTop: 80 },
+  intro: { ...text, fontSize: 15, lineHeight: 22 },
+  title: { ...text, fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  body: { ...text, fontSize: 15, lineHeight: 21, marginTop: 4 },
+  types: { ...text, fontSize: 14, color: getThemeColor(ColorKeys.mutedText), marginTop: 6 },
+  qrCard: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 308,
+    aspectRatio: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: getThemeColor(ColorKeys.border),
+  },
+  qr: { width: '100%', height: '100%' },
+  waiting: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  waitingText: { ...text, fontSize: 15, fontWeight: '600', marginLeft: 10 },
+  muted: { ...text, fontSize: 13, lineHeight: 18, color: getThemeColor(ColorKeys.mutedText), marginTop: 4 },
+  card: {
+    backgroundColor: getThemeColor(ColorKeys.surface),
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: getThemeColor(ColorKeys.border),
+  },
+  section: { ...text, fontSize: 16, fontWeight: '700' },
+  subsection: { marginTop: 16 },
+  field: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  fieldText: { flex: 1, paddingRight: 10 },
+  fieldLabel: { ...text, fontSize: 13, color: getThemeColor(ColorKeys.mutedText) },
+  fieldValue: { ...text, fontSize: 15 },
+  choice: { ...text, fontSize: 15 },
+  notice: {
+    ...text,
+    fontSize: 15,
+    lineHeight: 21,
+    backgroundColor: getThemeColor(ColorKeys.surface),
+    borderLeftWidth: 5,
+    borderLeftColor: getThemeColor(ColorKeys.primary),
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  pin: { marginTop: 18 },
+  error: { ...text, color: getThemeColor(ColorKeys.error), marginTop: 6 },
+  primary: { marginTop: 20 },
+  secondary: { marginTop: 8 },
+})

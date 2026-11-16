@@ -1,0 +1,5 @@
+export { default as PageTitle } from '@shared/components/atomic_components/Text/variants/PageTitle'
+export { default as DescriptionText } from '@shared/components/atomic_components/Text/variants/DescriptionText'
+export { default as Title } from '@shared/components/atomic_components/Text/variants/Title'
+export { default as Subtitle } from '@shared/components/atomic_components/Text/variants/Subtitle'
+export { default as ErrorText } from '@shared/components/atomic_components/Text/variants/ErrorText'

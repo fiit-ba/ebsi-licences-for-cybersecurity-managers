@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Atest",
+    "slug": "Atest",
+    "version": "0.3.3",
+    "scheme": "atest-backend-staging",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
+    "web": {
+      "favicon": "./src/assets/images/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3b0e682c-34fa-4f4f-b420-cb3285c8154a"
+      }
+    }
+  }
+}

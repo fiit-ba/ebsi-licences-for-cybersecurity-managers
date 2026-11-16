@@ -1,0 +1,79 @@
+[profile.default]
+src = "contracts"
+# Vendor code we don't maintain: a warning there is not ours to fix (and
+# dependencies/ is replaced wholesale by `forge soldeer install`).
+ignored_warnings_from = ["dependencies", "local/ebsi-mock"]
+test = "test"
+script = "scripts"
+out = "out"
+libs = ["dependencies"]
+solc = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+# CommitmentInterop runs the back-office's TypeScript to compare hashes.
+ffi = true
+# openzeppelin-foundry-upgrades validates upgrades from the build info and the
+# storage layout.
+build_info = true
+extra_output = ["storageLayout"]
+fs_permissions = [
+  { access = "read", path = "./config" },
+  # The interface as the back-office reads it (scripts/export-abi.js); the
+  # ABI tests check that copy.
+  { access = "read", path = "../back-office/shared/governance-contract.json" },
+  # The deployment records the scripts write (Deploy.s.sol, RotateSigners.s.sol).
+  { access = "read-write", path = "./deployments" },
+]
+# Local code the tests and scripts may import and the contract may not:
+# local/ebsi-mock, copied in by hand (not Soldeer's). Here rather than in
+# remappings.txt, so the prod profile below can leave it out.
+remappings = ["ebsi-mock/=local/ebsi-mock/"]
+# The EBSI mocks are too deep for the legacy pipeline, and the governance
+# contract with a configuration per TI leaves too little room under EIP-170's
+# 24,576 bytes on it.
+# Restricted by path, so tests, the prod build and deployment all get the same
+# bytecode.
+additional_compiler_profiles = [{ name = "via-ir", via_ir = true }]
+compilation_restrictions = [
+  { paths = "local/ebsi-mock/**", via_ir = true },
+  { paths = "contracts/**", via_ir = true },
+]
+
+# The contract alone, without the local code: CI builds it with
+# `FOUNDRY_PROFILE=prod forge build --skip test --skip script`, which fails if
+# anything under contracts/ imports ebsi-mock/.
+[profile.prod]
+remappings = []
+# Its own build output, so a prod build never replaces the one tests and
+# export-abi.js read.
+out = "out/prod"
+cache_path = "cache/prod"
+
+# Coverage: `FOUNDRY_PROFILE=coverage forge coverage`. The contracts on the
+# legacy pipeline, where coverage maps every line; with the via-IR rule above
+# they are compiled twice and part of what runs is not counted. The mocks
+# still need via-IR, and so does every file that imports them, so what only
+# test/EbsiTrustChain.t.sol and test/EbsiBeacon.t.sol exercise is not counted
+# here. Never used to build or deploy.
+[profile.coverage]
+compilation_restrictions = [{ paths = "local/ebsi-mock/**", via_ir = true }]
+out = "out/coverage"
+cache_path = "cache/coverage"
+
+# Solidity dependencies are Soldeer's: `forge soldeer install` fetches what
+# [dependencies] and soldeer.lock name into `dependencies/`, and
+# `forge soldeer install <name>~<version>` adds or bumps one.
+#
+# remappings.txt is not generated. Soldeer would name each library after its
+# package (`@openzeppelin-contracts/`, `forge-std/` without `src/`), while the
+# libraries import each other by their documented paths
+# (`@openzeppelin/contracts/`, `forge-std/Vm.sol`). After a bump, change the
+# version in that library's line of remappings.txt.
+[soldeer]
+remappings_generate = false
+
+[dependencies]
+forge-std = "1.17.0"
+"@openzeppelin-contracts" = "5.7.0"
+"@openzeppelin-contracts-upgradeable" = "5.7.0"
+openzeppelin-foundry-upgrades = "0.4.2"

@@ -1,0 +1,212 @@
+# This file was written in 2026 by the Faculty of Informatics and Information
+# Technologies for the Professional License Registry.
+# Professional License Registry - checks on every push and pull request.
+#
+# Each job is what a developer runs locally (docs/GUIDE.md), so a red job here
+# reproduces on a laptop. The holder wallet's JavaScript dependency, type and
+# Jest checks run here; signed native releases remain a separate release step.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  back-office:
+    name: Back Office and staff console
+    runs-on: ubuntu-24.04
+    services:
+      verifier-cache:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: atest_back_office_test
+          POSTGRES_USER: atest
+          POSTGRES_PASSWORD: test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atest -d atest_back_office_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGDATABASE: atest_back_office_test
+      PGUSER: atest
+      PGPASSWORD: test-only
+      BACK_OFFICE_TEST_REDIS_URL: redis://127.0.0.1:6379/2
+      BACK_OFFICE_TEST_BROKER_URL: redis://127.0.0.1:6379/0
+    defaults:
+      run:
+        working-directory: back-office
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: back-office/package-lock.json
+      - run: npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Install the development EBSI service's dependencies
+        working-directory: infra/ebsi-mock
+        run: npm ci --no-audit --no-fund
+      - run: npm run check:standalone
+      - run: npm run format:check
+      - run: npm run check:docs
+      - run: npm run typecheck
+      - run: npm run build:web
+      - name: Install the contracts' dependencies
+        working-directory: contracts
+        run: forge soldeer install
+      - name: Compile the EBSI registries, the certificate registry and its governance
+        working-directory: contracts
+        run: forge build
+      # One anvil with the contracts deployed by their own Foundry scripts, and the development
+      # EBSI service over it, shared by the server, browser and adapter checks below.
+      - name: Start the test ledger and the development EBSI service
+        run: |
+          node scripts/test-ledger.ts > "$RUNNER_TEMP/test-ledger.env" 2> "$RUNNER_TEMP/test-ledger.log" &
+          for i in $(seq 1 240); do
+            grep -q BACK_OFFICE_TEST_EBSI_URL "$RUNNER_TEMP/test-ledger.env" && break
+            sleep 1
+          done
+          grep -q BACK_OFFICE_TEST_EBSI_URL "$RUNNER_TEMP/test-ledger.env" || { cat "$RUNNER_TEMP/test-ledger.log"; exit 1; }
+          sed -e "s/^export //" -e "s/='\(.*\)'$/=\1/" "$RUNNER_TEMP/test-ledger.env" >> "$GITHUB_ENV"
+      - run: npm run migrate && npm run migrate
+      - name: Run colocated server unit and integration checks
+        run: npm test
+      - name: Install console test browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify browser authentication against the real API
+        run: npm run test:identity:web
+      - name: Verify organization registration and wallet API against PostgreSQL
+        run: npm run test:organizations:web
+      - name: Verify issuance and collection against the API
+        run: npm run test:issuance:web
+      - name: Verify console, mobile and external verifier with the API
+        run: npm run test:verification:web
+      - name: Verify lifecycle, governance and audit against the real API and local contracts
+        run: VITE_LEDGER_CHAIN_ID=31337 npm run build:web && npm run test:lifecycle:web
+      - name: Verify console and real-contract voting workflows
+        run: npm run test:web
+      - name: Verify the certificate registry and governance adapters on the contracts
+        run: node checks/governance-ledger.ts
+      - name: Verify the timestamp adapter on EBSI's Timestamp contract
+        run: node checks/timestamp-ledger.ts
+
+  contracts:
+    name: Contracts (Foundry)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge soldeer install
+      - name: Contract tests and the generated ABI is current
+        run: forge test && node scripts/export-abi.js --check
+
+  holder-wallet:
+    name: Holder wallet (Expo)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: holder-wallet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: holder-wallet/.nvmrc
+      - name: Enable Yarn 1
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - name: Install
+        run: yarn install --frozen-lockfile
+      - name: Expo dependency compatibility
+        run: yarn check:dependencies
+      - name: Type check
+        run: yarn typecheck
+      - name: Tests
+        run: yarn test:ci
+
+  deployment:
+    name: Deployment files
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - name: Development compose
+        run: |
+          sed -e 's/^\([A-Z_]*\)=$/\1=ci/' .env.example > /tmp/dev.env
+          docker compose --env-file /tmp/dev.env -f docker-compose.yml config -q
+      - name: Production compose, with every required value filled
+        run: |
+          sed -e 's/^\([A-Z_]*\)=$/\1=ci/' prod/env.example > /tmp/prod.env
+          docker compose -f docker-compose.prod.yml --env-file /tmp/prod.env config -q
+      - name: Production compose refuses a missing secret
+        run: |
+          sed 's/^BACK_OFFICE_TOKEN_SECRET=.*/BACK_OFFICE_TOKEN_SECRET=/' /tmp/prod.env > /tmp/prod-missing.env
+          ! docker compose -f docker-compose.prod.yml --env-file /tmp/prod-missing.env config -q
+      - name: Staging PKI and nginx configuration
+        run: |
+          ./prod/make-staging-pki.sh /tmp/tls
+          for conf in edge backend-mesh; do
+            templates="-v $PWD/prod/nginx/$conf.conf.template:/etc/nginx/templates/$conf.conf.template:ro"
+            if [ "$conf" = edge ]; then
+              templates="$templates -v $PWD/prod/nginx/backend-upstream.inc.template:/etc/nginx/templates/backend-upstream.inc.template:ro"
+            fi
+            docker run --rm \
+              --add-host backend:127.0.0.1 \
+              --add-host ledger.ci:127.0.0.1 --add-host ebsi.ci:127.0.0.1 \
+              -e PLR_PUBLIC_HOSTNAME=registry.plr.test -e PLR_CONSOLE_HOSTNAME=console.plr.test \
+              -e PLR_STAFF_CIDR=10.0.0.0/8 -e PLR_EBSI_API_ORIGIN=https://ebsi.ci \
+              -e PLR_LEDGER_RPC_URL=https://ledger.ci -e PLR_LEDGER_WALLET_RPC=https://ledger.ci \
+              $templates \
+              -v $PWD/prod/nginx/empty.conf:/etc/nginx/conf.d/default.conf:ro \
+              -v /tmp/tls:/tls:ro \
+              nginx:1.27-alpine sh -c '/docker-entrypoint.sh nginx -t'
+          done
+
+  installation:
+    name: Ordinary product installation and browser acceptance
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --prefix back-office --no-audit --no-fund
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge soldeer install && forge build
+        working-directory: contracts
+      - run: npx playwright install --with-deps chromium
+        working-directory: back-office
+      - name: Fresh ordinary Compose, complete demo seeds, repeat/restart bootstrap, Wallet and built/dev browser
+        working-directory: back-office
+        run: PLR_TEST_PUBLIC_HOST="$(hostname -I | awk '{print $1}')" npm run test:installation

@@ -1,0 +1,52 @@
+# Local Besu QBFT network
+
+From the repository root:
+
+```sh
+cd infra/besu/besu-qbft-network
+docker compose up -d
+```
+
+This starts four QBFT validators. Validator 1 exposes JSON-RPC at
+`http://localhost:8545`, chain ID `1337`. The Compose project name is explicitly
+`besu-qbft-network`. Genesis and development node keys remain in `networkFiles/`;
+validator chain state is stored in the ignored `data/` directory.
+
+Ordinary stop/start preserves chain state:
+
+```sh
+docker compose stop
+docker compose up -d
+```
+
+For an intentional fresh chain, including after a genesis change, stop the nodes
+before removing their databases. Run these commands from this network directory:
+
+```sh
+docker compose down
+rm -rf ./data
+docker compose up -d
+```
+
+A reset removes deployed contracts and their history. Deploy the governance
+contract again from `contracts/` with `npm run deploy:besu`, then update its address
+in `infra/.env` and the Wallet configuration. Continue with the normal product
+Compose/bootstrap described in `docs/GUIDE.md` at the repository root.
+
+## Optional block explorer
+
+Besu must already be running. From the repository root:
+
+```sh
+cd infra/besu/besu-qbft-network/besu-explorer/docker-compose
+# First setup only; retain an existing private .env on subsequent runs.
+cp .env.example .env
+docker compose up -d
+```
+
+The default endpoint is `http://host.docker.internal:8545`, reachable from Docker
+Desktop containers. On Linux configure a host address reachable by the explorer.
+The explorer is available at `http://localhost` by default; its `.env` selects
+another HTTP port. It remains a separate optional Compose project.
+
+To stop the explorer, run `docker compose down` in its Compose directory.

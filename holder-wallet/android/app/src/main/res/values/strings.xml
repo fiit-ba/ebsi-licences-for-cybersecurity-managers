@@ -1,0 +1,11 @@
+<resources>
+  <!--
+       The wallet's name (src/constants/brand.ts). -->
+  <string name="app_name">Atest</string>
+  <!--
+       The splash is drawn at its designed size (drawable/splashscreen.xml): "cover"
+       enlarged the lockup to fill the screen and cropped it. -->
+  <string name="expo_splash_screen_resize_mode" translatable="false">native</string>
+  <!-- <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string> -->
+  <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
+</resources>

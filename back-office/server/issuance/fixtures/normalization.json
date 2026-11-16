@@ -1,0 +1,390 @@
+{
+  "claims": [
+    {
+      "claims": {
+        "value": "value"
+      }
+    },
+    {
+      "claims": {
+        "value": "value"
+      }
+    },
+    {
+      "claims": {
+        "value": "42"
+      }
+    },
+    {
+      "claims": {
+        "value": "1.5"
+      }
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    },
+    {
+      "claims": {
+        "value": "2026-11-04"
+      }
+    },
+    {
+      "claims": {
+        "value": "2026-11-04"
+      }
+    },
+    {
+      "claims": {
+        "value": "2026-11-04"
+      }
+    },
+    {
+      "claims": {
+        "value": "2026-11-04"
+      }
+    },
+    {
+      "claims": {
+        "value": "2026-11-04"
+      }
+    },
+    {
+      "claims": {
+        "value": "2026-11-02"
+      }
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    },
+    {
+      "claims": {
+        "value": 1
+      }
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "claims": {
+        "value": 2
+      }
+    },
+    {
+      "claims": {
+        "value": 2
+      }
+    },
+    {
+      "claims": {
+        "value": 1000
+      }
+    },
+    {
+      "claims": {
+        "value": 12
+      }
+    },
+    {
+      "claims": {
+        "value": 12
+      }
+    },
+    {
+      "claims": {
+        "value": 2
+      }
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": [],
+      "invalid": ["value"]
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    },
+    {
+      "missing": ["value"],
+      "invalid": []
+    }
+  ],
+  "inputs": [
+    {
+      "errors": {
+        "holder_reference": ["This field is required."],
+        "claims": ["This field is required."]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["This field may not be blank."],
+        "claims": [
+          "Certificate attributes are required; an empty credential says nothing about the holder's competence."
+        ]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["This field may not be null."],
+        "claims": ["This field may not be null."]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["Not a valid string."]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["Not a valid string."]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["Not a valid string."]
+      }
+    },
+    {
+      "errors": {
+        "holder_reference": ["Ensure this field has no more than 255 characters."]
+      }
+    },
+    {
+      "holder": "42",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "holder": "reference",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "holder": "🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "errors": {
+        "claims": ["Expected a dictionary of items but got type \"list\"."]
+      }
+    },
+    {
+      "errors": {
+        "claims": ["Expected a dictionary of items but got type \"bool\"."]
+      }
+    },
+    {
+      "errors": {
+        "claims": ["Expected a dictionary of items but got type \"str\"."]
+      }
+    },
+    {
+      "errors": {
+        "claims": [
+          "Certificate attributes are required; an empty credential says nothing about the holder's competence."
+        ]
+      }
+    },
+    {
+      "errors": {
+        "claims": [
+          "credentialSubject.id is the holder's DID and is set by the Issuer Service when the offer is redeemed."
+        ]
+      }
+    },
+    {
+      "errors": {
+        "issuer_did": ["This field may not be null."]
+      }
+    },
+    {
+      "errors": {
+        "issuer_did": ["This field may not be blank."]
+      }
+    },
+    {
+      "errors": {
+        "issuer_did": ["Not a valid string."]
+      }
+    },
+    {
+      "errors": {
+        "issuer_did": ["Not a valid string."]
+      }
+    },
+    {
+      "errors": {
+        "issuer_did": ["Ensure this field has no more than 255 characters."]
+      }
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "errors": {
+        "credential_types": ["This field may not be null."]
+      }
+    },
+    {
+      "errors": {
+        "credential_types": ["Expected a list of items but got type \"str\"."]
+      }
+    },
+    {
+      "errors": {
+        "credential_types": ["Expected a list of items but got type \"dict\"."]
+      }
+    },
+    {
+      "errors": {
+        "credential_types": {
+          "0": ["This field may not be null."]
+        }
+      }
+    },
+    {
+      "errors": {
+        "credential_types": {
+          "0": ["Not a valid string."]
+        }
+      }
+    },
+    {
+      "errors": {
+        "credential_types": {
+          "0": ["This field may not be blank."]
+        }
+      }
+    },
+    {
+      "errors": {
+        "credential_types": {
+          "0": ["Ensure this field has no more than 255 characters."]
+        }
+      }
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "errors": {
+        "valid_until": [
+          "Datetime has wrong format. Use one of these formats instead: YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]."
+        ]
+      }
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": "2030-11-04T00:00:00+00:00"
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": "2030-11-04T00:00:00+00:00"
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": "2030-11-04T10:30:00+00:00"
+    },
+    {
+      "holder": "ref",
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "errors": {
+        "valid_until": [
+          "Datetime has wrong format. Use one of these formats instead: YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]."
+        ]
+      }
+    },
+    {
+      "errors": {
+        "non_field_errors": ["valid_until must be after valid_from."]
+      }
+    },
+    {
+      "errors": {
+        "valid_until": ["valid_until must be in the future."]
+      }
+    }
+  ]
+}

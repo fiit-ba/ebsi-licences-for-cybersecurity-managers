@@ -1,0 +1,9 @@
+node_modules/
+web/dist/
+test-results/
+playwright-report/
+package-lock.json
+web/src/blockchain/certificateGovernanceContract.ts
+shared/governance-contract.json
+shared/governance-contract.ts
+web/public/

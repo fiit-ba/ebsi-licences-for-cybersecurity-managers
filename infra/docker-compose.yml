@@ -1,0 +1,187 @@
+# Ordinary development product: separate TypeScript API and BullMQ worker processes.
+# Start the Besu network and deploy the EBSI registries and the certificate registry with
+# its governance first (contracts/: make deploy-besu); mvp-scripts/start-mvp.sh does both.
+name: plr
+
+x-runtime: &runtime
+  build:
+    context: ../back-office
+    args:
+      VITE_GOVERNANCE_CONTRACT: ${PLR_GOVERNANCE_CONTRACT:?Deploy the governance contract first}
+      VITE_LEDGER_CHAIN_ID: ${PLR_LEDGER_CHAIN_ID:-1337}
+      VITE_LEDGER_WALLET_RPC: ${PLR_LEDGER_WALLET_RPC:-}
+  image: atest-back-office:local
+  environment: &environment
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: atest
+    PGPASSWORD: ${POSTGRES_PASSWORD:-atest-development}
+    PGDATABASE: atest
+    HOST: 0.0.0.0
+    PORT: "8088"
+    BACK_OFFICE_TOKEN_SECRET: ${BACK_OFFICE_TOKEN_SECRET:-development-only-atest-token-secret-2026}
+    PLR_FIELD_KMS_KEY_ID: ${PLR_FIELD_KMS_KEY_ID:-}
+    BACK_OFFICE_PUBLIC_ORIGIN: http://${PLR_PUBLIC_HOST:?Set a host reachable by containers and Wallet}:${PLR_API_PORT:-8000}
+    BACK_OFFICE_DEVELOPMENT: "true"
+    PLR_DEV_PASSWORD: ${PLR_DEV_PASSWORD:-Atest-2026!Demo}
+    BACK_OFFICE_ISSUANCE_ENABLED: "true"
+    BACK_OFFICE_CONSOLE_ENABLED: "true"
+    PLR_NUM_PROXIES: "0"
+    REDIS_BROKER_URL: redis://redis:6379/0
+    PLR_WORKER_CONCURRENCY: ${PLR_WORKER_CONCURRENCY:-2}
+    PLR_GOVERNANCE_RECONCILE_SECONDS: ${PLR_GOVERNANCE_RECONCILE_SECONDS:-120}
+    PLR_STANDING_SWEEP_SECONDS: ${PLR_STANDING_SWEEP_SECONDS:-60}
+    PLR_REDIS_CACHE_URL: redis://redis:6379/2
+    PLR_ISSUER_DID: ${PLR_ISSUER_DID:-did:ebsi:zvHWX359A3CvfJnCYaAiAde}
+    PLR_EBSI_MOCK_URL: http://ebsi-mock:8090
+    # EBSI's Core API v1 (development: the ebsi-mock service over the local ledger).
+    PLR_EBSI_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}
+    PLR_TIR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/issuers-registry
+    PLR_DIDR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/did-registry/identifiers
+    PLR_TSR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/schemas-registry
+    PLR_TRUSTED_ROOT_DIDS: ${PLR_TRUSTED_ROOT_DIDS:-did:ebsi:zSupport}
+    PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/schemas-registry/schemas/zPlrCertificateStatusEntryV4
+    PLR_GOVERNANCE_CONTRACT: ${PLR_GOVERNANCE_CONTRACT:?}
+    PLR_CERTIFICATE_REGISTRY: ${PLR_CERTIFICATE_REGISTRY:?Deploy the certificate registry first}
+    # The TAO the contracts were deployed for, and the supervisory authority that cosigns
+    # every TI's decisions as role C.
+    PLR_GOVERNANCE_TAO_DID: ${PLR_GOVERNANCE_TAO_DID:-did:ebsi:zmQaJTYt1ftvnjrwxWpPDUX}
+    PLR_SUPERVISOR_DID: ${PLR_SUPERVISOR_DID:-did:ebsi:zrFwbt4GwApPbWm9racT3x9}
+    PLR_GOVERNANCE_CONSOLE_ROLES: A,B
+    PLR_ORGANIZATION_REGISTRATION_RATE: ${PLR_ORGANIZATION_REGISTRATION_RATE:-10/hour}
+    PLR_LEDGER_CHAIN_ID: ${PLR_LEDGER_CHAIN_ID:-1337}
+    # Every transaction goes through the Ledger API, with a token; reads need none.
+    PLR_LEDGER_RPC_URL: ${PLR_LEDGER_RPC_URL:-http://ebsi-mock:8090/v1/ledger}
+    PLR_KMS_ENDPOINT_URL: http://kms:4566
+    AWS_REGION: eu-central-1
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    BACK_OFFICE_PASSWORD_RECOVERY_ENABLED: "false"
+    BACK_OFFICE_TIMESTAMP_ENABLED: "false"
+  extra_hosts:
+    - host.docker.internal:host-gateway
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: atest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atest-development}
+      POSTGRES_DB: atest
+    volumes:
+      - product-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U atest -d atest"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    # Use Redis defaults without explicit AOF configuration or a named data volume.
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kms:
+    image: gresau/localstack-persist:3.8.0@sha256:457015a0a96e4a10778034cfb85603791e0b9f16a533594e036778e5fa315d6f
+    restart: unless-stopped
+    environment:
+      SERVICES: kms
+      PERSIST_DEFAULT: "0"
+      PERSIST_KMS: "1"
+      PERSIST_FREQUENCY: "1"
+      DEBUG: "0"
+    volumes:
+      - product-kms:/persisted-data
+    healthcheck:
+      test: [CMD-SHELL, "awslocal kms list-keys >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  ebsi-mock:
+    build: ./ebsi-mock
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "8090"
+      MOCK_SUPPORT_OFFICE_DID: ${PLR_TRUSTED_ROOT_DIDS:-did:ebsi:zSupport}
+      MOCK_SUPERVISOR_DID: ${PLR_SUPERVISOR_DID:-did:ebsi:zrFwbt4GwApPbWm9racT3x9}
+      MOCK_BASE_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}
+      MOCK_LEDGER_RPC_URL: ${PLR_BESU_RPC_URL:-http://host.docker.internal:8545}
+      # The EBSI registries and the certificate registry with its governance, as deployed.
+      MOCK_EBSI_DEPLOYMENT: /deployments/besu-ebsi.json
+      MOCK_GOVERNANCE_DEPLOYMENT: /deployments/besu.json
+    volumes:
+      # Where the deployed contracts are recorded (contracts/deployments, unless a check owns its own).
+      - ${PLR_DEPLOYMENTS_DIR:-../contracts/deployments}:/deployments:ro
+    ports:
+      - "${PLR_BIND_ADDRESS:-127.0.0.1}:${PLR_REGISTRY_PORT:-8090}:8090"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8090/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    <<: *runtime
+    command: [node, data/migrate.ts]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    <<: *runtime
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 90s
+    ports:
+      - "${PLR_BIND_ADDRESS:-127.0.0.1}:${PLR_API_PORT:-8000}:8088"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      kms:
+        condition: service_healthy
+      ebsi-mock:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8088/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    <<: *runtime
+    command: [node, server/worker/start.ts]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 90s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      kms:
+        condition: service_healthy
+      ebsi-mock:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, server/worker/health.ts]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+
+volumes:
+  # Dedicated development volumes for PostgreSQL and KMS data.
+  product-postgres: {}
+  product-kms: {}

@@ -1,0 +1,5 @@
+export { readWallet as getKeychainDataObject, writeWallet as setKeychainDataObject } from './keychain.adapter'
+export * from './credential.repository'
+export * from './presentation.repository'
+export * from './history.repository'
+export * from './walletLifecycle.repository'

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2340" viewBox="0 0 1080 2340">
+  <!--DEFS-->
+  <rect width="1080" height="2340" fill="url(#navy)"/>
+  <rect width="1080" height="2340" fill="url(#dots)"/>
+  <rect width="1080" height="2340" fill="url(#glow)"/>
+  <rect width="1080" height="2340" fill="url(#glow2)"/>
+  <!-- The glyph's outline, large and faint. -->
+  <g fill="none" stroke="#FFFFFF" stroke-opacity="0.05" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path transform="translate(520 1380) scale(9)" d="M25 80 L50 19 L75 80"/>
+    <path transform="translate(520 1380) scale(9)" d="M33 60 L44.5 70.5 L68 49"/>
+  </g>
+</svg>
