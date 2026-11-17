@@ -1,0 +1,227 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "sbom/generate.mjs"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "atest:contracts",
+      "name": "contracts",
+      "version": "0.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "atest:source",
+        "value": "contracts/package-lock.json"
+      },
+      {
+        "name": "atest:source",
+        "value": "contracts/soldeer.lock"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "curated:EBSI registry and factory contracts@",
+      "supplier": {
+        "name": "European Commission (EBSI)"
+      },
+      "name": "EBSI registry and factory contracts",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "EUPL-1.2"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://ec.europa.eu/digital-building-blocks/sites/display/EBSI"
+        }
+      ],
+      "properties": [
+        {
+          "name": "atest:use",
+          "value": "development"
+        },
+        {
+          "name": "atest:location",
+          "value": "contracts/local/ebsi-mock/"
+        },
+        {
+          "name": "atest:category",
+          "value": "Vendored files"
+        },
+        {
+          "name": "atest:note",
+          "value": "Copied in by hand, unchanged licence headers (\"EUPL V1.2\"). Deployed only to the local development chain; the production build excludes them and the production installation uses EBSI's own registries."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/%40openzeppelin-contracts@5.6.1?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2F%40openzeppelin-contracts%2F5_6_1_15-03-2026_09%3A19%3A50_contracts.zip",
+      "name": "@openzeppelin-contracts",
+      "version": "5.6.1",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a3b6bc661be858c7c27f60a1708cbebe8c71034b4cc1e9fe270d0a05b069352f"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:generic/%40openzeppelin-contracts@5.6.1?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2F%40openzeppelin-contracts%2F5_6_1_15-03-2026_09%3A19%3A50_contracts.zip",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/OpenZeppelin/openzeppelin-contracts"
+        }
+      ],
+      "properties": [
+        {
+          "name": "atest:use",
+          "value": "production"
+        },
+        {
+          "name": "atest:note",
+          "value": "Compiled into the deployed contracts (ERC165)."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/%40openzeppelin-contracts-upgradeable@5.6.1?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2F%40openzeppelin-contracts-upgradeable%2F5_6_1_15-03-2026_09%3A19%3A56_contracts-upgradeable.zip",
+      "name": "@openzeppelin-contracts-upgradeable",
+      "version": "5.6.1",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f6257dbc993c2499fe08fdc93f66e12459fe3458ee62ce716b92e1d95ee0b504"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:generic/%40openzeppelin-contracts-upgradeable@5.6.1?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2F%40openzeppelin-contracts-upgradeable%2F5_6_1_15-03-2026_09%3A19%3A56_contracts-upgradeable.zip",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable"
+        }
+      ],
+      "properties": [
+        {
+          "name": "atest:use",
+          "value": "production"
+        },
+        {
+          "name": "atest:note",
+          "value": "Compiled into the deployed contracts (OwnableUpgradeable, Initializable)."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/forge-std@1.17.0?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2Fforge-std%2F1_17_0_01-10-2026_10%3A59%3A49_forge-std-1.17.zip",
+      "name": "forge-std",
+      "version": "1.17.0",
+      "scope": "excluded",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a77ad38d5fbef0ec10d1f4d191698e5fbaa2bffbee5d1aced91a39da5e9b908c"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:generic/forge-std@1.17.0?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2Fforge-std%2F1_17_0_01-10-2026_10%3A59%3A49_forge-std-1.17.zip",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/foundry-rs/forge-std"
+        }
+      ],
+      "properties": [
+        {
+          "name": "atest:use",
+          "value": "development"
+        },
+        {
+          "name": "atest:note",
+          "value": "Tests and deployment scripts."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/openzeppelin-foundry-upgrades@0.4.2?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2Fopenzeppelin-foundry-upgrades%2F0_4_2_05-08-2026_15%3A52%3A28_openzeppelin-foundry-upgrades.zip",
+      "name": "openzeppelin-foundry-upgrades",
+      "version": "0.4.2",
+      "scope": "excluded",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52618e6037df7c02671d94599647ef4caccbcad043ad8d663551275bc47f5a2e"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:generic/openzeppelin-foundry-upgrades@0.4.2?download_url=https%3A%2F%2Fsoldeer-revisions.s3.amazonaws.com%2Fopenzeppelin-foundry-upgrades%2F0_4_2_05-08-2026_15%3A52%3A28_openzeppelin-foundry-upgrades.zip",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades"
+        }
+      ],
+      "properties": [
+        {
+          "name": "atest:use",
+          "value": "development"
+        },
+        {
+          "name": "atest:note",
+          "value": "Deployment scripts: proxy deployment and upgrade checks."
+        }
+      ]
+    }
+  ]
+}
