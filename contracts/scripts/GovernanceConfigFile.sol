@@ -11,8 +11,8 @@ import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
  * REVOKE, REINSTATE, ADMIN), and the proposal lifetime.
  *
  * Roles are named by letter, A for role 1 to H for role 8. Who may veto is
- * named for every policy rather than defaulted to every role (DECISIONS.md
- * D21): a configuration says it, or it does not load.
+ * named for every policy rather than defaulted to every role: a
+ * configuration says it, or it does not load.
  */
 abstract contract GovernanceConfigFile is CommonBase {
     using stdJson for string;

@@ -7,12 +7,18 @@ import {ITiAccreditation} from "../interfaces/ITiAccreditation.sol";
 /**
  * @title TiAccreditation
  * @notice The EBSI registries this contract trusts, and the question it asks
- *         them: is this TI accredited right now? The TAO can repoint them
- *         (`setRegistries`), which is as far as a TI can trust the TAO.
+ *         them: is this TI accredited right now? The registries are set once,
+ *         when the proxy is initialized, and nothing changes them afterwards:
+ *         on EBSI their addresses are fixed, so a key that could repoint them
+ *         (the TAO's, if it were compromised) would only be a risk. Should
+ *         EBSI ever move one, a new implementation version, which each
+ *         proxy's owner opts into, would have to carry the change.
  */
 abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
     /// @notice Most accreditation hops walked above a TI: the registry's own
-    ///         limit. A chain cannot be longer, and EBSI charges no gas.
+    ///         limit, so a chain cannot be longer. Each hop is one more read
+    ///         of the Trusted Issuers Registry, and so more gas wherever gas is
+    ///         charged (EBSI's production network; its PILOT charges none).
     uint8 public constant MAX_TRUST_CHAIN_DEPTH = 32;
 
     /// @custom:storage-location erc7201:plr.storage.TiAccreditation
@@ -53,32 +59,20 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
         _;
     }
 
+    /// @dev Called once, by `initialize`: there is no other way to set them.
     function _setRegistries(string memory taoDid_, address didRegistry_, address issuersRegistry_) internal {
         if (bytes(taoDid_).length == 0) revert InvalidTaoDid();
-        _accreditationStorage().taoDid = taoDid_;
-        _storeRegistries(didRegistry_, issuersRegistry_);
-    }
-
-    /// @dev Without an owner nothing here could change again, a broken
-    ///      registry included.
-    function renounceOwnership() public pure override {
-        revert OwnershipNotRenounceable();
-    }
-
-    /// @dev `onlyOwner`, not `onlyTao`: a broken DID Registry must stay
-    ///      replaceable. The TAO's key is checked against the new one instead,
-    ///      so a wrong address cannot lock the TAO out.
-    function setRegistries(address didRegistry_, address issuersRegistry_) external onlyOwner {
-        _storeRegistries(didRegistry_, issuersRegistry_);
-        if (!_controls(taoDid(), msg.sender)) revert NotDidController();
-        emit RegistriesChanged(didRegistry_, issuersRegistry_);
-    }
-
-    function _storeRegistries(address didRegistry_, address issuersRegistry_) private {
         if (didRegistry_.code.length == 0 || issuersRegistry_.code.length == 0) revert InvalidRegistry();
         AccreditationStorage storage $ = _accreditationStorage();
+        $.taoDid = taoDid_;
         $.didRegistry = didRegistry_;
         $.issuersRegistry = issuersRegistry_;
+    }
+
+    /// @dev Without an owner no TI could be set up again, nor a TI's cosigners
+    ///      or accreditation attribute changed.
+    function renounceOwnership() public pure override {
+        revert OwnershipNotRenounceable();
     }
 
     /// @dev Asks the Trusted Issuers Registry, on every call, whether the

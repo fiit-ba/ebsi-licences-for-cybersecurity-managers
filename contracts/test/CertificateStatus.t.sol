@@ -7,7 +7,7 @@ import {Hashes} from "../contracts/libraries/Hashes.sol";
 import {IStatusProposals} from "../contracts/interfaces/IStatusProposals.sol";
 
 /**
- * Each certificate on chain (DECISIONS.md D30, D36, D42): recorded with its id,
+ * Each certificate on chain: recorded with its id,
  * its TI, its credential's hash and its validity when it is issued, suspended
  * at once on one signature, and its standing set by every executed proposal. The only source
  * of truth a verifier reads, without the back-office.

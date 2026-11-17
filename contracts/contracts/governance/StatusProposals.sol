@@ -11,13 +11,13 @@ import {Ballots} from "./Ballots.sol";
  * @title StatusProposals
  * @notice Proposals to suspend, revoke or reinstate a certificate (component
  *         10.5), and their audit verification (component 10.7). An executed
- *         proposal sets the certificate's standing in the registry (D30, D39).
+ *         proposal sets the certificate's standing in the registry.
  */
 abstract contract StatusProposals is IStatusProposals, Ballots {
     using PolicyRules for ActionType;
 
-    /// @notice A status change proposal: the certificate's record (D42), and
-    ///         the commitment of its reason (DECISIONS.md D22).
+    /// @notice A status change proposal: the certificate's record, and
+    ///         the commitment of its reason.
     struct Proposal {
         bytes32 statusKey;
         ActionType actionType;
@@ -99,8 +99,8 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         _signProposal(proposalId, _openProposal(proposalId));
     }
 
-    /// @dev Sets the certificate's standing (D30): SUSPENDED, REVOKED (for
-    ///      good), or VALID again. This is what a verifier reads (D36); the
+    /// @dev Sets the certificate's standing: SUSPENDED, REVOKED (for
+    ///      good), or VALID again. This is what a verifier reads; the
     ///      back-office catches up via `ProposalExecuted`.
     function execute(uint256 proposalId) external {
         Proposal storage p = _openProposal(proposalId);
@@ -149,7 +149,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     ///      id (`computeStatusKey`), compares it with the proposal's, and
     ///      reads the registry's `certificateStatus` to confirm the executed
     ///      action stuck. The reason's pre-image comes from the back-office,
-    ///      which records every disclosure (DECISIONS.md D22).
+    ///      which records every disclosure.
     function computeReasonHash(string calldata reasonCode, string calldata reasonNote, bytes32 salt)
         public
         pure

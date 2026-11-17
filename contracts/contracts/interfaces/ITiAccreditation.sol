@@ -7,17 +7,13 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  * @notice The EBSI registries the contract trusts, and whether a TI is active.
  */
 interface ITiAccreditation is IGovernanceTypes {
-    event RegistriesChanged(address didRegistry, address issuersRegistry);
-
-    /// @notice EBSI's DID Registry.
+    /// @notice EBSI's DID Registry, set when the proxy is initialized and
+    ///         never changed.
     function didRegistry() external view returns (address);
 
-    /// @notice EBSI's Trusted Issuers Registry.
+    /// @notice EBSI's Trusted Issuers Registry, set when the proxy is
+    ///         initialized and never changed.
     function issuersRegistry() external view returns (address);
-
-    /// @notice Point the contract at other registries. TAO only, at once; the
-    ///         TAO's key must be valid in the new DID Registry.
-    function setRegistries(address didRegistry_, address issuersRegistry_) external;
 
     /// @notice The DID of the TAO that accredits this contract's TIs.
     function taoDid() external view returns (string memory);

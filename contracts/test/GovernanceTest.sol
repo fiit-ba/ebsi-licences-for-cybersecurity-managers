@@ -36,7 +36,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     RoleSet internal constant NONE = RoleSet.wrap(0);
     RoleSet internal constant ALL = RoleSet.wrap(0x07);
 
-    /// A reason commitment for tests that are about something else (D22). A
+    /// A reason commitment for tests that are about something else. A
     /// real one is computeReasonHash(category, note, salt); NO_REASON is the
     /// zero hash, which only a reinstatement may give.
     bytes32 internal constant REASON_GIVEN = 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;

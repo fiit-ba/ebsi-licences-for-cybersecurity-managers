@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 /// @dev Role and RoleSet were both bare `uint8` once: `requiredRoles = 3`
 ///      compiled and ran, but meant {A, B} (0b011), not role C. Two types
 ///      stop that mix-up in-contract; the ABI still uses `uint8` for both,
-///      so a set is named `...Mask` instead (D21).
+///      so a set is named `...Mask` instead.
 
 /// @notice One organisational role of component 10.2, numbered 1..8; 0 is no role.
 type Role is uint8;

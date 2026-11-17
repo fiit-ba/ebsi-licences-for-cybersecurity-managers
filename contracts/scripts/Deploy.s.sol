@@ -11,7 +11,7 @@ import {Networks} from "./Networks.sol";
 import {EBSIContracts} from "./DeployTypes.sol";
 
 /**
- * Deploy the certificate registry and the governance contract (D39) to the
+ * Deploy the certificate registry and the governance contract to the
  * local Besu QBFT network.
  *
  * This is a pilot deployment path, not the EBSI one. EBSI is permissioned and
@@ -34,7 +34,7 @@ import {EBSIContracts} from "./DeployTypes.sol";
  *                                   default a placeholder on a dev chain, else required
  *   GOVERNANCE_BEACON_OWNER         who can add beacon versions / opt the proxy into
  *                                   one; default the deployer on a dev chain, else
- *                                   required (TODO-v3.md O1)
+ *                                   required
  *   GOVERNANCE_STORAGE_LAYOUT_HASH  storage layout hash for VersionedUpgradeableBeacon
  *                                   (`forge inspect ...storageLayout`); default a hash
  *                                   of the implementation's code on a dev chain
@@ -176,7 +176,7 @@ contract Deploy is Script, Networks {
         console.log(string.concat("  PLR_CERTIFICATE_REGISTRY=", vm.toString(address(registry)), "  (infra/.env)"));
         console.log(string.concat("  CERTIFICATE_REGISTRY=", vm.toString(address(registry)), "      (holder-wallet/.env)"));
         console.log("\nThe back-office records every collected certificate on it (its sweep), and");
-        console.log("watches ProposalExecuted to bring its own cases up to the contract (D36).");
+        console.log("watches ProposalExecuted to bring its own cases up to the contract.");
     }
 
     /// Whoever holds the beacon can change every rule, so off a development

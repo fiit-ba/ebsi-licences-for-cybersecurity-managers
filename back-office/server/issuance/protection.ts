@@ -68,7 +68,7 @@ export function certificateIdHash(certificateId: string) {
  * @param issuerDid - DID of the TI that issued the credential.
  * @param certificateId - The signed credential's `vc.id`.
  * @returns SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certificateIdHash)), the
- * contract's `Hashes.statusKey`; contracts/test/CommitmentInterop.t.sol compares both.
+ * contract's `Hashes.statusKey`; both are checked against contracts/test/vectors/hashes.json.
  * @remarks Every verifier computes the same key from the credential it is shown, so the key is
  * not carried in the credential.
  */

@@ -2,8 +2,8 @@
 # This file was written in 2026 by the Faculty of Informatics and Information
 # Technologies for the Professional License Registry.
 #
-# Verify the governance contract's three on-chain pieces (DECISIONS.md D45:
-# an implementation, an UpgradeableBeacon, a BeaconProxy), and, when
+# Verify the governance contract's three on-chain pieces (an implementation,
+# an UpgradeableBeacon, a BeaconProxy), and, when
 # deployments/<label>-ebsi.json exists, each EBSI mock registry's
 # implementation and ERC1967Proxy - against a running forge
 # verify-contract-compatible verifier. Called from the Makefile

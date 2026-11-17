@@ -17,7 +17,7 @@ test('finalization signs a holder-bound credential without blocking on backgroun
   const subject = 'did:key:zExampleHolder';
   const number = 'Číslo-42';
   // The record key is the registry's computeStatusKey: SHA-256 over abi.encode of the domain,
-  // the TI's DID and the hash of the credential's id (contracts/test/CommitmentInterop.t.sol).
+  // the TI's DID and the hash of the credential's id (contracts/test/vectors/hashes.json).
   assert.equal(
     certificateStatusKey(issuer, 'urn:uuid:752bdc2c-83dd-4283-a867-e9f967b84034').toString('hex'),
     'c00fb514b3991b4bf0d0ff2e4eca3d926e060c1b17fe32fac2a56265c17e6a19',

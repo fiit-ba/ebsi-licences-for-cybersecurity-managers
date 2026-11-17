@@ -75,7 +75,9 @@ Smart Contracts Factory deploys a template: the implementation and its beacon
 are created, a template is registered for them in the Proxy Templates
 Registry, and the Proxy Factory creates the proxy and runs its initializer.
 The registry is deployed first, governance is initialized with its address,
-and then the registry is pointed at governance.
+and then the registry is pointed at governance. Governance's initializer is
+the only place the DID Registry and the Trusted Issuers Registry are set: no
+call changes them afterwards.
 
 ```mermaid
 sequenceDiagram

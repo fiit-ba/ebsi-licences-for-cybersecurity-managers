@@ -1,0 +1,70 @@
+{
+  "_description": "Known answers for contracts/libraries/Hashes.sol, written by test/vectors/generate.py. certificateIdHash = SHA-256(abi.encode(\"PLR-CERTIFICATE-ID-V1\", certificateId)); statusKey = SHA-256(abi.encode(\"PLR-CERTIFICATE-V4\", issuerDid, certificateIdHash)); reasonHash = SHA-256(abi.encode(\"PLR-REASON-V1\", code, note, salt)). Strings are UTF-8, used exactly as given (a trailing space included). test/HashVectors.t.sol checks the contracts against them; any other implementation of these hashes should check itself against the same file.",
+  "statusKeys": [
+    {
+      "name": "a credential's id",
+      "issuerDid": "did:ebsi:zvHWX359A3CvfJnCYaAiAde",
+      "certificateId": "urn:uuid:3f1a9c2b-7e4d-4056-a1b3-c5d7e9f02134",
+      "certificateIdHash": "0xa52cd06104d793bfbc0a615ba0e9d2e34dc5114f565f3548a8cebbf40e2e6579",
+      "statusKey": "0xfd0c951782210c33f59c32d8e12b0111951680ae5881b701dc4669ce69fc90eb"
+    },
+    {
+      "name": "an id with diacritics",
+      "issuerDid": "did:ebsi:zvHWX359A3CvfJnCYaAiAde",
+      "certificateId": "urn:uuid:č-17",
+      "certificateIdHash": "0xb6bf8d714d3be420d591fc7b1669b79551d6a4b7192bc82b17e41b7c618babd2",
+      "statusKey": "0x0bb45b7c38165514382ded405dc9f9dc418c19070f173cbbf344eaf038df2683"
+    },
+    {
+      "name": "a DID and an id that concatenate alike",
+      "issuerDid": "did:ebsi:zvHWX359A3CvfJnCYaAiAde2",
+      "certificateId": "48",
+      "certificateIdHash": "0x7097e650fb03337683774905341a72dd91555c3166c839816f678858f23a2161",
+      "statusKey": "0x98e393cb1e338d9d8f102a09e59c772d80d01db195a0b19562068d66c847a11b"
+    },
+    {
+      "name": "a DID longer than one ABI word",
+      "issuerDid": "did:ebsi:zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "certificateId": "7",
+      "certificateIdHash": "0xb03d5d5be49f2ea35c55fa6192b1d7fb2406fb17e6330bcecacc5e599ce561cc",
+      "statusKey": "0x46e36ec63881e0ff257cbd2f6a5f0cb0467566e8d0965d421fb74634e2234ad4"
+    },
+    {
+      "name": "an id longer than one ABI word",
+      "issuerDid": "did:ebsi:zvHWX359A3CvfJnCYaAiAde",
+      "certificateId": "PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-PLR-",
+      "certificateIdHash": "0xb3fcfa50f577d78769d73269f87e8e4e4311c272c0d87d22a75ca137fa3fd909",
+      "statusKey": "0x1aea6f2c7d7210d76d9babfe9a18d3841bc51828263d74a5e11feecf1e5e5cd8"
+    }
+  ],
+  "reasons": [
+    {
+      "name": "a category alone",
+      "code": "conditions_not_met",
+      "note": "",
+      "salt": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "reasonHash": "0x742389eb070c4d684213e2081d0c4307d3d707c06d485aee50525dbfbd1abf7f"
+    },
+    {
+      "name": "a note with diacritics",
+      "code": "other",
+      "note": "Doklady o vzdelaní boli sfalšované",
+      "salt": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "reasonHash": "0xcfef304c258e6eb7163b0d7a7b7205c7f3575acd25b10ec505020940a46e1b95"
+    },
+    {
+      "name": "a note longer than one ABI word",
+      "code": "supervisory_decision",
+      "note": "rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie rozhodnutie ",
+      "salt": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "reasonHash": "0xa35203f9b6c930899deb3b3b92c8b8047e32004b16f062f47355d9c2fc5bd47b"
+    },
+    {
+      "name": "a reinstatement without a reason",
+      "code": "none",
+      "note": "",
+      "salt": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "reasonHash": "0x9b37c4a120f877a3c6c83a388389b5b043fe8bee1c4263be91bd8dcdb14a659f"
+    }
+  ]
+}

@@ -80,6 +80,9 @@ jobs:
       - name: Compile the EBSI registries, the certificate registry and its governance
         working-directory: contracts
         run: forge build
+      - name: The back-office's copies of the contracts' interface are current
+        working-directory: contracts
+        run: node scripts/export-abi.js --check
       # One anvil with the contracts deployed by their own Foundry scripts, and the development
       # EBSI service over it, shared by the server, browser and adapter checks below.
       - name: Start the test ledger and the development EBSI service
@@ -113,21 +116,27 @@ jobs:
       - name: Verify the timestamp adapter on EBSI's Timestamp contract
         run: node checks/timestamp-ledger.ts
 
+  # The contracts are published as templates from a repository of their own, so they are built and
+  # tested here from a copy of contracts/ with nothing beside it.
   contracts:
-    name: Contracts (Foundry)
+    name: Contracts (Foundry), on their own
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: contracts
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
       - uses: foundry-rs/foundry-toolchain@v1
+      - name: Copy the package away from the rest of the repository
+        run: cp -R contracts "$RUNNER_TEMP/contracts"
       - run: forge soldeer install
+        working-directory: ${{ runner.temp }}/contracts
       - name: Contract tests and the generated ABI is current
+        working-directory: ${{ runner.temp }}/contracts
         run: forge test && node scripts/export-abi.js --check
+      - name: The contracts build without the local mocks
+        working-directory: ${{ runner.temp }}/contracts
+        run: FOUNDRY_PROFILE=prod forge build --skip test --skip script
 
   holder-wallet:
     name: Holder wallet (Expo)

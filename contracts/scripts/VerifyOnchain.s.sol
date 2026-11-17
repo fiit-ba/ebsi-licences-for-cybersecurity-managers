@@ -38,7 +38,7 @@ contract VerifyOnchain is Script, GovernanceConfigFile, Networks {
         _printConfiguration(gov);
 
         // Recorded as the back-office records a collected certificate: under
-        // its id's hash, with the hash of the credential (D41, D42).
+        // its id's hash, with the hash of the credential.
         certificateId = string.concat("urn:uuid:verify-onchain-", vm.toString(vm.unixTime()));
         ICertificateRegistry registry = ICertificateRegistry(gov.certificateRegistry());
         bytes32 idHash = Hashes.certificateIdHash(certificateId);
@@ -50,7 +50,7 @@ contract VerifyOnchain is Script, GovernanceConfigFile, Networks {
         );
         console.log("\nstatus key  :", vm.toString(statusKey));
         // Why: a salted commitment of the reason goes on chain with the
-        // proposal (DECISIONS.md D22); the reason itself stays in the back-office.
+        // proposal; the reason itself stays in the back-office.
         bytes32 reasonSalt = bytes32(vm.randomUint());
 
         vm.recordLogs();

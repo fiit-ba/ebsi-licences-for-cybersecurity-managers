@@ -1,9 +1,8 @@
 # This file was written in 2026 by the Faculty of Informatics and Information
 # Technologies for the Professional License Registry.
 #
-# Deployment entry points for the governance contract (component 10,
-# DECISIONS.md D25) and the EBSI mock registries (local/ebsi-mock) it reads
-# in development.
+# Deployment entry points for the governance contract (component 10) and the
+# EBSI mock registries (local/ebsi-mock) it reads in development.
 #
 # Two networks:
 #   anvil - an ephemeral local chain; the development keys are acceptable
