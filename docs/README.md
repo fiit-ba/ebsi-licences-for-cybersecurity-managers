@@ -34,4 +34,6 @@ that every distributed copy retains its legal information.
 
 - [Contracts: certificate registry and governance](../contracts/README.md)
 - [Development EBSI service (Core API v1)](../infra/ebsi-mock/README.md)
+- [Local Besu ledger](../infra/besu/besu-qbft-network/README.md)
+- [Third-party components and licences (SBOM)](../sbom/README.md)
 - [Contributing, support and security reporting](CONTRIBUTING.md)

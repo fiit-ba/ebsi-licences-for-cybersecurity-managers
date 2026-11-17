@@ -162,6 +162,18 @@ jobs:
       - name: Tests
         run: yarn test:ci
 
+  # sbom/: every third-party component and its licence, per part. Read from the lockfiles, with
+  # licences the previous lists already hold, so it needs no install.
+  third-party-components:
+    name: Third-party component lists are current
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node sbom/generate.mjs --check
+
   deployment:
     name: Deployment files
     runs-on: ubuntu-24.04

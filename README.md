@@ -126,10 +126,11 @@ Start with the [documentation index](docs/README.md). The main references are:
 
 ## Licence
 
-The Wallet package is licensed under the [MIT License](holder-wallet/LICENSE.md).
-Third-party dependencies remain subject to their own terms; see the Wallet's
-[third-party notice entry point](holder-wallet/THIRD_PARTY_NOTICES.md).
+The repository's own code is licensed under the [MIT License](LICENSE.md), as is
+each part (`back-office/`, `contracts/`, `holder-wallet/`, `infra/`), except EBSI's
+registry contracts in `contracts/local/ebsi-mock/`, which keep EBSI's EUPL 1.2.
 
-The contracts package is licensed under the [MIT License](contracts/LICENSE.md),
-except EBSI's registry contracts in `contracts/local/ebsi-mock/`, which keep
-EBSI's EUPL 1.2.
+Third-party components remain subject to their own terms. The
+[third-party component list](sbom/README.md) names every one, with its version
+and licence, for each part, and as a CycloneDX SBOM. It is generated from the
+lockfiles by `node sbom/generate.mjs`, and CI fails when it is out of date.

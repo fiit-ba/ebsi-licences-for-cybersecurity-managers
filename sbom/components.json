@@ -1,0 +1,500 @@
+{
+  "$comment": [
+    "What sbom/generate.mjs cannot read from a lockfile. Edit this file, then run node sbom/generate.mjs.",
+    "licenseOverrides: packages whose metadata gives no SPDX licence, or that no install has; keyed by ecosystem:name@version, where * stands for any part of a name.",
+    "podLicenses: pods whose podspec is in neither the repository nor node_modules (CocoaPods trunk, or generated at pod install).",
+    "soldeer: the licence and use of each Soldeer dependency; versions come from contracts/soldeer.lock.",
+    "parts: per part, what no lockfile records: vendored files, native libraries fetched at build time, container images.",
+    "evidence: a file that must contain the given text while the component is as listed; the generator fails when it does not.",
+    "Evidence under node_modules/ is checked only when that file is installed.",
+    "tools: development tools that are not in the repository and not distributed with any part.",
+    "licenseNotes: what a licence outside the permissive set asks, shown next to the components that carry it."
+  ],
+  "licenseOverrides": {
+    "npm:esprima@1.2.2": {
+      "license": "BSD-2-Clause",
+      "reason": "package.json names only \"BSD\"; the licence header of esprima.js is the 2-clause text."
+    },
+    "npm:prelude-ls@1.1.2": {
+      "license": "MIT",
+      "reason": "package.json uses the deprecated \"licenses\" array with the single type MIT."
+    },
+    "npm:oboe@2.1.5": {
+      "license": "BSD-2-Clause",
+      "reason": "package.json names only \"BSD\"; its LICENCE file is the 2-clause (FreeBSD) text."
+    },
+    "npm:@tradle/react-native-http@2.0.1": {
+      "license": "MIT",
+      "reason": "package.json says \"MIT/X11\"; its LICENSE and LICENSE_HTTP_BROWSERIFY files are the MIT text."
+    },
+    "cocoapods:ReactNativeDependencies@*": {
+      "license": "MIT AND BSL-1.0 AND Apache-2.0 AND BSD-3-Clause AND (Apache-2.0 OR BSL-1.0 OR MIT)",
+      "reason": "The podspec gives React Native's MIT, but the pod is React Native's prebuild of boost, double-conversion, fast_float, fmt, folly, glog and SocketRocket, each listed under its own licence."
+    },
+    "npm:@esbuild/*@0.17.19": {
+      "license": "MIT",
+      "reason": "esbuild 0.17.19's builds for each platform, under esbuild's MIT; an install has only its own platform's."
+    },
+    "npm:lightningcss-*@1.33.0": {
+      "license": "MPL-2.0",
+      "reason": "lightningcss 1.33.0's builds for each platform, under lightningcss's MPL-2.0; an install has only its own platform's."
+    }
+  },
+  "podLicenses": {
+    "CocoaAsyncSocket": {
+      "license": "LicenseRef-Public-Domain OR BSD-3-Clause",
+      "source": "https://github.com/robbiehanson/CocoaAsyncSocket/blob/7.6.5/LICENSE.txt"
+    },
+    "ReactAppDependencyProvider": {
+      "license": "MIT",
+      "providedBy": "react-native",
+      "source": "Generated at pod install by react-native's codegen (scripts/codegen), under react-native's licence."
+    },
+    "ReactCodegen": {
+      "license": "MIT",
+      "providedBy": "react-native",
+      "source": "Generated at pod install by react-native's codegen (scripts/codegen), under react-native's licence."
+    },
+    "SwiftUIIntrospect": {
+      "license": "MIT",
+      "source": "https://github.com/siteline/swiftui-introspect/blob/1.3.0/LICENSE"
+    }
+  },
+  "soldeer": {
+    "@openzeppelin-contracts": {
+      "license": "MIT",
+      "use": "production",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-contracts",
+      "note": "Compiled into the deployed contracts (ERC165)."
+    },
+    "@openzeppelin-contracts-upgradeable": {
+      "license": "MIT",
+      "use": "production",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable",
+      "note": "Compiled into the deployed contracts (OwnableUpgradeable, Initializable)."
+    },
+    "forge-std": {
+      "license": "MIT OR Apache-2.0",
+      "use": "development",
+      "source": "https://github.com/foundry-rs/forge-std",
+      "note": "Tests and deployment scripts."
+    },
+    "openzeppelin-foundry-upgrades": {
+      "license": "MIT",
+      "use": "development",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades",
+      "note": "Deployment scripts: proxy deployment and upgrade checks."
+    }
+  },
+  "parts": {
+    "back-office": [
+      {
+        "category": "Vendored files",
+        "type": "file",
+        "name": "Inter font",
+        "version": "4.001",
+        "license": "OFL-1.1",
+        "use": "production",
+        "supplier": "The Inter Project Authors",
+        "url": "https://github.com/rsms/inter",
+        "purl": "pkg:github/rsms/inter@v4.001",
+        "location": "back-office/web/public/fonts/",
+        "note": "Served by the staff console; the licence text is next to the fonts.",
+        "evidence": {
+          "file": "back-office/web/public/fonts/Inter-LICENSE.txt",
+          "contains": "SIL Open Font License, Version 1.1"
+        }
+      },
+      {
+        "category": "Container base images",
+        "type": "container",
+        "name": "node",
+        "version": "24-alpine",
+        "license": "MIT",
+        "use": "production",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/node",
+        "purl": "pkg:docker/library/node@24-alpine",
+        "location": "back-office/Dockerfile",
+        "note": "Base of the back-office image. MIT is Node.js; the Alpine Linux packages in the image keep their own licences.",
+        "evidence": { "file": "back-office/Dockerfile", "contains": "FROM node:24-alpine" }
+      },
+      {
+        "category": "Container base images",
+        "type": "container",
+        "name": "nginx",
+        "version": "1.27-alpine",
+        "license": "BSD-2-Clause",
+        "use": "production",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/nginx",
+        "purl": "pkg:docker/library/nginx@1.27-alpine",
+        "location": "back-office/web/Dockerfile",
+        "note": "Base of the edge image that serves the staff console. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences.",
+        "evidence": { "file": "back-office/web/Dockerfile", "contains": "FROM nginx:1.27-alpine" }
+      }
+    ],
+    "contracts": [
+      {
+        "category": "Vendored files",
+        "type": "library",
+        "name": "EBSI registry and factory contracts",
+        "version": "",
+        "license": "EUPL-1.2",
+        "use": "development",
+        "supplier": "European Commission (EBSI)",
+        "url": "https://ec.europa.eu/digital-building-blocks/sites/display/EBSI",
+        "location": "contracts/local/ebsi-mock/",
+        "note": "Copied in by hand, unchanged licence headers (\"EUPL V1.2\"). Deployed only to the local development chain; the production build excludes them and the production installation uses EBSI's own registries.",
+        "evidence": {
+          "file": "contracts/local/ebsi-mock/did-registry/DidRegistry.sol",
+          "contains": "SPDX-License-Identifier: EUPL V1.2"
+        }
+      }
+    ],
+    "holder-wallet": [
+      {
+        "category": "Vendored files",
+        "type": "file",
+        "name": "Inter font",
+        "version": "4.001",
+        "license": "OFL-1.1",
+        "use": "production",
+        "supplier": "The Inter Project Authors",
+        "url": "https://github.com/rsms/inter",
+        "purl": "pkg:github/rsms/inter@v4.001",
+        "location": "holder-wallet/src/assets/fonts/, holder-wallet/android/app/src/main/res/font/",
+        "note": "Bundled in the app; the licence text is next to the fonts.",
+        "evidence": {
+          "file": "holder-wallet/src/assets/fonts/Inter-LICENSE.txt",
+          "contains": "SIL Open Font License, Version 1.1"
+        }
+      },
+      {
+        "category": "Vendored files",
+        "type": "application",
+        "name": "Gradle Wrapper",
+        "version": "9.3.1",
+        "license": "Apache-2.0",
+        "use": "development",
+        "supplier": "Gradle Inc.",
+        "url": "https://gradle.org",
+        "purl": "pkg:maven/org.gradle/gradle-wrapper@9.3.1",
+        "location": "holder-wallet/android/gradle/wrapper/",
+        "note": "Downloads Gradle to build the Android app; not part of the app.",
+        "evidence": {
+          "file": "holder-wallet/android/gradle/wrapper/gradle-wrapper.properties",
+          "contains": "gradle-9.3.1-bin.zip"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "boost",
+        "version": "1.84.0",
+        "license": "BSL-1.0",
+        "use": "production",
+        "supplier": "Boost.org",
+        "url": "https://www.boost.org",
+        "purl": "pkg:generic/boost@1.84.0",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/third-party-podspecs/boost.podspec",
+          "contains": "spec.version = '1.84.0'"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "double-conversion",
+        "version": "1.1.6",
+        "license": "BSD-3-Clause",
+        "use": "production",
+        "supplier": "Google",
+        "url": "https://github.com/google/double-conversion",
+        "purl": "pkg:github/google/double-conversion@v1.1.6",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/third-party-podspecs/DoubleConversion.podspec",
+          "contains": "spec.version = '1.1.6'"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "fast_float",
+        "version": "8.0.0",
+        "license": "Apache-2.0 OR BSL-1.0 OR MIT",
+        "use": "production",
+        "supplier": "fast_float authors",
+        "url": "https://github.com/fastfloat/fast_float",
+        "purl": "pkg:github/fastfloat/fast_float@v8.0.0",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/third-party-podspecs/fast_float.podspec",
+          "contains": "spec.version = \"8.0.0\""
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "fmt",
+        "version": "12.1.0",
+        "license": "MIT",
+        "use": "production",
+        "supplier": "fmt authors",
+        "url": "https://github.com/fmtlib/fmt",
+        "purl": "pkg:github/fmtlib/fmt@12.1.0",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/third-party-podspecs/fmt.podspec",
+          "contains": "spec.version = \"12.1.0\""
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "folly",
+        "version": "2024.11.18.00",
+        "license": "Apache-2.0",
+        "use": "production",
+        "supplier": "Meta Platforms",
+        "url": "https://github.com/facebook/folly",
+        "purl": "pkg:github/facebook/folly@v2024.11.18.00",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/scripts/cocoapods/helpers.rb",
+          "contains": ":version => '2024.11.18.00'"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "glog",
+        "version": "0.3.5",
+        "license": "BSD-3-Clause",
+        "use": "production",
+        "supplier": "Google",
+        "url": "https://github.com/google/glog",
+        "purl": "pkg:github/google/glog@v0.3.5",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/third-party-podspecs/glog.podspec",
+          "contains": "spec.version = '0.3.5'"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "SocketRocket",
+        "version": "0.7.1",
+        "license": "BSD-3-Clause",
+        "use": "production",
+        "supplier": "Meta Platforms",
+        "url": "https://github.com/facebookincubator/SocketRocket",
+        "purl": "pkg:cocoapods/SocketRocket@0.7.1",
+        "location": "iOS: ReactNativeDependencies pod (react-native)",
+        "note": "Prebuilt into React Native's ReactNativeDependencies at the version React Native pins.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native/scripts/cocoapods/helpers.rb",
+          "contains": ":version => '0.7.1'"
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "OpenSSL",
+        "version": "3.6.2",
+        "license": "Apache-2.0",
+        "use": "production",
+        "supplier": "OpenSSL Software Foundation",
+        "url": "https://www.openssl.org",
+        "purl": "pkg:generic/openssl@3.6.2",
+        "location": "react-native-quick-crypto (iOS: static build its podspec downloads; Android: io.github.ronickg:openssl-static:3.6.2-2)",
+        "note": "Statically linked into the app by react-native-quick-crypto.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native-quick-crypto/QuickCrypto.podspec",
+          "contains": "openssl_version = \"3.6.2\""
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "libsodium",
+        "version": "1.0.22",
+        "license": "ISC",
+        "use": "production",
+        "supplier": "Frank Denis",
+        "url": "https://libsodium.org",
+        "purl": "pkg:github/jedisct1/libsodium@1.0.22-RELEASE",
+        "location": "react-native-quick-crypto (iOS: source its podspec downloads; Android: io.github.ronickg:sodium:1.0.22-1)",
+        "note": "Compiled into the app by react-native-quick-crypto.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native-quick-crypto/QuickCrypto.podspec",
+          "contains": "sodium_version = \"1.0.22\""
+        }
+      },
+      {
+        "category": "Native libraries fetched at build time",
+        "type": "library",
+        "name": "libsodium",
+        "version": "1.0.21",
+        "license": "ISC",
+        "use": "production",
+        "supplier": "Frank Denis",
+        "url": "https://libsodium.org",
+        "purl": "pkg:github/jedisct1/libsodium@1.0.21",
+        "location": "react-native-libsodium (prebuilt in the npm package)",
+        "note": "Linked into the app by react-native-libsodium.",
+        "evidence": {
+          "file": "holder-wallet/node_modules/react-native-libsodium/libsodium/libsodium-1.0.21-stable.tar.gz.minisig",
+          "contains": ""
+        }
+      }
+    ],
+    "infra": [
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "postgres",
+        "version": "17",
+        "license": "PostgreSQL",
+        "use": "production",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/postgres",
+        "purl": "pkg:docker/library/postgres@17",
+        "location": "infra/docker-compose.yml, infra/docker-compose.prod.yml",
+        "note": "PostgreSQL is under the PostgreSQL Licence; the Debian packages in the image keep their own licences.",
+        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: postgres:17" }
+      },
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "redis",
+        "version": "7",
+        "license": "LicenseRef-RSALv2 OR SSPL-1.0",
+        "use": "production",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/redis",
+        "purl": "pkg:docker/library/redis@7",
+        "location": "infra/docker-compose.yml, infra/docker-compose.prod.yml",
+        "note": "The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause.",
+        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: redis:7" }
+      },
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "nginx",
+        "version": "1.27-alpine",
+        "license": "BSD-2-Clause",
+        "use": "production",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/nginx",
+        "purl": "pkg:docker/library/nginx@1.27-alpine",
+        "location": "infra/docker-compose.prod.yml",
+        "note": "The backend's TLS proxy. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences.",
+        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: nginx:1.27-alpine" }
+      },
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "hyperledger/besu",
+        "version": "latest",
+        "license": "Apache-2.0",
+        "use": "development",
+        "supplier": "Hyperledger Besu (LF Decentralized Trust)",
+        "url": "https://github.com/besu-eth/besu",
+        "purl": "pkg:docker/hyperledger/besu@latest",
+        "location": "infra/besu/besu-qbft-network/docker-compose.yml",
+        "note": "The local four-validator QBFT development ledger.",
+        "evidence": {
+          "file": "infra/besu/besu-qbft-network/docker-compose.yml",
+          "contains": "image: hyperledger/besu:latest"
+        }
+      },
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "gresau/localstack-persist",
+        "version": "3.8.0",
+        "license": "Apache-2.0",
+        "use": "development",
+        "supplier": "GREsau; LocalStack contributors",
+        "url": "https://github.com/GREsau/localstack-persist",
+        "purl": "pkg:docker/gresau/localstack-persist@sha256%3A457015a0a96e4a10778034cfb85603791e0b9f16a533594e036778e5fa315d6f?tag=3.8.0",
+        "location": "infra/docker-compose.yml",
+        "note": "Local KMS for development. localstack-persist and LocalStack 3.8 are both Apache-2.0.",
+        "evidence": {
+          "file": "infra/docker-compose.yml",
+          "contains": "image: gresau/localstack-persist:3.8.0@sha256:457015a0a96e4a10778034cfb85603791e0b9f16a533594e036778e5fa315d6f"
+        }
+      },
+      {
+        "category": "Container images",
+        "type": "container",
+        "name": "node",
+        "version": "24-alpine",
+        "license": "MIT",
+        "use": "development",
+        "supplier": "Docker Official Images",
+        "url": "https://hub.docker.com/_/node",
+        "purl": "pkg:docker/library/node@24-alpine",
+        "location": "infra/ebsi-mock/Dockerfile",
+        "note": "Base of the development EBSI service's image. MIT is Node.js; the Alpine Linux packages in the image keep their own licences.",
+        "evidence": { "file": "infra/ebsi-mock/Dockerfile", "contains": "FROM node:24-alpine" }
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "Foundry (forge, anvil)",
+      "version": "stable",
+      "license": "MIT OR Apache-2.0",
+      "url": "https://github.com/foundry-rs/foundry",
+      "note": "Builds, tests and deploys the contracts."
+    },
+    {
+      "name": "actions/checkout",
+      "version": "v4",
+      "license": "MIT",
+      "url": "https://github.com/actions/checkout",
+      "note": "CI (.github/workflows/ci.yml)."
+    },
+    {
+      "name": "actions/setup-node",
+      "version": "v4",
+      "license": "MIT",
+      "url": "https://github.com/actions/setup-node",
+      "note": "CI (.github/workflows/ci.yml)."
+    },
+    {
+      "name": "foundry-rs/foundry-toolchain",
+      "version": "v1",
+      "license": "MIT OR Apache-2.0",
+      "url": "https://github.com/foundry-rs/foundry-toolchain",
+      "note": "CI (.github/workflows/ci.yml)."
+    },
+    {
+      "name": "Chainlens Free block explorer (Web3 Labs)",
+      "version": "",
+      "license": "LicenseRef-Web3Labs-Chainlens-Evaluation",
+      "url": "https://github.com/web3labs/chainlens-free",
+      "note": "Not in the repository, and no script or Compose file starts it. Its licence allows only internal, non-commercial evaluation and no redistribution: a developer who fetches it from Web3 Labs may use it only to inspect a local development chain, never in a hosted installation."
+    }
+  ],
+  "licenseNotes": {
+    "CC-BY-3.0": "Attribution: keep the authors' notice.",
+    "CC-BY-4.0": "Attribution: keep the authors' notice.",
+    "EUPL-1.2": "Copyleft: whoever distributes the component, changed or not, makes its source available under the EUPL 1.2.",
+    "LGPL-3.0-only": "Weak copyleft: whoever distributes the component makes its source, with any changes, available under the LGPL 3.0, and lets users replace it in the work that uses it.",
+    "LicenseRef-RSALv2 OR SSPL-1.0": "Source-available: may be used and self-hosted, but not offered to others as a managed Redis service.",
+    "MPL-2.0": "File-level copyleft: whoever distributes the component makes its files' source, with any changes to them, available under the MPL 2.0.",
+    "OFL-1.1": "May be bundled with software; the licence text goes with the font, and the font may not be sold on its own."
+  }
+}
