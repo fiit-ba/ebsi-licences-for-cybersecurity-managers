@@ -1,0 +1,11 @@
+# Build output, fetched dependencies and local records, so the package works
+# as a repository of its own as well as inside the Professional License
+# Registry repository.
+node_modules/
+cache/
+out/
+dependencies/
+broadcast/
+coverage/
+deployments/*.json
+.env

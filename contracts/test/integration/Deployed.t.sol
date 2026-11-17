@@ -277,7 +277,7 @@ contract TrustChainTest is DeployedFixture {
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         registry.registerCertificate(idHash, TI, 1, 0, REASON, IGovernanceTypes.Standing.VALID);
 
-        // D43: withdrawing its certificates starts here.
+        // Withdrawing its certificates starts here.
         vm.prank(keyA);
         registry.suspendNow(statusKey, REASON);
         _assertStanding(statusKey, IGovernanceTypes.Standing.SUSPENDED);

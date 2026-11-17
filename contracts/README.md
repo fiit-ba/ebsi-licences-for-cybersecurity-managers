@@ -5,14 +5,16 @@ reads (`CertificateRegistry`) and the per-TI multisig that changes them
 (`CertificateGovernance`, component 10 of the specification).
 
 Built and tested with [Foundry](https://getfoundry.sh) (`foundryup --install
-v1.8.5`); Node runs the scripts that write the interface for the other
-components.
+v1.8.5`); Node 24 runs the script that writes the interface for callers. The
+package builds and tests on its own: nothing it compiles, tests or reads lies
+outside this directory.
 
 ```bash
 npm install                        # also the Solidity dependencies (forge soldeer install)
-forge test                         # 203 tests (5 skipped)
-node scripts/export-abi.js --check # the other components' copies of the interface are current
-npm run compile                    # compiles, then regenerates those copies
+forge test                         # 200 tests; test/integration/ (5 suites) skips without a deployed chain
+node scripts/export-abi.js --check # the generated interface in abi/ is current
+npm run compile                    # compiles, then regenerates it
+make integration                   # deploys everything to a fresh anvil, then runs test/integration/
 ```
 
 Solidity dependencies (forge-std, OpenZeppelin) are Soldeer's: versions in
@@ -24,10 +26,11 @@ the version in that library's line.
 by hand. Tests and scripts import them as `ebsi-mock/…`; the contract may not,
 which `FOUNDRY_PROFILE=prod forge build --skip test --skip script` checks.
 
-The interoperability test runs the back-office's TypeScript through `vm.ffi`
-with Node 24, as the back-office itself runs (`npm ci` in `back-office/` once).
-`PLR_NODE` names another interpreter; the default is `node`. Without a working
-one the test is skipped with the reason locally, and fails on CI.
+The hashes computed off chain as well (a certificate's status key, a reason's
+commitment) have known answers in [`test/vectors/hashes.json`](test/vectors/hashes.json),
+which [`test/HashVectors.t.sol`](test/HashVectors.t.sol) checks the contracts
+against ([below](#audit-verification-component-107)). No test runs anything
+outside Solidity, so `ffi` is off.
 
 | File | What it holds |
 |---|---|
@@ -59,20 +62,23 @@ whether an existing template already covers the case, then Design → Submit →
 Deploy → Grant Access, plus the matching policy in the Trusted Policies
 Registry. This contract is a template *candidate*.
 
-What works today is the local Besu QBFT network in
-[`../infra/besu/besu-qbft-network/`](../infra/besu/besu-qbft-network/). The full
-sequence (the EBSI registry contracts first, then these) is in
-[`docs/GUIDE.md`](../docs/GUIDE.md); in short:
+What works today is a local chain with EBSI's registry contracts on it, from
+[`local/ebsi-mock/`](local/ebsi-mock/). `make integration` deploys them and
+these contracts to a fresh anvil and runs the scenarios against them, with
+nothing but this package. In the Professional License Registry repository, the
+local Besu QBFT network is `infra/besu/besu-qbft-network/`, and the full
+sequence (the EBSI registry contracts first, then these) is in its
+`docs/GUIDE.md`; in short, from this directory there:
 
 ```bash
-cd ../infra/besu/besu-qbft-network && docker compose up -d
-cd ../../../contracts && forge build && node scripts/export-abi.js
+(cd ../infra/besu/besu-qbft-network && docker compose up -d)
+forge build && node scripts/export-abi.js
 forge script scripts/DeployEBSI.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --slow
 GOVERNANCE_TAO_DID=did:ebsi:… npm run deploy:besu
 ```
 
-`make deploy-besu` runs the same two deployments and skips one whose record
-still has code at its address.
+`make deploy-besu` runs the same two deployments, against whatever Besu answers
+at `BESU_RPC_URL`, and skips one whose record still has code at its address.
 
 Both contracts run behind a beacon proxy, so each can be upgraded in place,
 and both are deployed the way EBSI's factory deploys a template, against the
@@ -92,11 +98,80 @@ A deployed contract knows no TI. Each TI is set up afterwards with `addTi`
 ([below](#one-contract-per-tao)): by the back-office, or by
 [`scripts/AddTi.s.sol`](scripts/AddTi.s.sol) (`make add-ti-besu`).
 
-To start the chain again, run `docker compose down`, empty `data/validator1`
-to `data/validator4`, run `docker compose up -d`, deploy, and run
-`infra/bootstrap.sh`. Bootstrap hands both contracts from the development TAO
-key to the TAO's KMS key, and the back-office then sets each TI up on the new
-contract with its KMS keys for roles A and B.
+In the Professional License Registry repository, to start the chain again, run
+`docker compose down`, empty `data/validator1` to `data/validator4`, run
+`docker compose up -d`, deploy, and run `infra/bootstrap.sh`. Bootstrap hands
+both contracts from the development TAO key to the TAO's KMS key, and the
+back-office then sets each TI up on the new contract with its KMS keys for
+roles A and B.
+
+## Going to production on EBSI
+
+EBSI's Proxy Templates Registry refuses a template without an audit URI and a
+repository URI, so both contracts need, before they can be registered as
+templates:
+
+- **an audit report covering both**, `CertificateGovernance` and
+  `CertificateRegistry`, published at the template's `auditURI`;
+- **a public repository** holding them, at the template's `repoURI`: this
+  package, which builds and tests on its own as above.
+
+Then, to deploy and run them:
+
+- **a deployer** that holds the `ProxyFactory:deployProxy` policy in the
+  Trusted Policies Registry and controls its DID in the DID Registry (here
+  `GOVERNANCE_DEPLOYER_KEY` and `GOVERNANCE_DEPLOYER_DID`);
+- **the TAO's DID accredited** in the Trusted Issuers Registry, as a TAO with a
+  chain up to a Root TAO or as a Root TAO itself, and controlled by the TAO's
+  key, which owns both contracts (`GOVERNANCE_TAO_DID`, `GOVERNANCE_TAO`);
+- **each certification body accredited as a TI** by that TAO, with its signer
+  keys registered as controllers of the TI's DID, or of the cosigner's DID, in
+  the DID Registry (`TI_DID`, `TI_ATTRIBUTE_ID`, `SIGNER_A`, `SIGNER_B`,
+  `COSIGNER_DID`);
+- **the proxies' owner**: the account that opts each proxy into a new
+  implementation version, so never a development key. On EBSI the beacons are
+  EBSI's and the owner is what `deployProxy` is given; the local deployment
+  makes `GOVERNANCE_BEACON_OWNER` both.
+
+### Gas
+
+EBSI's PILOT network charges no gas; its production network does. Gas per
+transaction, with a trust chain of two levels above the TI (a Root TAO, then
+the TAO), as EBSI's review of these contracts measured it with the registry
+code of EBSI's core, and as `make integration` measures it here with the
+copies in `local/ebsi-mock/` (each receipt is left in `broadcast/`):
+
+| Transaction | EBSI's review | `make integration` |
+|---|---|---|
+| deploying a proxy (`deployProxy`) | about 600,000 to 670,000 | 558,000 (registry), 627,000 (governance) |
+| `registerCertificate` | about 270,000 | 344,000 |
+| `addTi` | about 590,000 | 674,000 |
+| a suspension through the quorum | about 750,000 | 1,018,000 |
+| — `proposeAction` | 430,000 | 484,000 |
+| — `signProposal` | 170,000 | 216,000 |
+| — `execute` | 145,000 | 318,000 |
+
+The figures also depend on the length of the DIDs and on the TI's signers and
+cosigners. A longer trust chain costs more. `isActiveTi` reads the Trusted Issuers
+Registry once per level above the TI, and the contracts ask it when a
+certificate is recorded, when a proposal or a rule change is opened and when
+one takes effect.
+
+### Notes for the audit
+
+- The scope is `contracts/`: `CertificateGovernance`, `CertificateRegistry` and
+  the modules, interfaces and libraries they are built from. Everything else
+  here (scripts, tests, `local/ebsi-mock/`) only deploys or exercises them.
+- solc 0.8.26 through the IR pipeline, optimizer at 200 runs
+  ([`foundry.toml`](foundry.toml)). `FOUNDRY_PROFILE=prod forge build --skip
+  test --skip script` builds the contracts without the mocks.
+- OpenZeppelin Contracts and Contracts Upgradeable 5.6.1, pinned in
+  `soldeer.lock`: the version EBSI's core contracts are on. The contracts take
+  only `OwnableUpgradeable` (with its `Initializable`) and `ERC165` from them.
+- [`local/ebsi-mock/`](local/ebsi-mock/) is EBSI's registry and factory code,
+  copied in for the tests and scripts. The contracts never import it; they
+  read the registries through the minimal interfaces in
+  [`contracts/interfaces/IEbsiRegistries.sol`](contracts/interfaces/IEbsiRegistries.sol).
 
 ---
 
@@ -141,14 +216,17 @@ registries two questions each time, so revoking there is enough:
   its earlier signatures stop counting.
 
 The TAO acts with the owner's key, and only while the DID Registry shows that
-key as a key of the TAO's DID. (`setRegistries` asks the new DID Registry, so
-a broken one stays replaceable; the registry's `setGovernance` asks only for
-the owner.) After `addTi` it can replace a TI's cosigners
-(`setCosigners`), follow a TI to a new accreditation (`setTiAttribute`: a
-revoked attribute never comes back) and repoint the contracts (`setRegistries`,
-`setCertificateRegistry`, and `setGovernance` on the registry). A TI's signer
-keys, policies and proposal lifetime change only through the TI's own quorum.
-Ownership can be transferred, never renounced.
+key as a key of the TAO's DID (the registry's `setGovernance` asks only for the
+owner). After `addTi` it can replace a TI's cosigners (`setCosigners`), follow
+a TI to a new accreditation (`setTiAttribute`: a revoked attribute never comes
+back) and point the two contracts at each other (`setCertificateRegistry`, and
+`setGovernance` on the registry). It cannot point the contract at other EBSI
+registries: they are set when the proxy is initialized and never change, as
+their addresses never change on EBSI, so a compromised TAO key cannot swap in
+registries of its own. Should EBSI ever move one, a new implementation version
+would have to carry the change. A TI's signer keys, policies and proposal lifetime
+change only through the TI's own quorum. Ownership can be transferred, never
+renounced.
 
 ### Roles and policies
 
@@ -365,25 +443,28 @@ the standard mnemonic's first twenty) as the TAO or the beacon owner, and
 `AddTi.s.sol` refuses one as a signer. Without `--broadcast` `Deploy.s.sol` is
 a dry run and writes no deployment record; `make deploy-besu DRY_RUN=1` is one.
 
-### One interface for every component
+### One interface for every caller
 
 `npm run compile` also runs [`scripts/export-abi.js`](scripts/export-abi.js). It
-writes both contracts' ABIs (`GOVERNANCE_ABI`, `REGISTRY_ABI`), the enums (read
-from the Solidity source) and the role numbers for the other components:
+writes both contracts' ABIs (`abi`, `registryAbi`), the enums (read from the
+Solidity source), the role numbers and the contracts' own bounds
+(`MAX_TIMELOCK`, `MAX_PROPOSAL_TTL`, `MAX_ROLE`, `MAX_TRUST_CHAIN_DEPTH`, read
+from the source like the enums) to
+[`abi/governance-contract.json`](abi/governance-contract.json). A caller takes
+the interface from there rather than restating the contracts by hand.
 
-- the console, in [`back-office/web/src/blockchain/certificateGovernanceContract.ts`](../back-office/web/src/blockchain/certificateGovernanceContract.ts);
-- the back-office, in [`back-office/shared/governance-contract.ts`](../back-office/shared/governance-contract.ts)
-  and its JSON copy [`governance-contract.json`](../back-office/shared/governance-contract.json).
+In the Professional License Registry repository, where this package sits next
+to the back-office, the script also writes the back-office's copies: the
+console's `back-office/web/src/blockchain/certificateGovernanceContract.ts`,
+and the server's `back-office/shared/governance-contract.ts`
+(`GOVERNANCE_ABI`, `REGISTRY_ABI`) with its JSON twin. On its own, the
+package has only `abi/`.
 
-The contract's own bounds (`MAX_TIMELOCK`, `MAX_PROPOSAL_TTL`, `MAX_ROLE`,
-`MAX_TRUST_CHAIN_DEPTH`) are exported with the ABIs, read from the source like
-the enums. None of the copies restates the contract by hand.
 `node scripts/export-abi.js --check` fails when a copy is stale, without
 writing anything; `npm test` runs it after `forge test`.
-[`test/AbiExport.t.sol`](test/AbiExport.t.sol) reads the back-office's copy
-and fails when the exported bounds differ from the deployed contract's, or
-when a proposal carries anything beyond its certificate's key and neutral
-metadata.
+[`test/AbiExport.t.sol`](test/AbiExport.t.sol) reads `abi/` and fails when
+the exported bounds differ from the deployed contract's, or when a proposal
+carries anything beyond its certificate's key and neutral metadata.
 
 ### Audit verification (component 10.7)
 
@@ -407,14 +488,18 @@ A certificate has one key, so the one-open-proposal guard covers the whole
 certificate, a suspension and a revocation of it can never be open at once, and
 an auditor follows its history under one value.
 
-The key is computed in two languages, and the reason's commitment too:
-TypeScript in the back-office, Solidity here. If they ever diverged, a verifier or
-an audit would fail while everything else kept working.
-[`test/CommitmentInterop.t.sol`](test/CommitmentInterop.t.sol) guards against
-that. It runs the real
-[`back-office/server/issuance/protection.ts`](../back-office/server/issuance/protection.ts)
-and compares it against the deployed contract, rather than asserting on a
-hardcoded digest that could drift.
+The key is computed off chain too, and the reason's commitment: by the
+issuer's back-office, and by whatever a verifier uses. If an implementation
+ever diverged from the contracts, a verifier or an audit would fail while
+everything else kept working. [`test/vectors/hashes.json`](test/vectors/hashes.json)
+holds known answers for both, computed independently of the Solidity by
+[`test/vectors/generate.py`](test/vectors/generate.py) (its own ABI encoder and
+Python's standard library), in cases chosen to catch encoding mistakes:
+diacritics, a DID and an id that concatenate alike, strings longer than one ABI
+word, an empty note, a note that ends in a space. [`test/HashVectors.t.sol`](test/HashVectors.t.sol)
+checks the contracts against them, and every other implementation checks
+itself against the same file; the Professional License Registry's back-office
+does.
 
 ### The credential's hash
 
@@ -452,31 +537,30 @@ from showing; without it, a category has few enough values that its bare hash
 would publish it. An auditor gets the category, the note and the salt from the
 back-office (`POST registry/audit/reason-preimage`, recorded) and checks them
 with `verifyProposalReason`, or recomputes them with `computeReasonHash`. The
-interoperability test runs the back-office's `reasonCommitment` against the
-contract as well.
+known answers in `test/vectors/hashes.json` cover the commitment as well.
 
 ### Wiring it to the back-office
 
 The back-office sends to the ledger itself, through EBSI's Ledger API (Core API v1,
 `POST /v1/ledger`): each transaction is signed in KMS and carries a token from the
 Authorisation API whose scope covers it (`ledger:invoke` for these contracts, which
-EBSI lists as Trusted Contracts). Reads need no token. In development, the EBSI
-service in [`infra/ebsi-mock`](../infra/ebsi-mock) serves that API over the
-contracts here.
+EBSI lists as Trusted Contracts). Reads need no token. In development, the
+Professional License Registry's EBSI service (`infra/ebsi-mock` in that
+repository) serves that API over the contracts here. The paths below are in
+that repository too.
 
 Each TI decides with its own keys. Its A and B keys are secp256k1 keys in the
 back-office's KMS, published as capabilityInvocation keys of the TI's DID; the
 back-office signs only the exact call recorded beforehand: this contract, that
 function with those arguments, this chain, no value, and only once
-([`server/keys/ledger-signing.ts`](../back-office/server/keys/ledger-signing.ts)).
+(`back-office/server/keys/ledger-signing.ts`).
 Role C belongs to the supervisory authority: any valid key of its DID signs, from
 its own wallet; no part of this stack holds one (component 10.2). The TAO's key,
 which owns both contracts, sets each TI up with `addTi`.
 
 Collection records a certificate on the registry
-([`server/issuance/governance-ledger.ts`](../back-office/server/issuance/governance-ledger.ts));
-status decisions travel as proposals
-([`server/lifecycle/governance.ts`](../back-office/server/lifecycle/governance.ts));
+(`back-office/server/issuance/governance-ledger.ts`); status decisions travel
+as proposals (`back-office/server/lifecycle/governance.ts`);
 the console reads the contract directly and votes through the back-office or a
 signer's wallet.
 
@@ -547,9 +631,16 @@ the scenarios in [`test/integration/`](test/integration).
   proposal (the `reconcile-governance-proposal` background task) plus a
   periodic `sweep-governance`, every `PLR_GOVERNANCE_RECONCILE_SECONDS`
   (default 120). Nothing subscribes to contract events in real time.
-- The per-TI contracts are a new deployment: they cannot upgrade the earlier
-  single-TI governance contract in place, whose interface differs. Later
-  versions upgrade through the beacon.
-- The contract has not had an external security review.
-- Open decisions and remaining work, such as who owns the beacons and how long
-  an upgrade waits, are listed in [`TODO-v3.md`](TODO-v3.md).
+- This version is a new deployment: it cannot upgrade the earlier single-TI
+  governance contract in place, whose interface differs. Later versions
+  upgrade through the beacon.
+- There is no audit report yet. EBSI has reviewed the contracts, but it
+  registers them as templates only with an audit of both
+  ([above](#going-to-production-on-ebsi)).
+- Who owns the proxies in production, and so opts them into a new
+  implementation version, and how long an upgrade waits, are not decided yet.
+
+## Licence
+
+MIT, see [`LICENSE.md`](LICENSE.md). [`local/ebsi-mock/`](local/ebsi-mock/) is
+EBSI's code and keeps EBSI's licence, the EUPL 1.2, as each of its files says.

@@ -4,14 +4,13 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
 
 /**
  * @title ICertificateRegistry
- * @notice The certificate records and their standing: all a verifier reads
- *         (DECISIONS.md D30, D36, D39).
+ * @notice The certificate records and their standing: all a verifier reads.
  */
 interface ICertificateRegistry is IGovernanceTypes {
     /// @notice The contract allowed to apply executed proposals changed.
     event GovernanceChanged(address governance);
 
-    /// @notice A certificate entered the registry's record (D30, D36).
+    /// @notice A certificate entered the registry's record.
     event CertificateRegistered(
         bytes32 indexed statusKey,
         bytes32 credentialHash,
@@ -34,7 +33,7 @@ interface ICertificateRegistry is IGovernanceTypes {
     /// @param validUntil When it expires (0: never).
     /// @param credentialHash SHA-256 of the signed JWT as the TI issued it,
     ///        everything before the first `~` of the SD-JWT, so what a verifier
-    ///        is shown can be compared with what was issued (D42).
+    ///        is shown can be compared with what was issued.
     /// @param standing VALID when issued; a certificate already suspended or
     ///        revoked when the record is first made (migration) says so.
     /// @return statusKey The key it is recorded under: see `computeStatusKey`.
@@ -72,7 +71,7 @@ interface ICertificateRegistry is IGovernanceTypes {
 
     /// @notice Suspend a valid certificate at once, on one signature
     ///         (component 10.6). Reversible; revocation still takes a quorum.
-    /// @param reasonHash The reason's commitment (D22), required.
+    /// @param reasonHash The reason's commitment, required.
     function suspendNow(bytes32 statusKey, bytes32 reasonHash) external;
 
     /// @notice The certificate's record; `standing` NONE if there is none.

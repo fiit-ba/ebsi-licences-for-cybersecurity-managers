@@ -148,7 +148,7 @@ contract ConstructionTest is GovernanceTest {
     }
 }
 
-/// CertificateGovernance behind its beacon proxy (DECISIONS.md D45).
+/// CertificateGovernance behind its beacon proxy.
 contract ProxyTest is GovernanceTest {
     function test_RevertWhen_TheImplementationIsInitialized() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
@@ -763,7 +763,7 @@ contract AuditTest is GovernanceTest {
     bytes32 internal constant OTHER_SALT = 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
 
     function test_AnAuditorFindsTheCertificateFromItsTiAndItsId() public {
-        // D42: the key is the contract's own, so no salt has to be disclosed.
+        // The key is the contract's own, so no salt has to be disclosed.
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         bytes32 proposed = governance.getProposal(1).statusKey;
         assertEq(registry.computeStatusKey(ISSUER, "urn:uuid:fixture"), proposed);
@@ -846,7 +846,7 @@ contract TrustChainTest is GovernanceTest {
     }
 }
 
-/// Audit verification of the reason (D22).
+/// Audit verification of the reason.
 contract ReasonTest is GovernanceTest {
     bytes32 internal constant REASON_SALT = 0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a;
     bytes32 internal constant OTHER_SALT = 0x5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b;

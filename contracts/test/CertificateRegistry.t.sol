@@ -9,7 +9,7 @@ import {Hashes} from "../contracts/libraries/Hashes.sol";
 import {IStatusProposals} from "../contracts/interfaces/IStatusProposals.sol";
 import {GovernanceTest} from "./GovernanceTest.sol";
 
-/// The boundary between the two contracts (D39): the registry takes its signers
+/// The boundary between the two contracts: the registry takes its signers
 /// and executed proposals from governance, and from no one else.
 contract CertificateRegistryTest is GovernanceTest {
     // Computed ahead: sha256 is a call, and would take a pending prank.

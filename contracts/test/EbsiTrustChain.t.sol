@@ -5,11 +5,11 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {CertificateGovernance} from "../contracts/CertificateGovernance.sol";
 import {CertificateRegistry} from "../contracts/CertificateRegistry.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
 import {Hashes} from "../contracts/libraries/Hashes.sol";
-import {ITiAccreditation} from "../contracts/interfaces/ITiAccreditation.sol";
 import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
 import {StubDidRegistry} from "./RegistryStubs.sol";
 import {PoliciesRegistry} from "ebsi-mock/policies-registry/PolicyRegistry.sol";
@@ -627,64 +627,32 @@ contract IsolationTest is GovernanceFixture {
     }
 }
 
-/// Repointing the contract at other registries.
-contract SetRegistriesTest is GovernanceFixture {
-    function test_TheTaoRepointsTheContractAtOnce() public {
+/// The registries are fixed: on EBSI their addresses never change, so the
+/// contract offers no way to repoint it, not even to the TAO.
+contract FixedRegistriesTest is GovernanceFixture {
+    function test_TheRegistriesAreTheOnesItWasInitializedWith() public view {
+        assertEq(governance.didRegistry(), address(didr));
+        assertEq(governance.issuersRegistry(), address(tir));
+        assertEq(governance.taoDid(), TAO);
+    }
+
+    function test_NotEvenTheTaoCanRepointThem() public {
         address newDidRegistry = address(new StubDidRegistry());
         vm.prank(taoKey.addr);
-        vm.expectEmit(address(governance));
-        emit ITiAccreditation.RegistriesChanged(newDidRegistry, address(tir));
-        governance.setRegistries(newDidRegistry, address(tir));
-        assertEq(governance.didRegistry(), newDidRegistry);
-    }
-
-    function test_ANewIssuersRegistryDecidesWhoIsActive() public {
-        assertTrue(governance.isActiveTi(TI, tiAttr));
-        IssuersRegistry empty = IssuersRegistry(
-            address(
-                new ERC1967Proxy(
-                    address(new IssuersRegistry()),
-                    abi.encodeCall(IssuersRegistry.initialize, (address(didr.policiesRegistryContract()), address(didr)))
-                )
-            )
+        (bool ok,) = address(governance).call(
+            abi.encodeWithSignature("setRegistries(address,address)", newDidRegistry, address(tir))
         );
-        vm.prank(taoKey.addr);
-        governance.setRegistries(address(didr), address(empty));
-        assertFalse(governance.isActiveTi(TI, tiAttr));
+        assertFalse(ok, "there is no setRegistries");
+        assertEq(governance.didRegistry(), address(didr));
+        assertEq(governance.issuersRegistry(), address(tir));
     }
 
-    function test_ABrokenDidRegistryCanStillBeReplaced() public {
+    function test_TheyCannotBeSetAgainThroughTheInitializer() public {
         address newDidRegistry = address(new StubDidRegistry());
-        vm.etch(address(didr), hex"fe");
+        address certificateRegistry = governance.certificateRegistry();
         vm.prank(taoKey.addr);
-        governance.setRegistries(newDidRegistry, address(tir));
-        assertEq(governance.didRegistry(), newDidRegistry);
-    }
-
-    function test_RevertWhen_TheCallerIsNotTheTao() public {
-        vm.prank(tiKey.addr);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, tiKey.addr));
-        governance.setRegistries(address(didr), address(tir));
-    }
-
-    function test_RevertWhen_ARegistryHasNoCode() public {
-        vm.prank(taoKey.addr);
-        vm.expectRevert(IGovernanceTypes.InvalidRegistry.selector);
-        governance.setRegistries(tiKey.addr, address(tir));
-    }
-
-    function test_RevertWhen_TheNewDidRegistryDoesNotKnowTheTao() public {
-        DidRegistry empty = DidRegistry(
-            address(
-                new ERC1967Proxy(
-                    address(new DidRegistry()),
-                    abi.encodeCall(DidRegistry.initialize, (address(didr.policiesRegistryContract())))
-                )
-            )
-        );
-        vm.prank(taoKey.addr);
-        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
-        governance.setRegistries(address(empty), address(tir));
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        governance.initialize(taoKey.addr, TAO, newDidRegistry, address(tir), certificateRegistry);
         assertEq(governance.didRegistry(), address(didr));
     }
 }

@@ -20,7 +20,7 @@ interface IGovernanceTypes {
     // -----------------------------------------------------------------------
 
     /// @notice The proposal states of component 10.3, with its quorum and
-    ///         timelock states as one (D44): APPROVED says the quorum was
+    ///         timelock states as one: APPROVED says the quorum was
     ///         reached, `executableAt` says from when it can run.
     enum ProposalState {
         NONE,
@@ -38,7 +38,7 @@ interface IGovernanceTypes {
         REINSTATE
     }
 
-    /// @notice A certificate's standing on chain (DECISIONS.md D30). VALID is
+    /// @notice A certificate's standing on chain. VALID is
     ///         the one a verifier accepts; SUSPENDED and REVOKED are both
     ///         "not valid" to it, and only REVOKED is for good.
     enum Standing {
@@ -146,12 +146,11 @@ interface IGovernanceTypes {
         address proposer;
     }
 
-    /// @notice A certificate's record, as stored and as a verifier reads it
-    ///         (D30, D36).
+    /// @notice A certificate's record, as stored and as a verifier reads it.
     /// @param validFrom When the certificate became valid.
     /// @param validUntil When it expires (0: never). The contract does not
     ///        compare either with the clock; a verifier does.
-    /// @param credentialHash SHA-256 of the signed JWT as issued (D42). A
+    /// @param credentialHash SHA-256 of the signed JWT as issued. A
     ///        verifier refuses a credential whose JWT hashes to anything else.
     /// @param issuerDid The DID of the TI that issued it.
     struct Certificate {
@@ -201,7 +200,7 @@ interface IGovernanceTypes {
     /// @notice The caller's role holds no veto under the policy, and the
     ///         caller did not open the proposal.
     error VetoNotAllowed();
-    /// @notice A suspension or a revocation has to say why (DECISIONS.md D22).
+    /// @notice A suspension or a revocation has to say why.
     error ReasonRequired();
     /// @notice A certificate is recorded with the hash of its id, the hash of
     ///         the credential, and its TI.

@@ -4,11 +4,12 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {GovernanceTest} from "./GovernanceTest.sol";
 
 /**
- * The back-office's server and its console read the contract's interface
- * from generated copies (scripts/export-abi.js). These tests read the
- * back-office's copy. That every copy matches the compiled contract, and that
- * every set of roles is named a `...Mask` (D21), is
- * `node scripts/export-abi.js --check`, run next to `forge test`.
+ * Callers read the contracts' interface from a generated copy
+ * (scripts/export-abi.js): abi/governance-contract.json in this package, and
+ * the copies other components keep. These tests read the package's copy. That
+ * every copy matches the compiled contracts, and that every set of roles is
+ * named a `...Mask`, is `node scripts/export-abi.js --check`, run next to
+ * `forge test`.
  */
 contract AbiExportTest is GovernanceTest {
     using stdJson for string;
@@ -17,15 +18,13 @@ contract AbiExportTest is GovernanceTest {
 
     function setUp() public override {
         super.setUp();
-        generated = vm.readFile(
-            string.concat(vm.projectRoot(), "/../back-office/shared/governance-contract.json")
-        );
+        generated = vm.readFile(string.concat(vm.projectRoot(), "/abi/governance-contract.json"));
     }
 
     function test_AProposalHoldsNothingButACertificatesKeyAndNeutralMetadata() public view {
         // Privacy (components 10.3, 10.8): no holder DID, no licence number, no
         // reason, no supporting documents - the reason only as a salted
-        // commitment (D22); the proposer and signatures are role keys (10.4).
+        // commitment; the proposer and signatures are role keys (10.4).
         string[11] memory expected = [
             "tiId",
             "statusKey",
@@ -47,7 +46,7 @@ contract AbiExportTest is GovernanceTest {
     }
 
     function test_CarriesTheContractsOwnBoundsAsTheDeployedContractHasThem() public view {
-        // Read from the source; the back-office checks its settings against them.
+        // Read from the source; a caller checks its settings against them.
         string[] memory names = vm.parseJsonKeys(generated, ".limits");
         assertEq(names.length, 4);
         assertEq(generated.readUint(".limits.MAX_TRUST_CHAIN_DEPTH"), governance.MAX_TRUST_CHAIN_DEPTH());

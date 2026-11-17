@@ -662,25 +662,6 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "address",
-        "name": "didRegistry",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "issuersRegistry",
-        "type": "address"
-      }
-    ],
-    "name": "RegistriesChanged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "bytes32",
         "name": "tiId",
@@ -1994,24 +1975,6 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
       }
     ],
     "name": "setCosigners",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "didRegistry_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "issuersRegistry_",
-        "type": "address"
-      }
-    ],
-    "name": "setRegistries",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

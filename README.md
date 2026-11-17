@@ -6,7 +6,7 @@ Atest is a professional-licence platform with three connected parts:
   (OpenID4VP 1.0 with DCQL), and suspends and revokes credentials;
 - the **Atest Wallet** stores holder keys and credentials on iOS or Android;
 - the **ledger** keeps each collected credential's record on the certificate
-  registry, and each issuer's suspension and revocation decisions on its
+  registry, and each issuer's suspension and revocation decisions on the
   governance contract, signed by the issuer's own keys and the supervisory
   authority.
 
@@ -26,8 +26,9 @@ environment.
 - **The record on chain:** once collected, the licence's record (standing, validity,
   hash of the signed credential) is registered on the certificate registry. It is
   the only status there is; suspension, revocation and reinstatement go through
-  the issuing TI's governance contract (two of its signers, a 24-hour timelock with
-  veto for revocation, and the supervisory authority as cosigner).
+  the governance contract, under the issuing TI's own quorum (two of its signers, a
+  24-hour timelock with veto for revocation, and the supervisory authority as
+  cosigner). One governance contract serves every TI of a TAO.
 - **Presentation:** a verifier asks with OpenID4VP 1.0 and a DCQL query; the holder
   chooses what to share among the combinations the verifier accepts, or declines,
   which the verifier learns at once.
@@ -128,3 +129,7 @@ Start with the [documentation index](docs/README.md). The main references are:
 The Wallet package is licensed under the [MIT License](holder-wallet/LICENSE.md).
 Third-party dependencies remain subject to their own terms; see the Wallet's
 [third-party notice entry point](holder-wallet/THIRD_PARTY_NOTICES.md).
+
+The contracts package is licensed under the [MIT License](contracts/LICENSE.md),
+except EBSI's registry contracts in `contracts/local/ebsi-mock/`, which keep
+EBSI's EUPL 1.2.

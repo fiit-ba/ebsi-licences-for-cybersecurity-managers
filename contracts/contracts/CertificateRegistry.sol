@@ -10,14 +10,14 @@ import {Hashes} from "./libraries/Hashes.sol";
  * @title CertificateRegistry
  * @notice Each certificate as the registry recorded it - the TI that issued
  *         it, when it is valid from and until - and its standing: valid,
- *         suspended or revoked (DECISIONS.md D30, D36, D39, D41).
+ *         suspended or revoked.
  *
- * @dev The record is the only source of truth about a certificate (D36),
+ * @dev The record is the only source of truth about a certificate,
  *      keyed by what every presentation discloses - the TI's DID and the
  *      credential's random id (`statusKey`) - replacing status lists entirely.
  *      The id reaches the chain only as a hash, and the certificate's number
- *      not at all (D41). The record also keeps the hash of the signed
- *      credential, which ties it to that credential's content (D42): a
+ *      not at all. The record also keeps the hash of the signed
+ *      credential, which ties it to that credential's content: a
  *      verifier compares it with the JWT it was shown. Registering and
  *      suspending at once take one signature (issuing is the body's own act;
  *      suspension is reversible, component 10.6); every other change
@@ -94,7 +94,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
     }
 
     /// @dev Whoever is set here decides every standing, so this is what the
-    ///      timelock in front of the owner has to protect (D39).
+    ///      timelock in front of the owner has to protect.
     function setGovernance(address governance_) external onlyOwner {
         if (governance_.code.length == 0) revert InvalidGovernance();
         _registryStorage().governance = governance_;
@@ -141,8 +141,8 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
      * @dev Component 10.6: a holder reporting a compromised key cannot wait
      *      for a quorum. Suspension is reversible, so one signature is enough;
      *      the revocation that may follow still needs the quorum. The reason
-     *      is committed to as for a proposal (D22). A revoked TI may still do
-     *      this, on purpose: withdrawing its certificates starts here (D24),
+     *      is committed to as for a proposal. A revoked TI may still do
+     *      this, on purpose: withdrawing its certificates starts here,
      *      and a verifier reading only this record would otherwise see VALID.
      */
     function suspendNow(bytes32 statusKey, bytes32 reasonHash) external {

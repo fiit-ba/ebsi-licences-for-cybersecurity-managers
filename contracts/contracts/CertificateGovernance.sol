@@ -12,7 +12,7 @@ import {RuleChanges} from "./governance/RuleChanges.sol";
  *
  * @dev Component 10's independently verifiable proof that a status change was
  *      approved by a quorum before it was carried out. The certificates
- *      themselves live in CertificateRegistry (D39), which a verifier reads
+ *      themselves live in CertificateRegistry, which a verifier reads
  *      without this contract; executed proposals set their standing there.
  *
  *      - The contract never calls the back-office; it watches
@@ -20,7 +20,7 @@ import {RuleChanges} from "./governance/RuleChanges.sol";
  *        other being reachable.
  *      - Nothing here identifies a holder: a proposal carries only the
  *        certificate's `statusKey`, so it is linkable to that record, not to a
- *        holder (D40, D42).
+ *        holder.
  *
  *      Custom EBSI extension (component 10.0, subject to EBSI approval): EBSI
  *      deploys only pre-approved templates through its Smart Contracts
@@ -30,19 +30,19 @@ import {RuleChanges} from "./governance/RuleChanges.sol";
  *      the factory's own code, since local/ebsi-mock is test/script-only and
  *      the prod build fails if anything under contracts/ imports it.
  *
- * @dev One contract for every TI of a TAO (D45). The TAO sets each TI up
+ * @dev One contract for every TI of a TAO. The TAO sets each TI up
  *      (`addTi`); the contract keeps its rules and no status: whether a TI is
  *      active is read from the Trusted Issuers Registry and whether a key is
  *      valid from the DID Registry, each time, so revoking there is enough.
  *      Each TI has its own signers, cosigners, policies and proposal lifetime.
  *
- * @dev Version 2 (D19): rules are data. Each signer holds one role
+ * @dev Version 2: rules are data. Each signer holds one role
  *      (component 10.2: pilot's A/B/C); a quorum counts distinct roles, not
  *      keys; each action/rule-change has a `Policy` (threshold, required and
  *      veto roles, timelock); a rule change waits out ADMIN's timelock
  *      unless vetoed (the key it removes can't veto its own removal); a
  *      signature only counts while its key is still a signer, and an expired
- *      proposal can no longer be signed or executed. D21 added the V2
+ *      proposal can no longer be signed or executed. Later came the V2
  *      commitment, typed roles, veto roles, timelock restart on regained
  *      quorum, retired keys, and the file split below.
  *
@@ -70,7 +70,7 @@ contract CertificateGovernance is ICertificateGovernance, StatusProposals, RuleC
 
     /**
      * @notice Locks the implementation against initialization/reinitialization
-     * @dev Runs only behind a beacon proxy (D45), whose storage `initialize`
+     * @dev Runs only behind a beacon proxy, whose storage `initialize`
      *      sets up.
      * @custom:oz-upgrades-unsafe-allow constructor
      */

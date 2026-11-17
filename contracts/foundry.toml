@@ -10,17 +10,19 @@ libs = ["dependencies"]
 solc = "0.8.26"
 optimizer = true
 optimizer_runs = 200
-# CommitmentInterop runs the back-office's TypeScript to compare hashes.
-ffi = true
 # openzeppelin-foundry-upgrades validates upgrades from the build info and the
 # storage layout.
 build_info = true
 extra_output = ["storageLayout"]
+# Everything the tests and scripts read or write is inside this package, so
+# it builds and tests on its own.
 fs_permissions = [
   { access = "read", path = "./config" },
-  # The interface as the back-office reads it (scripts/export-abi.js); the
-  # ABI tests check that copy.
-  { access = "read", path = "../back-office/shared/governance-contract.json" },
+  # The package's copy of the interface (scripts/export-abi.js); the ABI
+  # tests check it.
+  { access = "read", path = "./abi" },
+  # The hashes' known answers (test/HashVectors.t.sol).
+  { access = "read", path = "./test/vectors" },
   # The deployment records the scripts write (Deploy.s.sol, RotateSigners.s.sol).
   { access = "read-write", path = "./deployments" },
 ]
@@ -74,6 +76,6 @@ remappings_generate = false
 
 [dependencies]
 forge-std = "1.17.0"
-"@openzeppelin-contracts" = "5.7.0"
-"@openzeppelin-contracts-upgradeable" = "5.7.0"
+"@openzeppelin-contracts" = "5.6.1"
+"@openzeppelin-contracts-upgradeable" = "5.6.1"
 openzeppelin-foundry-upgrades = "0.4.2"

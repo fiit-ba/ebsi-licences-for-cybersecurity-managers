@@ -38,8 +38,8 @@ interface IStatusProposals is IGovernanceTypes {
 
     /// @notice Open a proposal and cast the proposer's signature.
     /// @param statusKey The certificate's record in the registry, which must
-    ///        be the TI's own (D42).
-    /// @param reasonHash The reason's commitment (DECISIONS.md D22): see
+    ///        be the TI's own.
+    /// @param reasonHash The reason's commitment: see
     ///        `computeReasonHash`. Required for a suspension and a revocation.
     function proposeAction(bytes32 tiId, bytes32 statusKey, ActionType actionType, bytes32 reasonHash)
         external
