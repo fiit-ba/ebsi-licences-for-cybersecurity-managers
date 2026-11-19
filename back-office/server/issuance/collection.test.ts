@@ -490,7 +490,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         issuer.registration.reoffer(accounts[1], { credential_id: offer.credential_id }),
         (error) => (error as any).body.reason === 'NotOnboarded',
       );
-      await fixture.onboarding.onboard(organizations[3]);
+      await fixture.ensureIssuer(organizations[3], accounts[1]);
       await assert.rejects(
         issuer.registration.reoffer(accounts[1], { credential_id: offer.credential_id }),
         (error) => (error as any).body.reason === 'NotYours',
@@ -708,7 +708,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         'INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) SELECT schema_id,2,fields,$2,clock_timestamp() FROM certificate_schema_versions WHERE schema_id=$1 AND version=1',
         [fixture.schema, next],
       );
-      await fixture.onboarding.refresh(organizations[2]);
+      await fixture.reaccredit(organizations[1], organizations[2]);
       try {
         const result = await issuer.redemption.redeem(grant.access_token, await request(grant));
         assert.equal(result.status, 200);
@@ -721,7 +721,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
           'DELETE FROM certificate_schema_versions WHERE schema_id=$1 AND version=2',
           [fixture.schema],
         );
-        await fixture.onboarding.refresh(organizations[2]);
+        await fixture.reaccredit(organizations[1], organizations[2]);
       }
     },
   );

@@ -14,6 +14,7 @@ import { postgresInvitations } from './invitations.ts';
 import { postgresTrustChain } from './chain.ts';
 import { postgresRegistrationThrottle } from './registration-throttle.ts';
 import { registrationCases, registrationPayload } from './fixtures/registration-cases.ts';
+import { anyDid, testDid } from './fixtures/dids.ts';
 
 test('public registration enforces the public HTTP contract and creates no activation mail', async (context) => {
   assert.equal(process.env.PGDATABASE, 'atest_back_office_test');
@@ -35,7 +36,7 @@ test('public registration enforces the public HTTP contract and creates no activ
       mail++;
     },
   });
-  const invitations = postgresInvitations(database);
+  const invitations = postgresInvitations(database, { didRegistered: anyDid });
   const server = backOfficeServer({
     accounts: postgresAccounts(database),
     tokens,
@@ -121,6 +122,7 @@ test('public registration enforces the public HTTP contract and creates no activ
       const selected = await post(
         '/registry/trust-chain/select/',
         {
+          did: testDid(),
           name: prefix + '.' + item.name,
           contact_email: 'registration@example.test',
           schemas: [],
@@ -220,7 +222,7 @@ test('public registration enforces the public HTTP contract and creates no activ
   await context.test(
     'the invitation has one concurrent winner and the chosen credentials remain exact',
     async () => {
-      const selected = await invitations.select(root, { name: prefix + '.race' });
+      const selected = await invitations.select(root, { name: prefix + '.race', did: testDid() });
       organizations.push(selected.organization_id);
       const outcomes = await Promise.all(
         ['first', 'second'].map((suffix) =>
@@ -249,7 +251,8 @@ test('public registration enforces the public HTTP contract and creates no activ
     async () => {
       const token = (await tokens.pair({ id: standalone, auth_version: 0 })).access;
       assert.equal(
-        (await post('/registry/trust-chain/select/', { name: 'Forbidden' }, token)).status,
+        (await post('/registry/trust-chain/select/', { name: 'Forbidden', did: testDid() }, token))
+          .status,
         403,
       );
     },
@@ -257,10 +260,14 @@ test('public registration enforces the public HTTP contract and creates no activ
   await context.test(
     'selection and renewal use the configured invitation lifetime and Unicode names',
     async () => {
-      const configured = postgresInvitations(database, { invitationDays: 3 });
+      const configured = postgresInvitations(database, {
+        invitationDays: 3,
+        didRegistered: anyDid,
+      });
       const name = '🔐'.repeat(150);
       const selected = await configured.select(root, {
         name,
+        did: testDid(),
         contact_email: '\u0085contact@localhost\u0085',
       });
       organizations.push(selected.organization_id);
@@ -325,7 +332,7 @@ test('registration limits retain old weighted-window behavior, atomic admission 
   const server = backOfficeServer({
     accounts: postgresAccounts(database),
     tokens,
-    invitations: postgresInvitations(database),
+    invitations: postgresInvitations(database, { didRegistered: anyDid }),
     registrationThrottle: postgresRegistrationThrottle(database, key, '2/hour', () => instant),
   });
   server.listen(0, '127.0.0.1');
@@ -357,7 +364,7 @@ test('registration limits retain old weighted-window behavior, atomic admission 
   const off = backOfficeServer({
     accounts: postgresAccounts(database),
     tokens,
-    invitations: postgresInvitations(database),
+    invitations: postgresInvitations(database, { didRegistered: anyDid }),
     registrationEnabled: false,
     registrationThrottle: async () => {
       admitted++;

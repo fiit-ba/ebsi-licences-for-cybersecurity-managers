@@ -7,6 +7,7 @@ import {
   VerificationStop,
 } from './outcomes.ts';
 import type { CredentialOutcome } from './outcomes.ts';
+import { onIssuersRegistry } from '../ebsi/api.ts';
 
 /** Registry transport refusal; a missing record is distinguished from an outage. */
 export class VerificationRegistryError extends Error {
@@ -177,7 +178,7 @@ export function verificationRegistry(options: VerificationRegistryOptions) {
         'signature_valid',
       );
     const at =
-      verificationTime(vc.issuanceDate || vc.validFrom || vc.issued) ??
+      verificationTime(vc.issued || vc.issuanceDate || vc.validFrom) ??
       verificationTime(payload.iat);
     const url = new URL(didr + '/' + encodeURIComponent(issuer).replaceAll('%3A', ':'));
     // Historical key admission must retain the signed issuance instant. Truncating
@@ -261,12 +262,13 @@ export function verificationRegistry(options: VerificationRegistryOptions) {
 
   /**
    * Resolve a TIR attribute under the configured trust boundary.
-   * @param url - Absolute attribute URL.
+   * @param link - Absolute attribute URL, in either shape of EBSI's APIs.
    * @param fresh - Whether to bypass cached trust data.
    * @returns Signed accreditation attribute with its subject DID.
    * @throws VerificationStop for explicit missing/untrusted records; VerificationRegistryError on outage.
    */
-  async function attribute(url: string, fresh: boolean) {
+  async function attribute(link: string, fresh: boolean) {
+    const url = onIssuersRegistry(link, tir);
     if (!underRegistry(url, tir))
       throw new VerificationStop(
         'UNTRUSTED_ISSUER',
@@ -324,6 +326,7 @@ export function verificationRegistry(options: VerificationRegistryOptions) {
         'The TIR answered in a shape this verifier does not accept',
         'issuer_accredited',
       );
+    record.attributes = onIssuersRegistry(record.attributes, tir);
     if (!underRegistry(record.attributes, tir))
       throw new VerificationStop(
         'UNTRUSTED_ISSUER',

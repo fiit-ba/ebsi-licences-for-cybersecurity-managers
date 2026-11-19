@@ -28,7 +28,9 @@ environment.
   the only status there is; suspension, revocation and reinstatement go through
   the governance contract, under the issuing TI's own quorum (two of its signers, a
   24-hour timelock with veto for revocation, and the supervisory authority as
-  cosigner). One governance contract serves every TI of a TAO.
+  cosigner). Each TAO has its own certificate registry and governance contract,
+  which serve all its TIs; the back-office deploys a new TAO's pair through EBSI's
+  Proxy Factory, and verifiers recognise it there.
 - **Presentation:** a verifier asks with OpenID4VP 1.0 and a DCQL query; the holder
   chooses what to share among the combinations the verifier accepts, or declines,
   which the verifier learns at once.
@@ -109,6 +111,7 @@ for prerequisites, environment variables, signing and release builds, and
 - `infra/` — Docker Compose, Besu, local KMS and the development EBSI service
 - `mvp-scripts/` — implementation behind `start-mvp.sh` and `stop-mvp.sh`
 - `docs/` — central user, development and deployment documentation
+- `schemas/` — the JSON Schemas to register in EBSI's Trusted Schemas Registry on the pilot
 
 ## Documentation
 
@@ -122,6 +125,7 @@ Start with the [documentation index](docs/README.md). The main references are:
 - [Runtime configuration](back-office/docs/configuration.md)
 - [Validation commands](back-office/docs/validation.md)
 - [Contracts: certificate registry and governance](contracts/README.md)
+- [Schemas for EBSI's pilot network](schemas/README.md)
 - [Contributing, support and security reporting](docs/CONTRIBUTING.md)
 
 ## Licence

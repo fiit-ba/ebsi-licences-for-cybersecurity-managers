@@ -75,7 +75,7 @@ export function postgresAccounts(database: Pick<Pool, 'query'>) {
         ORDER BY ancestor.depth
         LIMIT 1
       ) revoked ON true
-      WHERE a.${field} = $1
+      WHERE ${field === 'username' ? 'lower(a.username) = lower($1)' : 'a.id = $1'}
     `,
       [value],
     );
@@ -84,7 +84,8 @@ export function postgresAccounts(database: Pick<Pool, 'query'>) {
 
   return {
     /**
-     * Find an operator by exact username.
+     * Find an operator by username, whatever its letter case: usernames are unique regardless of
+     * case (operator_username_casefold), as registration refuses `ALICE` beside `alice`.
      *
      * @param username - Username to match.
      * @returns The current account and authority snapshot, or undefined.

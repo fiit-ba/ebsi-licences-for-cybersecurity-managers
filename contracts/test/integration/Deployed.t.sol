@@ -8,6 +8,7 @@ import {Hashes} from "../../contracts/libraries/Hashes.sol";
 import {Role, RoleSet} from "../../contracts/libraries/Roles.sol";
 import {IStatusProposals} from "../../contracts/interfaces/IStatusProposals.sol";
 import {Networks} from "../../scripts/Networks.sol";
+import {PILOT_DID_REGISTRY, PILOT_ISSUERS_REGISTRY} from "../../scripts/PilotRegistries.sol";
 import {DidRegistry} from "ebsi-mock/did-registry/DidRegistry.sol";
 import {IssuersRegistry} from "ebsi-mock/issuers-registry/IssuersRegistry.sol";
 import {IIssuersRegistry as TIR} from "ebsi-mock/issuers-registry/interfaces/IIssuersRegistry.sol";
@@ -170,6 +171,16 @@ contract DeploymentTest is DeployedFixture {
         assertEq(registry.owner(), tao);
     }
 
+    /// On anvil the registries stand at the PILOT's addresses, so the
+    /// implementation carries the pilot's registries in its code.
+    function test_TheRegistriesStandAtThePilotsAddresses() public view {
+        assertEq(address(didr), PILOT_DID_REGISTRY);
+        assertEq(address(tir), PILOT_ISSUERS_REGISTRY);
+        CertificateGovernance implementation = CertificateGovernance(beacon.implementation());
+        assertEq(implementation.didRegistry(), PILOT_DID_REGISTRY);
+        assertEq(implementation.issuersRegistry(), PILOT_ISSUERS_REGISTRY);
+    }
+
     function test_TheTiIsSetUpWithItsKeysAndNbuAsItsCosigner() public view {
         assertTrue(governance.isActiveTi(TI, tiAttribute));
         IGovernanceTypes.TiView memory ti = governance.getTi(tiId);
@@ -323,7 +334,8 @@ contract AdministrationTest is DeployedFixture {
 
     function test_AnUpgradeKeepsTheRecordsAndTheTi() public {
         (bytes32 statusKey,) = _register();
-        address implementation = address(new CertificateGovernance());
+        address implementation =
+            address(new CertificateGovernance(governance.didRegistry(), governance.issuersRegistry()));
         vm.startPrank(deployer);
         beacon.addVersion(2, implementation, keccak256(implementation.code), false);
         beacon.upgradeProxyToVersion(address(governance), 2, true);

@@ -1,3 +1,5 @@
+import type { CertificateRegistries } from '../types.ts';
+import { UntrustedRegistry } from '../registry-trust.ts';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import pg from 'pg';
@@ -20,6 +22,7 @@ import { verificationHttp } from '../http.ts';
 import { postgresRegistrationThrottle } from '../../accreditation/registration-throttle.ts';
 import { redisExchangeCache } from '../exchange-cache.ts';
 import type { LedgerStatus } from '../../issuance/types.ts';
+import { testEbsi } from '../../ebsi/fixtures/environment.ts';
 
 /** Public synthetic credentials used by isolated server and real-API browser checks. */
 export const verificationPassword = 'Q7!Vx2#Bm9@Kp4$Zs8%Fj6&Wy3';
@@ -65,7 +68,7 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
   const type = 'CybersecurityManagerCertificate';
   const types = ['VerifiableCredential', 'VerifiableAttestation', type];
   const schemaId = 'zVerify' + id.replaceAll('-', '');
-  const schemaUrl = base + '/v1/schemas-registry/schemas/' + schemaId;
+  const schemaUrl = testEbsi(base).PLR_TSR_URL + '/schemas/' + schemaId;
   // A fabricated trust chain on the test ledger, through the development EBSI service.
   const seed = await mockFixture(base, '/__mock/seed', {
     trustedIssuer: did,
@@ -134,15 +137,26 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
     `CREATE TABLE ${table}(key text PRIMARY KEY, record jsonb, mode text NOT NULL DEFAULT '')`,
   );
   const contract = '0x' + 'ab'.repeat(20);
-  const ledger = {
-    contract,
+  const ledger: CertificateRegistries = {
+    chainId: 1337,
+    /**
+     * Accept only the fixture's one registry, as the TAO's.
+     * @param address - The registry a credential names.
+     * @returns Completion for the fixture's registry.
+     * @throws UntrustedRegistry for any other.
+     */
+    async trust(address: string) {
+      if (address.toLowerCase() !== contract.toLowerCase())
+        throw new UntrustedRegistry('Not the fixture registry.');
+    },
     /**
      * Read an exact synthetic ledger tuple or inject its configured transport failure.
+     * @param _contract - The registry, the fixture's.
      * @param key - Credential status key.
      * @returns Contract-shaped tuple, including an unknown standing when absent.
      * @throws Injected ledger outage or database errors.
      */
-    async status(key: string): Promise<LedgerStatus> {
+    async status(_contract: string, key: string): Promise<LedgerStatus> {
       const {
         rows: [row],
       } = await database.query(`SELECT * FROM ${table} WHERE key=$1`, [key]);
@@ -164,9 +178,9 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
   const cache = await redisExchangeCache(redisUrl);
   const state = { registryDown: '', reads: [] as string[] };
   const registryReader = verificationRegistry({
-    didr: base + '/v1/did-registry/identifiers',
-    tir: base + '/v1/issuers-registry',
-    tsr: base + '/v1/schemas-registry',
+    didr: testEbsi(base).PLR_DIDR_URL,
+    tir: testEbsi(base).PLR_TIR_URL,
+    tsr: testEbsi(base).PLR_TSR_URL,
     roots: [seed.supportOffice],
     didSeconds: 0,
     trustSeconds: 0,
@@ -276,8 +290,8 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
       termsOfUse: {
         type: 'IssuanceCertificate',
         id:
-          base +
-          '/v1/issuers-registry/issuers/' +
+          testEbsi(base!).PLR_TIR_URL +
+          '/issuers/' +
           did +
           '/attributes/' +
           seed.attributes.trustedIssuer,

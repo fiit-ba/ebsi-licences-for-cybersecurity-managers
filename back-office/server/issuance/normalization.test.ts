@@ -13,11 +13,9 @@ test('Unicode claim/date/integer normalization and complete request refusals ret
   const claims = claimCompatibilityCases.map((item) => {
     try {
       return {
-        claims: normalizeClaims(
-          { value: item.value },
-          [{ key: 'value', kind: item.kind, required: true, default: '' } as SchemaField],
-          'Fixture TI',
-        ),
+        claims: normalizeClaims({ value: item.value }, [
+          { key: 'value', kind: item.kind, required: true, default: '' } as SchemaField,
+        ]),
       };
     } catch (error) {
       if (error instanceof IssuanceError)

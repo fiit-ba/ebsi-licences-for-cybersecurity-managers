@@ -27,8 +27,14 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     ///         freeze the TI, not a governance choice.
     uint64 public constant MAX_TIMELOCK = 90 days;
 
-    /// @notice No proposal lives longer than this; 0 means proposals never expire.
+    /// @notice No proposal lives longer than this.
     uint64 public constant MAX_PROPOSAL_TTL = 365 days;
+
+    /// @notice A proposal lives at least this much longer than the TI's
+    ///         longest timelock: time to collect the signatures, and then
+    ///         to execute. A shorter lifetime would let nothing pass, not
+    ///         even the rule change that lengthens it.
+    uint64 public constant MIN_SIGNING_WINDOW = 1 days;
 
     // -----------------------------------------------------------------------
     // State
@@ -307,12 +313,26 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         emit PolicyChanged(tiId, kind, policy.threshold, policy.requiredRoleMask, policy.vetoRoleMask, policy.timelock);
     }
 
-    function _requireTtl(uint64 ttl) internal pure {
-        if (ttl > MAX_PROPOSAL_TTL) revert InvalidTtl();
+    /// @dev Against the TI's policies as they stand: `addTi` sets them first.
+    function _requireTtl(bytes32 tiId, uint64 ttl) internal view {
+        if (ttl > MAX_PROPOSAL_TTL || ttl < _longestTimelock(tiId) + MIN_SIGNING_WINDOW) revert InvalidTtl();
+    }
+
+    /// @dev A policy's timelock leaves its proposals time to be signed and
+    ///      executed within the TI's lifetime.
+    function _requireTimelockWithinTtl(bytes32 tiId, uint64 timelock) internal view {
+        if (timelock + MIN_SIGNING_WINDOW > _proposalTtl(tiId)) revert InvalidPolicy();
+    }
+
+    function _longestTimelock(bytes32 tiId) private view returns (uint64 longest) {
+        for (uint8 kind = 0; kind < POLICY_KINDS; kind++) {
+            uint64 timelock = _policy(tiId, PolicyKind(kind)).timelock;
+            if (timelock > longest) longest = timelock;
+        }
     }
 
     function _setProposalTtl(bytes32 tiId, uint64 ttl) internal {
-        _requireTtl(ttl);
+        _requireTtl(tiId, ttl);
         _configurationStorage().tis[tiId].proposalTtl = ttl;
         emit ProposalTtlChanged(tiId, ttl);
     }

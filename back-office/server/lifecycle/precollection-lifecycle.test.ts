@@ -121,7 +121,7 @@ test('pre-collection decisions apply locally and reach the record at collection,
     }),
     ledger: {
       chainId: 1337,
-      contract: '0x' + 'ab'.repeat(20),
+      contractFor: async () => '0x' + 'ab'.repeat(20),
       async ensureRegistered(record) {
         const existing = records.get(record.id);
         if (existing)
@@ -229,7 +229,7 @@ test('pre-collection decisions apply locally and reach the record at collection,
     database,
     {
       chainId: 1337,
-      contract: '0x' + 'ab'.repeat(20),
+      contractFor: async () => '0x' + 'ab'.repeat(20),
       async advance(record) {
         deliveryCalls++;
         assert.ok(records.has(record.credentialId), 'Only a collected certificate has a case.');
@@ -353,7 +353,8 @@ test('pre-collection decisions apply locally and reach the record at collection,
       }),
     ),
   );
-  assert.deepEqual(approvals.map((response) => response.status).sort(), [200, 403]);
+  // The second approval finds the case applied, so closed.
+  assert.deepEqual(approvals.map((response) => response.status).sort(), [200, 409]);
   const applied = await approvals.find((response) => response.ok)!.json();
   assert.deepEqual([applied.applied, applied.awaiting, applied.state], [true, null, 'suspended']);
   const page = await (

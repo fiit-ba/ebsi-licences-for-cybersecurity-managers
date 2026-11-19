@@ -54,7 +54,7 @@ function standing(record: LedgerRecord, row: StandingRow) {
  */
 export function postgresStandingRefresh(
   database: Pool,
-  ledger: { status(key: string): Promise<LedgerRecord> },
+  ledger: { status(key: string, issuerDid: string): Promise<LedgerRecord> },
 ) {
   /**
    * Refresh a bounded batch while retaining concurrent invalidation ordering.
@@ -76,7 +76,10 @@ export function postgresStandingRefresh(
         rows.slice(index, index + 8).map(async (row) => {
           let state: ReturnType<typeof standing> = 'unknown';
           try {
-            state = standing(await ledger.status('0x' + row.status_key.toString('hex')), row);
+            state = standing(
+              await ledger.status('0x' + row.status_key.toString('hex'), row.issuer_did),
+              row,
+            );
           } catch {
             // Failed reads must not keep an apparently valid status alive.
           }

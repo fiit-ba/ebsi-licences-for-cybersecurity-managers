@@ -79,6 +79,27 @@ export function governanceFailure(error: unknown) {
   );
 }
 
+/** Every TAO's governance contract, found by a TI of the TAO or by its address. */
+export interface ConsoleLedgers {
+  forIssuer(issuerDid: string): Promise<ConsoleLedger>;
+  forContract(address: string): Promise<ConsoleLedger | undefined>;
+  all(): Promise<ConsoleLedger[]>;
+}
+
+/**
+ * One governance contract as the only one.
+ * @param ledger - Its adapter.
+ * @returns Lookups that always answer it.
+ */
+function singleConsoleLedger(ledger: ConsoleLedger): ConsoleLedgers {
+  return {
+    forIssuer: async () => ledger,
+    forContract: async (address) =>
+      address.toLowerCase() === ledger.contract.toLowerCase() ? ledger : undefined,
+    all: async () => [ledger],
+  };
+}
+
 /**
  * Restore existing governance HTTP responsibilities using live memberships and the current contract.
  * @param database - PostgreSQL pool.
@@ -89,12 +110,17 @@ export function governanceFailure(error: unknown) {
 export function postgresConsoleGovernance(
   database: Pool,
   options: {
+    /** One governance contract, the only one (tests and single-TAO installations). */
     ledger?: ConsoleLedger;
+    /** Every TAO's governance contract, each found by its TI or its address. */
+    ledgers?: ConsoleLedgers;
     consoleRoles?: readonly string[];
     bounds?: GovernanceBounds;
   } = {},
 ) {
-  const { ledger, bounds = governanceBounds() } = options;
+  const { bounds = governanceBounds() } = options;
+  const ledgers =
+    options.ledgers ?? (options.ledger ? singleConsoleLedger(options.ledger) : undefined);
   const permitted = (options.consoleRoles ?? ['A', 'B']).filter((role) =>
     ['A', 'B'].includes(role),
   );
@@ -105,22 +131,47 @@ export function postgresConsoleGovernance(
    * @throws IssuanceError when governance is disabled.
    */
   function enabled() {
-    if (!ledger) throw new IssuanceError(409, '', 'No governance contract is configured.');
-    return ledger;
+    if (!ledgers) throw new IssuanceError(409, '', 'No governance contract is configured.');
+    return ledgers;
+  }
+  /**
+   * The governance contract a request is about: its TI's TAO's. A request names its TI; one
+   * that does not is answered from the only contract, or from the one its case is pinned to.
+   * @param input - Validated request fields (`ti`, `proposal_id`, `admin_proposal_id`).
+   * @returns The contract's adapter.
+   * @throws IssuanceError when the contract cannot be told.
+   */
+  async function pick(input: Record<string, unknown>) {
+    const all = enabled();
+    if (typeof input.ti === 'string' && input.ti) return all.forIssuer(input.ti);
+    const every = await all.all();
+    if (every.length === 1) return every[0];
+    if (typeof input.proposal_id === 'string') {
+      const { rows } = await database.query(
+        `SELECT DISTINCT onchain_contract FROM certificate_status_proposals
+         WHERE onchain_proposal_id=$1 AND onchain_contract IS NOT NULL`,
+        [input.proposal_id],
+      );
+      const pinned =
+        rows.length === 1 ? await all.forContract(rows[0].onchain_contract) : undefined;
+      if (pinned) return pinned;
+    }
+    throw new IssuanceError(400, 'InvalidFields', 'Name the TI the proposal is for (ti).');
   }
   /**
    * Find the local case for a number on this exact deployment.
    * @param client - Caller connection.
    * @param id - Validated on-chain number.
-   * @returns The local case, if one is pinned to the current deployment.
+   * @param adapter - The governance contract the number is on.
+   * @returns The local case, if one is pinned to that contract.
    * @throws Database errors.
    */
-  async function caseFor(client: Pick<PoolClient, 'query'>, id: string) {
+  async function caseFor(client: Pick<PoolClient, 'query'>, id: string, adapter: ConsoleLedger) {
     return (
       await client.query(
         `SELECT p.*,c.credential_id FROM certificate_status_proposals p JOIN registered_certificates c ON c.id=p.certificate_id
       WHERE p.onchain_proposal_id=$1 AND lower(p.onchain_contract)=lower($2) AND p.onchain_chain_id=$3`,
-        [id, enabled().contract, enabled().chainId],
+        [id, adapter.contract, adapter.chainId],
       )
     ).rows[0];
   }
@@ -147,10 +198,11 @@ export function postgresConsoleGovernance(
   /**
    * Ask the worker to re-read a proposal the back-office keeps a case for, if it is open.
    * @param id - On-chain proposal id.
+   * @param adapter - The governance contract the proposal is on.
    * @returns The case id and whether a reconciliation was queued.
    */
-  async function sync(id: string) {
-    const row = await caseFor(database, id);
+  async function sync(id: string, adapter: ConsoleLedger) {
+    const row = await caseFor(database, id, adapter);
     const open = row && !row.applied_at && !row.closed_at && row.decision !== 'rejected';
     if (open)
       await database.query(
@@ -162,7 +214,14 @@ export function postgresConsoleGovernance(
     return { case_id: row?.id ?? null, reconciling: Boolean(open) };
   }
   return {
-    reconcileSignatures: ledger ? postgresSignatureEvidence(database, ledger) : async () => {},
+    /**
+     * Reconcile retained signatures on every TAO's governance contract.
+     * @returns Completion.
+     */
+    async reconcileSignatures() {
+      for (const adapter of (await ledgers?.all()) ?? [])
+        await postgresSignatureEvidence(database, adapter)();
+    },
     /**
      * Report deployment keys, live operator memberships and administration limits.
      * @param actor - Current authenticated account ID.
@@ -174,14 +233,14 @@ export function postgresConsoleGovernance(
       let addresses: Record<string, string> = {};
       let ti = '';
       const tis: { did: string; name: string; addresses: Record<string, string> }[] = [];
-      if (ledger) {
+      if (ledgers) {
         const { rows } = await database.query(
           "SELECT did,name,account_id FROM accredited_organizations WHERE kind='ti' AND governance_configured_at IS NOT NULL AND revoked_at IS NULL ORDER BY name,did",
         );
         for (const row of rows) {
           let keys: Record<string, string> = {};
           try {
-            keys = await ledger.addresses(row.did);
+            keys = await (await ledgers.forIssuer(row.did)).addresses(row.did);
           } catch {
             /* labels are optional. */
           }
@@ -194,12 +253,12 @@ export function postgresConsoleGovernance(
         }
       }
       return {
-        enabled: Boolean(ledger),
+        enabled: Boolean(ledgers),
         roles:
-          ledger && account?.active && !account.revoked_at
+          ledgers && account?.active && !account.revoked_at
             ? (account.governance_roles?.filter((role) => permitted.includes(role)) ?? [])
             : [],
-        console_roles: ledger ? permitted : [],
+        console_roles: ledgers ? permitted : [],
         // The TI shown first, and its A and B keys.
         ti,
         addresses,
@@ -218,14 +277,14 @@ export function postgresConsoleGovernance(
      */
     async vote(actor: number, input: Record<string, unknown>) {
       input = governanceInput('vote', input);
-      const adapter = enabled();
+      const adapter = await pick(input);
       const id = proposalId(input.proposal_id);
       const vote = input.vote as keyof typeof voteFunctions;
       if (!Object.hasOwn(voteFunctions, vote))
         throw new IssuanceError(400, 'InvalidFields', 'Unknown governance vote.');
       const role = String(input.role ?? '').toUpperCase();
       await transaction(database, (client) => authorizeGovernance(client, actor, role, permitted));
-      const current = await caseFor(database, id);
+      const current = await caseFor(database, id, adapter);
       const unapproved =
         current && !current.applied_at && !current.closed_at && current.decision === null;
       if (unapproved && vote === 'sign' && role === 'B') {
@@ -278,7 +337,7 @@ export function postgresConsoleGovernance(
               role,
               approved: false,
               transaction_hash: result.transactionHash,
-              ...(await sync(id)),
+              ...(await sync(id, adapter)),
             },
           };
         });
@@ -294,7 +353,7 @@ export function postgresConsoleGovernance(
      */
     async check(input: Record<string, unknown>) {
       input = governanceInput('check', input);
-      const adapter = enabled();
+      const adapter = await pick(input);
       let change;
       let loosens: { code: string; detail: string }[] = [];
       try {
@@ -339,7 +398,7 @@ export function postgresConsoleGovernance(
      */
     async admin(actor: number, input: Record<string, unknown>) {
       input = governanceInput('admin', input);
-      const adapter = enabled();
+      const adapter = await pick(input);
       const vote = input.vote as keyof typeof events;
       if (!Object.hasOwn(events, vote))
         throw new IssuanceError(400, 'InvalidFields', 'Unknown administration vote.');
@@ -435,8 +494,8 @@ export function postgresConsoleGovernance(
      */
     async sync(input: Record<string, unknown>) {
       input = governanceInput('sync', input);
-      enabled();
-      return sync(proposalId(input.proposal_id));
+      const adapter = await pick(input);
+      return sync(proposalId(input.proposal_id), adapter);
     },
   };
 }

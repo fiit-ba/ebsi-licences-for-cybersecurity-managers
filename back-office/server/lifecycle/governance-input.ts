@@ -136,6 +136,9 @@ export function governanceChangeInput(input: Record<string, unknown>) {
   return values;
 }
 
+/** A TI's DID. */
+const tiDid = /^did:ebsi:z[1-9A-HJ-NP-Za-km-z]{1,100}$/;
+
 /**
  * Restore the existing vote, sync, administration and policy-check serializers.
  * @param operation - Existing consumer operation whose serializer is selected.
@@ -152,16 +155,21 @@ export function governanceInput(
       proposal_id: { required: true, pattern: identifier },
       vote: { required: true, choices: votes },
       role: { required: true, pattern: role },
+      // The TI the proposal is about, whose TAO's contract has it.
+      ti: { pattern: tiDid },
     });
   if (operation === 'sync')
-    return fieldsInput(input, { proposal_id: { required: true, pattern: identifier } });
+    return fieldsInput(input, {
+      proposal_id: { required: true, pattern: identifier },
+      ti: { pattern: tiDid },
+    });
   const values = fieldsInput(input, {
     ...(operation === 'admin' ? { vote: { required: true, choices: ['propose', ...votes] } } : {}),
     role: { required: operation === 'admin', pattern: role },
     change: { change: true },
     admin_proposal_id: { pattern: identifier },
     // The TI whose rules a new change is for; a pending change names its own.
-    ti: { pattern: /^did:ebsi:z[1-9A-HJ-NP-Za-km-z]{1,100}$/ },
+    ti: { pattern: tiDid },
   });
   let detail;
   if (operation === 'check') {

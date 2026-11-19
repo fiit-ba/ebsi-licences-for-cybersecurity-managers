@@ -36,7 +36,8 @@ export async function trustChainCredential(options: {
   attributeId?: string;
   accreditedFor?: AccreditationScope[];
   termsOfUse?: string;
-  schema: string;
+  /** The schemas it follows: EBSI's for the trust chain, and type extensions it uses. */
+  schemas: string[];
   validUntil?: Date;
 }) {
   const now = Math.floor(Date.now() / 1000);
@@ -64,7 +65,7 @@ export async function trustChainCredential(options: {
     ...(options.termsOfUse
       ? { termsOfUse: { id: options.termsOfUse, type: 'IssuanceCertificate' } }
       : {}),
-    credentialSchema: { id: options.schema, type: 'FullJsonSchemaValidator2021' },
+    credentialSchema: options.schemas.map((id) => ({ id, type: 'FullJsonSchemaValidator2021' })),
   };
   return signJwt(options.signer, {
     iss: options.issuer,

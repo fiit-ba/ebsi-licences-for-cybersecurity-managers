@@ -10,13 +10,14 @@ import {
   VerificationStop,
 } from './outcomes.ts';
 import type { CredentialOutcome } from './outcomes.ts';
-import type { CertificateLedger } from '../issuance/types.ts';
+import type { CertificateRegistries } from './types.ts';
+import { UntrustedRegistry } from './registry-trust.ts';
 import { certificateStatusKey, credentialHash } from '../issuance/protection.ts';
 
 /** Existing dependencies of the credential evaluator, with no signing authority. */
 export interface EvaluationOptions {
   registry: ReturnType<typeof verificationRegistry>;
-  ledger?: Pick<CertificateLedger, 'contract' | 'status'>;
+  ledger?: CertificateRegistries;
   certificationBody?: (
     vc: Record<string, any>,
     issuer: string,
@@ -67,7 +68,7 @@ export function credentialEvaluator(options: EvaluationOptions) {
       outcome.types = Array.isArray(unsignedVc.type) ? unsignedVc.type : [];
       outcome.key_id = typeof unsigned.header.kid === 'string' ? unsigned.header.kid : null;
       const at =
-        verificationTime(unsignedVc.issuanceDate || unsignedVc.validFrom || unsignedVc.issued) ??
+        verificationTime(unsignedVc.issued || unsignedVc.issuanceDate || unsignedVc.validFrom) ??
         verificationTime(unsigned.payload.iat);
       outcome.resolved_at = at === null ? null : evidenceTime(at);
       const signed = await registry.signed(signedToken, fresh);
@@ -168,7 +169,9 @@ export function credentialEvaluator(options: EvaluationOptions) {
             'schemas_valid',
           );
         }
-        validateVerificationSchema(vc, document, schema.id);
+        await validateVerificationSchema(vc, document, schema.id, (url) =>
+          registry.schema(url, fresh),
+        );
         outcome.schemas.push(schema.id);
       }
       checks.schemas_valid = true;
@@ -195,18 +198,31 @@ export function credentialEvaluator(options: EvaluationOptions) {
           'No certificate registry is configured here',
           'status_available',
         );
-      if (status.contract.toLowerCase() !== ledger.contract.toLowerCase())
+      // The registry is trusted only as the TAO's that accredited the issuer: EBSI's Proxy
+      // Factory deployed it and its governance, and that governance serves this TAO.
+      const tao = outcome.trust_chain.find((step) => step.did === signed.issuer)?.accredited_by;
+      try {
+        if (!tao) throw new UntrustedRegistry('The issuer has no accrediting TAO.');
+        await ledger.trust(status.contract, tao);
+      } catch (error) {
+        if (error instanceof UntrustedRegistry)
+          throw new VerificationStop(
+            'STATUS_UNAVAILABLE',
+            `The credential names a certificate registry that is not its TAO's: ${error.message}`,
+            'status_available',
+          );
         throw new VerificationStop(
           'STATUS_UNAVAILABLE',
-          'The credential names a certificate registry other than this one',
+          'The certificate registry could not be read',
           'status_available',
         );
+      }
       const statusKey = '0x' + certificateStatusKey(signed.issuer, vc.id).toString('hex');
       let record;
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         record = await Promise.race([
-          ledger.status(statusKey),
+          ledger.status(status.contract, statusKey),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new Error('Ledger timeout')), 30_000).unref();
           }),
@@ -225,7 +241,7 @@ export function credentialEvaluator(options: EvaluationOptions) {
           String(record?.standing)
         ] ?? 'none';
       outcome.ledger = {
-        contract: ledger.contract.toLowerCase(),
+        contract: status.contract.toLowerCase(),
         standing,
         certificate_number: String(vc.credentialSubject?.certificateNumber || '') || null,
         registered_at: record?.registeredAt

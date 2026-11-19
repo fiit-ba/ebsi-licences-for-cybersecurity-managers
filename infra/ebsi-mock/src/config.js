@@ -88,6 +88,8 @@ export function readConfig(env = process.env) {
     rpc: env.MOCK_LEDGER_RPC_URL || 'http://host.docker.internal:8545',
     contracts,
     invoke,
+    // EBSI's Proxy Factory: what it deploys from a registered template is a Trusted Contract.
+    proxyFactory: address(env.MOCK_PROXY_FACTORY, ebsi.ProxyFactory?.contractAddress),
     // EBSI's operator: admin and operator of the Policies Registry on a
     // development chain (scripts/SetupEBSIInfrastructure.s.sol, the deployer).
     adminKey: env.MOCK_ADMIN_KEY || developmentKey(0),

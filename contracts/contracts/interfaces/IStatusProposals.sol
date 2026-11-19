@@ -9,7 +9,7 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  *         10.5), and their audit verification (component 10.7).
  */
 interface IStatusProposals is IGovernanceTypes {
-    event CertificateRegistryChanged(address certificateRegistry);
+    event CertificateRegistryChanged(address indexed certificateRegistry);
 
     event ProposalCreated(
         uint256 indexed proposalId,

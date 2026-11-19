@@ -79,6 +79,7 @@ async function start() {
   for (let attempt = 1; ; attempt++) {
     try {
       await chain.ensureGenesis(office.assertion);
+      await chain.configureFactory();
       break;
     } catch (error) {
       if (attempt % 10 === 1) log('waiting for the ledger and EBSI contracts:', error?.shortMessage ?? error?.message ?? error);

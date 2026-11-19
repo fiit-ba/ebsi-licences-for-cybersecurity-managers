@@ -58,7 +58,7 @@ export const APP_ROUTES = [
     icon: 'schemas',
     labelKey: 'Schémy',
     roles: ['plr_rtao', 'plr_tao', 'plr_auditor'],
-    descriptionKey: 'Druhy certifikátov a ich atribúty. Určuje ich RootTAO a registrujú sa v TSR.',
+    descriptionKey: 'Druhy certifikátov a ich atribúty, z registra schém EBSI (TSR).',
     Component: SchemasTab,
   },
   {

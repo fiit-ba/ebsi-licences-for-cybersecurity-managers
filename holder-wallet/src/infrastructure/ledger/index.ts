@@ -94,11 +94,9 @@ export const statusKeyOfCredential = (vc: any): string | undefined => {
  * that does arrive must not read as unavailable (at least 30 s). */
 export const TIMEOUT_MS = 30000
 
-/** The record kept under `statusKey`, on the configured certificate registry. */
-export const readCertificateStatus = async (statusKey: string, signal?: AbortSignal): Promise<CertificateRecord> => {
-  const contract = certificates.registry()
-  if (!ebsi.isConfigured() || !contract) throw new LedgerUnavailable('No ledger or certificate registry configured')
-  const data = contractInterface.encodeFunctionData('certificateStatus', [statusKey])
+/** An `eth_call` through EBSI's Ledger API. */
+const ethCall = async (to: string, data: string, signal?: AbortSignal): Promise<string> => {
+  if (!ebsi.isConfigured()) throw new LedgerUnavailable('No ledger configured')
   let body: any
   try {
     body = await fetchWithin(
@@ -106,7 +104,7 @@ export const readCertificateStatus = async (statusKey: string, signal?: AbortSig
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: contract, data }, 'latest'] }),
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }),
       },
       TIMEOUT_MS,
       (response) => response.json(),
@@ -118,7 +116,86 @@ export const readCertificateStatus = async (statusKey: string, signal?: AbortSig
   if (body?.error || typeof body?.result !== 'string') {
     throw new LedgerUnavailable(String(body?.error?.message ?? 'No result from the ledger'))
   }
-  const [record] = contractInterface.decodeFunctionResult('certificateStatus', body.result)
+  return body.result
+}
+
+const pairInterface = new utils.Interface([
+  'function getDeploymentInfo(address) view returns (tuple(bytes32 templateId, address deployer, uint256 deploymentTimestamp, bool isActive, string deployerDID, address owner))',
+  'function governance() view returns (address)',
+  'function certificateRegistry() view returns (address)',
+  'function taoDid() view returns (string)',
+])
+
+/** A template's id in EBSI's Proxy Templates Registry: keccak256(abi.encode(name, version)). */
+const templateId = (template: { name: string; version: string }): string =>
+  utils.keccak256(utils.defaultAbiCoder.encode(['string', 'string'], [template.name, template.version]))
+
+/** A registry a certificate names that is not a genuine registry of its TI's TAO. */
+export class UntrustedRegistry extends Error {}
+
+const recognised = new Map<string, Promise<string>>()
+
+/**
+ * The TAO a certificate registry serves, when it is genuine: EBSI's Proxy Factory deployed it from
+ * the certificate registry template, its governance from the governance template, and the two
+ * name each other. Each TAO has its own; the wallet needs no list of them.
+ */
+export const registryTao = (contract: string, signal?: AbortSignal): Promise<string> => {
+  const registry = contract.toLowerCase()
+  let tao = recognised.get(registry)
+  if (!tao) {
+    tao = (async () => {
+      const factory = certificates.factory()
+      if (!factory) throw new UntrustedRegistry('No EBSI Proxy Factory is configured')
+      const call = async (to: string, name: string, args: unknown[] = []) =>
+        pairInterface.decodeFunctionResult(name, await ethCall(to, pairInterface.encodeFunctionData(name, args), signal))
+      const deployedFrom = async (address: string, template: { name: string; version: string }) => {
+        const [info] = await call(factory, 'getDeploymentInfo', [address])
+        return String(info.templateId).toLowerCase() === templateId(template) && info.isActive === true
+      }
+      const templates = certificates.templates()
+      if (!(await deployedFrom(registry, templates.registry)))
+        throw new UntrustedRegistry('The registry was not deployed from the registry template')
+      const [governance] = await call(registry, 'governance')
+      if (!(await deployedFrom(governance, templates.governance)))
+        throw new UntrustedRegistry('Its governance was not deployed from the governance template')
+      const [governed] = await call(governance, 'certificateRegistry')
+      if (String(governed).toLowerCase() !== registry)
+        throw new UntrustedRegistry('Its governance governs another registry')
+      const [did] = await call(governance, 'taoDid')
+      return String(did)
+    })()
+    recognised.set(registry, tao)
+    // A failed check is asked again next time, not remembered.
+    tao.catch(() => recognised.delete(registry))
+  }
+  return tao
+}
+
+/**
+ * Whether a registry is the one of the TAO that accredited the certificate's TI. Without an EBSI
+ * Proxy Factory configured, only the configured registry is.
+ */
+export const trustRegistry = async (contract: string, taoDid: string | undefined, signal?: AbortSignal) => {
+  if (!certificates.factory()) {
+    if (!certificates.registry() || contract.toLowerCase() !== certificates.registry())
+      throw new UntrustedRegistry('The certificate names another certificate registry')
+    return
+  }
+  if (!taoDid) throw new UntrustedRegistry("The certificate's TI has no accrediting TAO")
+  if ((await registryTao(contract, signal)) !== taoDid)
+    throw new UntrustedRegistry("The certificate registry is not its TI's TAO's")
+}
+
+/** The record kept under `statusKey`, on the certificate registry the certificate names. */
+export const readCertificateStatus = async (
+  statusKey: string,
+  signal?: AbortSignal,
+  contract: string = certificates.registry(),
+): Promise<CertificateRecord> => {
+  if (!ebsi.isConfigured() || !contract) throw new LedgerUnavailable('No ledger or certificate registry configured')
+  const data = contractInterface.encodeFunctionData('certificateStatus', [statusKey])
+  const [record] = contractInterface.decodeFunctionResult('certificateStatus', await ethCall(contract, data, signal))
   return {
     standing: STANDINGS[Number(record.standing)] ?? 'none',
     issuerDid: String(record.issuerDid),

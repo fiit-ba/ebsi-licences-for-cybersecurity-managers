@@ -6,20 +6,20 @@ Compose builds both services from `back-office/Dockerfile`; ordered SQL migratio
 run under a PostgreSQL advisory lock before service startup. Vite and hosted nginx
 use the same API paths.
 
-| Owner                                | Responsibility                                                                                                          |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `server/identity`                    | Scrypt accounts, live roles/session versions, staff/groups, activation/recovery and first-administrator bootstrap.      |
-| `server/accreditation`               | RootTAO → TAO → TI hierarchy, invitations, delegation, accreditation, key onboarding and withdrawal.                    |
-| `server/ebsi`                        | EBSI Core API v1 clients: Authorisation tokens, the Ledger API, DID/TIR publication and the development Support Office. |
-| `server/schemas`                     | Draft/versioned publication, retirement and public Wallet catalogs.                                                     |
-| `server/issuance`                    | OpenID4VCI 1.0 offers and transaction codes, nonces, holder proof, schema validation, SD-JWT and certificate records.   |
-| `server/verification`                | Issuer signatures at issuance, trust/schema/record checks, OpenID4VP 1.0 (DCQL) requests and holder exchange.           |
-| `server/lifecycle`                   | Registry decisions, independent approval, emergency protection, per-TI governance setup and reconciliation.             |
-| `server/keys`                        | Purpose-bound KMS operations, durable key requests and exact transaction intents.                                       |
-| `server/audit`                       | Immutable journal, private decisions/reasons, authorized disclosures and timestamp delivery.                            |
-| `server/backup`                      | Opaque encrypted Wallet backup, signed updates/deletes and shared admission limits.                                     |
-| `server/background`, `server/worker` | Broker submission, scheduling, dispatch, consumer lifecycle and health.                                                 |
-| `web`, `shared`                      | Operator console and public TypeScript contracts.                                                                       |
+| Owner                                | Responsibility                                                                                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/identity`                    | Scrypt accounts, live roles/session versions, staff/groups, activation/recovery and first-administrator bootstrap.                            |
+| `server/accreditation`               | RootTAO → TAO → TI hierarchy: appointment by the organization's own DID, invitations, delegation, issued accreditations, keys and withdrawal. |
+| `server/ebsi`                        | EBSI Core API v1 clients: Authorisation tokens, the Ledger API, DID/TIR publication and the development Support Office.                       |
+| `server/schemas`                     | Certificate schemas read from EBSI's Trusted Schemas Registry (`PLR_TSR_SCHEMAS`) and public Wallet catalogs.                                 |
+| `server/issuance`                    | OpenID4VCI 1.0 offers and transaction codes, nonces, holder proof, schema validation, SD-JWT and certificate records.                         |
+| `server/verification`                | Issuer signatures at issuance, trust/schema/record checks, OpenID4VP 1.0 (DCQL) requests and holder exchange.                                 |
+| `server/lifecycle`                   | Registry decisions, independent approval, emergency protection, per-TI governance setup and reconciliation.                                   |
+| `server/keys`                        | Purpose-bound KMS operations, durable key requests and exact transaction intents.                                                             |
+| `server/audit`                       | Immutable journal, private decisions/reasons, authorized disclosures and timestamp delivery.                                                  |
+| `server/backup`                      | Opaque encrypted Wallet backup, signed updates/deletes and shared admission limits.                                                           |
+| `server/background`, `server/worker` | Broker submission, scheduling, dispatch, consumer lifecycle and health.                                                                       |
+| `web`, `shared`                      | Operator console and public TypeScript contracts.                                                                                             |
 
 Account creation, password changes and login use the same [password policy](password-policy.md).
 Login requires both a matching scrypt hash and a password accepted for the current account details.
@@ -42,6 +42,20 @@ signers and roles, quorum, vetoes, expiry and timelocks; a TAO's key owns both
 contracts and sets its TIs up on them. Local decisions, signed bytes and accepted
 broadcasts do not establish blockchain confirmation.
 
+Each TAO has its own pair. The installation's first, deployed with `contracts/`
+(`PLR_GOVERNANCE_CONTRACT`, `PLR_CERTIFICATE_REGISTRY`), becomes the pair of the TAO its
+governance contract names. Every other TAO's pair is deployed by the back-office once
+the TAO is confirmed in EBSI: through EBSI's Proxy Factory (`PLR_PROXY_FACTORY`), from
+the registered templates (`PLR_CONTRACT_TEMPLATES`), signed by the RootTAO, which holds
+the `ProxyFactory:deployProxy` policy, and owned by the TAO's own key. A licence names
+its TI's TAO's registry, and every record, case and emergency goes to that pair.
+
+A verifier (the back-office's and the Wallet's) keeps no list of registries. It trusts
+the registry a licence names when EBSI's Proxy Factory deployed it from the registry
+template, its governance from the governance template, the two name each other, and
+the governance contract serves the TAO that accredited the issuing TI in the Trusted
+Issuers Registry.
+
 ## Product and security boundaries
 
 - A fresh installation bootstraps its first administrator locally. Business roles
@@ -61,8 +75,13 @@ broadcasts do not establish blockchain confirmation.
   UUID, retaining the provisional registration alias. The certificate's record is
   registered after commit; before collection there is no record, and status
   decisions apply locally.
-- Each TI has its own DID and purpose-separated keys. Public keys must be confirmed
-  before activation. Key lookup uses the signed issuance timestamp, including its
+- A TAO or TI is appointed by its own DID, which it registered in the DID Registry
+  with its own wallet. Its accreditor reserves its attribute in the Trusted Issuers
+  Registry and issues its accreditation (VerifiableAccreditationToAccredit or
+  ToAttest); the organization downloads it and stores it in the registry with its
+  wallet, after listing the back-office's purpose-separated KMS keys in its DID
+  document. The back office never writes either for it, and acts for it only once
+  the registries show both. Public keys must be confirmed before activation. Key lookup uses the signed issuance timestamp, including its
   fractional seconds, and does not substitute a current key after failed history lookup.
 - Verification checks signature, holder binding, disclosures, schema, trust and the
   certificate's record (TI, credential hash, validity, standing) separately. Public evidence excludes holder DID, raw tokens,

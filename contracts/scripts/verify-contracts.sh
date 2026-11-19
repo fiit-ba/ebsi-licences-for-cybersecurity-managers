@@ -107,8 +107,13 @@ if [ -f "$record" ]; then
   beacon=$(jq -r '.CertificateGovernance.beacon' "$record")
   proxy=$(jq -r '.CertificateGovernance.address' "$record")
 
-  # The implementation: our own, audited code. Its constructor takes nothing.
-  verify "implementation" "$implementation" "contracts/CertificateGovernance.sol:CertificateGovernance"
+  # The implementation: our own, audited code. Its constructor takes the DID
+  # Registry and the Trusted Issuers Registry, which it keeps as immutables;
+  # the implementation itself answers them, so they are read back from it.
+  did_registry=$(cast call "$implementation" "didRegistry()(address)" --rpc-url "$rpc_url")
+  issuers_registry=$(cast call "$implementation" "issuersRegistry()(address)" --rpc-url "$rpc_url")
+  verify "implementation" "$implementation" "contracts/CertificateGovernance.sol:CertificateGovernance" \
+    --constructor-args "$(cast abi-encode "constructor(address,address)" "$did_registry" "$issuers_registry")"
 
   # The beacon and the proxy are OpenZeppelin's own contracts (verifying them
   # confirms the deployed bytecode matches the published source, nothing about

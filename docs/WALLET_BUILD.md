@@ -48,7 +48,15 @@ device-reachable DNS name or LAN address as `PLR_PUBLIC_HOST`:
 NODE_IP=http://<shared-host>:8545
 BACKOFFICE_URL=http://<shared-host>:8000
 EBSI_URL=http://<shared-host>:8090
+# EBSI's APIs in the pilot's shape (the default), or core-v1.
+EBSI_API=pilot
 CERTIFICATE_REGISTRY=0xCertificateRegistryAddress
+# Each TAO has its own certificate registry. The Wallet trusts the one a licence names
+# when EBSI's Proxy Factory deployed it (and its governance) from the templates and it
+# serves the TAO that accredited the licence's TI; without a factory, only
+# CERTIFICATE_REGISTRY is trusted.
+EBSI_PROXY_FACTORY=0xProxyFactoryAddress
+CONTRACT_TEMPLATES=CertificateRegistry@1,CertificateGovernance@1
 LEDGER_CHAIN_ID=1337
 EBSI_SUPPORT_OFFICE_DID=did:ebsi:zSupport
 ```

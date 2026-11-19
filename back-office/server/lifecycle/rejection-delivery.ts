@@ -69,9 +69,12 @@ export function postgresRejectionDelivery(
           [id],
         );
         let result;
+        let contract: string;
         try {
+          // The case went to the governance contract of its TI's TAO.
+          contract = await governance.contractFor(record.issuer_did);
           if (
-            record.onchain_contract !== governance.contract ||
+            record.onchain_contract !== contract ||
             Number(record.onchain_chain_id) !== governance.chainId
           )
             return;
@@ -122,7 +125,7 @@ export function postgresRejectionDelivery(
               onchain_proposal_id: result.id,
               state: result.state,
               chain_id: governance.chainId,
-              contract: governance.contract,
+              contract,
               reason_hash: '0x' + record.reason_hash.toString('hex'),
             },
           });

@@ -48,11 +48,12 @@ contract AbiExportTest is GovernanceTest {
     function test_CarriesTheContractsOwnBoundsAsTheDeployedContractHasThem() public view {
         // Read from the source; a caller checks its settings against them.
         string[] memory names = vm.parseJsonKeys(generated, ".limits");
-        assertEq(names.length, 4);
+        assertEq(names.length, 5);
         assertEq(generated.readUint(".limits.MAX_TRUST_CHAIN_DEPTH"), governance.MAX_TRUST_CHAIN_DEPTH());
         assertEq(generated.readUint(".limits.MAX_ROLE"), governance.MAX_ROLE());
         assertEq(generated.readUint(".limits.MAX_TIMELOCK"), governance.MAX_TIMELOCK());
         assertEq(generated.readUint(".limits.MAX_PROPOSAL_TTL"), governance.MAX_PROPOSAL_TTL());
+        assertEq(generated.readUint(".limits.MIN_SIGNING_WINDOW"), governance.MIN_SIGNING_WINDOW());
     }
 
     // -----------------------------------------------------------------------

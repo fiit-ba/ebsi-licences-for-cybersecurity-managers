@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EBSI Verifiable Accreditation Record",
+  "description": "Schema of an EBSI Verifiable Accreditation",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/0xef484394a9c6622016a2e2e4eba7e093d96433474938fa2a70935697a139c5ec"
+    },
+    {
+      "properties": {
+        "credentialSubject": {
+          "description": "Defines additional information about the subject that is described by the Verifiable Accreditation",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Defines a unique identifier of the Verifiable Attestation",
+              "type": "string",
+              "format": "uri"
+            },
+            "reservedAttributeId": {
+              "description": "Defines the attributeId this Verifiable Accreditation has been created for",
+              "type": "string"
+            },
+            "accreditedFor": {
+              "description": "Defines a list of claims that define/determine the authorisation of an Issuer to issue certain types of VCs",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "schemaId": {
+                    "description": "Schema, registered in Trusted  Schemas Registry, which the accredited organisation is allowed to issue, as per their accreditation",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "limitJurisdiction": {
+                    "anyOf": [
+                      {
+                        "description": "Defines the jurisdiction for which the accreditation is valid",
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "array",
+                        "description": "Defines the jurisdictions for which the accreditation is valid",
+                        "items": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "schemaId",
+                  "types"
+                ]
+              }
+            }
+          },
+          "required": [
+            "id",
+            "reservedAttributeId",
+            "accreditedFor"
+          ]
+        },
+        "credentialStatus": {
+          "description": "Defines revocation details for the issued credential. Further redefined by type extension",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Exact identity for the credential status",
+              "type": "string",
+              "format": "uri"
+            },
+            "type": {
+              "description": "Defines the revocation status type",
+              "type": "string",
+              "const": "EbsiAccreditationEntry"
+            }
+          },
+          "required": [
+            "id",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "expirationDate",
+        "credentialSubject",
+        "termsOfUse"
+      ]
+    }
+  ]
+}

@@ -93,7 +93,11 @@ export function governanceLedger(options: {
 
   return {
     chainId,
-    contract,
+    /**
+     * This registry, the one of the TAO it serves.
+     * @returns Its address.
+     */
+    contractFor: async () => contract,
     /**
      * Read a certificate's record.
      *

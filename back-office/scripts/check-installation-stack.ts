@@ -84,6 +84,18 @@ const { record, anvil: ledger } = await startTestLedger({
   taoDid: 'did:ebsi:zmQaJTYt1ftvnjrwxWpPDUX',
 });
 const ledgerPort = new URL(record.rpc).port;
+// Blocks keep coming, as on Besu: the ledger's own ticker runs in this process, which waits on
+// every command below without running it, and a write waiting for its confirmation block (the
+// worker's last one, say) would otherwise wait on an idle chain.
+const ticker = spawn(
+  process.execPath,
+  [
+    '-e',
+    // It stops with this process, even when this one dies before cleaning up.
+    `setInterval(()=>{try{process.kill(${process.pid},0)}catch{process.exit()}fetch(${JSON.stringify(record.rpc)},{method:'POST',headers:{'content-type':'application/json'},body:'{"jsonrpc":"2.0","id":1,"method":"evm_mine","params":[]}'}).catch(()=>{})},1000)`,
+  ],
+  { stdio: 'ignore' },
+);
 const provider = new JsonRpcProvider(record.rpc, undefined, { cacheTimeout: -1 });
 let vite: ReturnType<typeof spawn> | undefined;
 let composed = false;
@@ -110,6 +122,7 @@ try {
         SchemasRegistry: { contractAddress: record.schemasRegistry },
         Timestamp: { contractAddress: record.timestamp },
         PolicyRegistry: { contractAddress: record.policiesRegistry },
+        ProxyFactory: { contractAddress: record.proxyFactory },
       },
     }),
   );
@@ -130,6 +143,7 @@ try {
     PLR_REGISTRY_PORT: String(registryPort),
     PLR_GOVERNANCE_CONTRACT: record.governance,
     PLR_CERTIFICATE_REGISTRY: record.registry,
+    PLR_PROXY_FACTORY: record.proxyFactory,
     PLR_GOVERNANCE_TAO_DID: record.taoDid,
     PLR_DEPLOYMENTS_DIR: deployments,
     PLR_LEDGER_CHAIN_ID: String(record.chainId),
@@ -204,7 +218,14 @@ try {
     BACK_OFFICE_ACCEPTANCE_STATE_FILE: stateFile,
     BACK_OFFICE_ACCEPTANCE_RPC_URL: 'http://127.0.0.1:' + ledgerPort,
   };
-  console.log(run(process.execPath, ['checks/installation.ts'], { cwd: packageRoot, env }).trim());
+  // The TAO and the TI it appoints publish in the development registries with their wallets.
+  console.log(
+    run(process.execPath, ['checks/installation.ts'], {
+      cwd: packageRoot,
+      env,
+      timeout: 1_800_000,
+    }).trim(),
+  );
   run('docker', [
     ...composeArgs,
     'exec',
@@ -389,6 +410,7 @@ try {
     run('docker', [...composeArgs, 'stop', '--timeout', '90']);
   }
   provider.destroy();
+  ticker.kill();
   if (ledger.exitCode === null) {
     const done = once(ledger, 'exit');
     ledger.kill('SIGTERM');

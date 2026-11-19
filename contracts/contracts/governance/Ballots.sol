@@ -19,6 +19,10 @@ abstract contract Ballots is TiConfiguration {
         uint64 proposedAt;
         uint64 quorumReachedAt;
         ProposalState state;
+        /// When the lifetime set at opening ends. Fixed at opening: a later
+        /// TTL change neither revives an expired ballot nor cuts an open one
+        /// short.
+        uint64 expiresAt;
         address[] signatures;
         mapping(address => bool) signed;
     }
@@ -28,6 +32,7 @@ abstract contract Ballots is TiConfiguration {
         ballot.proposer = msg.sender;
         ballot.proposedAt = uint64(block.timestamp);
         ballot.state = ProposalState.PROPOSED;
+        ballot.expiresAt = uint64(block.timestamp) + _proposalTtl(tiId);
     }
 
     /// @dev Adds the caller's signature; returns the signed roles and
@@ -94,9 +99,10 @@ abstract contract Ballots is TiConfiguration {
         return state == ProposalState.PROPOSED || state == ProposalState.APPROVED;
     }
 
+    /// @dev A ballot opened before `expiresAt` existed has none, and stays
+    ///      open as it would have under a TTL of 0.
     function _pastTtl(Ballot storage ballot) internal view returns (bool) {
-        uint64 ttl = _proposalTtl(ballot.tiId);
-        return ttl > 0 && block.timestamp >= ballot.proposedAt + ttl;
+        return ballot.expiresAt > 0 && block.timestamp >= ballot.expiresAt;
     }
 
     function _effectiveState(Ballot storage ballot) internal view returns (ProposalState) {

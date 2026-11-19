@@ -22,6 +22,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
     "check:docs": "node scripts/check-docs.ts",
+    "check:schemas": "node scripts/sync-schemas.ts --check",
     "bootstrap:admin": "node scripts/bootstrap-admin.ts",
     "keys": "node scripts/signing-keys.ts",
     "keys:fields": "node scripts/field-keys.ts",

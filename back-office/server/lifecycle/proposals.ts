@@ -221,6 +221,13 @@ export function postgresStatusProposals(
         `,
           [id],
         );
+        // An open proposal nobody has approved yet is not withdrawn: a second person rejects it.
+        if (proposal && !proposal.decision && !proposal.closed_at)
+          fail(
+            409,
+            'ProposalNotApproved',
+            'Only an approved proposal can be withdrawn; an open one is rejected.',
+          );
         if (
           !proposal ||
           proposal.decision !== 'approved' ||
@@ -445,9 +452,9 @@ export function postgresStatusProposals(
         if (!proposal.can_manage && !signerApproval)
           fail(403, 'NotYours', 'This operator cannot decide this proposal.');
         if (proposal.rejected_at || proposal.closed_at || proposal.applied_at)
-          throw lifecycleRefusal(decision === 'approved' ? 403 : 409, {
+          throw lifecycleRefusal(409, {
+            reason: 'ProposalClosed',
             detail: 'This proposal is already closed.',
-            ...(decision === 'approved' ? { reason: 'FourEyes' } : {}),
           });
         // A local decision becomes a governance case when the holder collected meanwhile:
         // its record exists now, and only the contract may change it.

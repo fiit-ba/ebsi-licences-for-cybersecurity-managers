@@ -25,11 +25,17 @@ Fill every required setting in `prod/.env` before running Compose. Prepare:
   `SYMMETRIC_DEFAULT` / `ENCRYPT_DECRYPT` KMS wrapping key in `PLR_FIELD_KMS_KEY_ID`.
   A plaintext data-encryption key is not configured.
 - Authorized AWS credentials/workload identity, real EBSI registry roots and issuer
-  DID, EBSI's Core API v1 origin (`PLR_EBSI_API_ORIGIN`), the addresses of the
-  certificate registry and its governance contract as deployed for the TAO
-  (`contracts/`), their chain ID, and reachable RPC URLs. The backend's
-  `PLR_LEDGER_RPC_URL` is EBSI's Ledger API (`/v1/ledger`), which needs a token
-  from the Authorisation API for every transaction; `PLR_LEDGER_WALLET_RPC` must be
+  DID, EBSI's API origin (`PLR_EBSI_API_ORIGIN`, `https://api-pilot.ebsi.eu` on the
+  pilot, whose API shape `docker-compose.prod.yml` selects with `PLR_EBSI_API=pilot`),
+  the addresses of the first TAO's certificate registry and governance contract as
+  deployed with `contracts/`, EBSI's Proxy Factory (`PLR_PROXY_FACTORY`) through which
+  the back-office deploys every further TAO's pair (EBSI's Support Office grants the
+  RootTAO's ledger key `ProxyFactory:deployProxy` and a `VerifiableAuthorisationToInvoke`
+  for it), their chain ID (6179 on the pilot), and reachable RPC
+  URLs. The backend's `PLR_LEDGER_RPC_URL` is EBSI's Ledger API
+  (`/ledger/v4/blockchains/besu` on the pilot), which needs a token from the
+  Authorisation API for every transaction to the contracts; registry writes go
+  through each registry's own JSON-RPC; `PLR_LEDGER_WALLET_RPC` must be
   client-reachable.
 - An owner-only initial administrator password file on the host. The command below
   mounts it only for the one-time ceremony; it is not a regular backend mount.
@@ -101,15 +107,19 @@ purposes, publish their public DID relationships through the real EBSI process,
 and confirm them before activation. Real DID/TIR onboarding remains manual;
 this template cannot supply the deployment authority's credentials or approvals.
 
+A TAO or TI is appointed by its own DID and lists the back-office's keys in its DID
+document with its own wallet; it also stores the accreditation its accreditor issued
+(downloaded under **Akreditácia v EBSI**) in the Trusted Issuers Registry itself.
 Each TI signs on the governance contract with its own A and B keys, purposes
-`governance_role_a` and `governance_role_b` of the same ceremony. Publish them as
-capabilityInvocation keys of the TI's DID; the TAO then sets the TI up on the
+`governance_role_a` and `governance_role_b` of the same ceremony, which it lists as
+capabilityInvocation keys of its DID; the TAO then sets the TI up on the
 certificate registry's governance with them and the supervisory authority's DID as
 cosigner C, through the contract's own administration. Grant separate humans the
 A/B memberships. The development keys of `contracts/scripts/Networks.sol` are
 public test accounts and are not a hosted ceremony.
-No supervisory C private key enters the runtime. Schema publication/accreditation
-must also be completed before issuing under those schemas.
+No supervisory C private key enters the runtime. The certificate schemas come from
+EBSI's Trusted Schemas Registry, where the Support Office registers them: name their
+ids in `PLR_TSR_SCHEMAS`, and accredit the TIs for them before issuing.
 
 ## 5. Start the complete stack and check it
 
@@ -131,6 +141,10 @@ Readiness proves database/schema availability, not successful AWS/EBSI onboardin
 For subsequent starts retain configuration, keys, data and contract addresses;
 repeat migrations/startup, not the initial administrator or key replacement.
 `docker compose ... stop` preserves volumes; `down -v` deletes PostgreSQL and Redis volumes.
+
+Timestamp anchoring still sends its transactions the Core API v1 way (through the
+Ledger API); on the pilot, EBSI's Timestamp API takes them through its own JSON-RPC,
+so keep `BACK_OFFICE_TIMESTAMP_ENABLED=false` there.
 
 Enable mail or timestamp delivery only with their complete provider settings. See
 [runtime configuration](../back-office/docs/configuration.md) for token-file mounts,

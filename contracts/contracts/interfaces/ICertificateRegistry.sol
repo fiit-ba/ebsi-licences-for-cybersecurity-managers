@@ -8,7 +8,7 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  */
 interface ICertificateRegistry is IGovernanceTypes {
     /// @notice The contract allowed to apply executed proposals changed.
-    event GovernanceChanged(address governance);
+    event GovernanceChanged(address indexed governance);
 
     /// @notice A certificate entered the registry's record.
     event CertificateRegistered(

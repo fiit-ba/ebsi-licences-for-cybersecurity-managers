@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { decodeJwt, SignJWT } from 'jose';
@@ -6,11 +7,52 @@ import { actualWalletClients } from '../server/issuance/fixtures/wallet.ts';
 import { actualBackupWallet } from '../server/backup/fixtures/wallet.ts';
 import { actualHolderWallet } from '../server/verification/fixtures/holder-wallet.ts';
 import { verificationHolder } from '../server/verification/fixtures/runtime.ts';
+import { developmentWalletDid } from '../server/accreditation/development-wallet.ts';
 
 if (process.env.ATEST_INSTALLATION_TEST !== 'isolated')
   throw new Error(
     'Use only a task-owned disposable installation (ATEST_INSTALLATION_TEST=isolated).',
   );
+if (
+  !process.env.BACK_OFFICE_ACCEPTANCE_COMPOSE_PROJECT ||
+  !process.env.BACK_OFFICE_ACCEPTANCE_COMPOSE_ENV
+)
+  throw new Error('Use the owned disposable installation runner.');
+const walletSource = (
+  await readFile(new URL('./organization-wallet.ts', import.meta.url), 'utf8')
+).replaceAll('../server/', './server/');
+
+/**
+ * Play an appointed organization's own wallet inside the backend container (organization-wallet.ts).
+ * @param args - The phase, the wallet and its accreditor's username or its organization id.
+ * @returns Completion.
+ * @throws Command failure, with the wallet's diagnostics.
+ */
+function organizationWallet(...args: string[]) {
+  execFileSync(
+    'docker',
+    [
+      'compose',
+      '--project-name',
+      process.env.BACK_OFFICE_ACCEPTANCE_COMPOSE_PROJECT!,
+      '--env-file',
+      process.env.BACK_OFFICE_ACCEPTANCE_COMPOSE_ENV!,
+      '-f',
+      new URL('../../infra/docker-compose.yml', import.meta.url).pathname,
+      'exec',
+      '-T',
+      '-e',
+      'ATEST_INSTALLATION_TEST=isolated',
+      'backend',
+      'node',
+      '--input-type=module-typescript',
+      '-',
+      ...args,
+    ],
+    { input: walletSource, encoding: 'utf8', timeout: 900_000, stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+}
+
 try {
   const origin = process.env.BACK_OFFICE_ACCEPTANCE_ORIGIN!;
   const username = process.env.BACK_OFFICE_ACCEPTANCE_USERNAME!;
@@ -100,10 +142,20 @@ try {
   }
   const schemaId = schema.credential_type;
   assert.ok(schemaId, JSON.stringify(schema));
+  // The TAO and the TI bring their own DIDs: their wallets register them before they are
+  // appointed, and store their accreditations once they registered.
+  const taoWallet = String(2 + Math.floor(Math.random() * 2 ** 29));
+  const tiWallet = String(Number(taoWallet) + 1);
+  organizationWallet('register', taoWallet, username);
   const taoSelection = await api(
     '/registry/trust-chain/select/',
     root.access,
-    { name: 'Installation TAO ' + suffix, kind: 'tao', schemas: [schemaId] },
+    {
+      name: 'Installation TAO ' + suffix,
+      kind: 'tao',
+      did: developmentWalletDid(Number(taoWallet)),
+      schemas: [schemaId],
+    },
     201,
   );
   const taoName = 'tao.' + suffix;
@@ -113,16 +165,19 @@ try {
     { invitation: taoSelection.invitation, username: taoName, password, kind: 'tao' },
     201,
   );
+  organizationWallet('complete', taoWallet, taoSelection.organization_id);
   const tao = await wallet.authenticateOrganization(taoName, password);
   // A licence gets its record once its TI is set up on the governance contract, which belongs to
   // the TAO it was deployed for: the seeded TAO. A new TAO's TIs issue, but get no record.
   const accreditor = seeded ? await wallet.authenticateOrganization('mirri', password) : tao;
+  organizationWallet('register', tiWallet, seeded ? 'mirri' : taoName);
   const tiSelection = await api(
     '/registry/trust-chain/select/',
     accreditor.access,
     {
       name: 'Installation TI ' + suffix,
       kind: 'ti',
+      did: developmentWalletDid(Number(tiWallet)),
       schemas: [schemaId],
       accredited_until: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
     },
@@ -133,6 +188,7 @@ try {
   await assert.rejects(
     wallet.registerOrganizationAccount(tiSelection.invitation, 'replay.' + suffix, password),
   );
+  organizationWallet('complete', tiWallet, tiSelection.organization_id);
   const ti = await wallet.authenticateOrganization(tiName, password);
   const profile = await wallet.fetchOrganizationAccount(ti.access);
   assert.ok(profile.roles.includes('plr_issuer'));
@@ -140,9 +196,10 @@ try {
   assert.equal(schemes.schemas[0].credential_type, type);
   const catalog = await api('/registry/schema-names/');
   assert.ok(JSON.stringify(catalog).includes(type));
-  await api('/registry/schemas/', ti.access, {}, 403);
-  // The worker publishes a newly registered TI in the development registries; issuance waits
-  // until it is an issuer. A refused offer creates nothing, so asking again is safe.
+  // Schemas come from the TSR: the back-office writes none, for anyone.
+  await api('/registry/schemas/', ti.access, {}, 404);
+  // Issuance waits until the TI is an issuer; its wallet stored its accreditation above. A
+  // refused offer creates nothing, so asking again is safe.
   const createOffer = () =>
     wallet.createCertificateOffer(
       ti.access,
@@ -158,6 +215,7 @@ try {
               teachingHours: 16,
               placeOfIssue: 'Bratislava',
               issueDate: new Date().toISOString().slice(0, 10),
+              certificationBody: 'Installation TI ' + suffix,
               signatory: 'Installation signer',
             }
           : {}),

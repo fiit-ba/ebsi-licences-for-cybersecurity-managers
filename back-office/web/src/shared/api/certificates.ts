@@ -2,7 +2,7 @@
 // Technologies for the Professional License Registry. It is licensed under
 // the MIT License (see LICENSE).
 
-import { backendRequest } from './client.ts';
+import { backendRequest, ONBOARDING_TIMEOUT_MS } from './client.ts';
 
 /**
  * The schemas the signed-in TI may issue, what each says (D16, D17), and its name.
@@ -24,5 +24,11 @@ export function certificateScheme() {
  * @throws Backend refusal, request timeout or network errors from the existing request client.
  */
 export function issueCertificate(payload) {
-  return backendRequest('/registry/issue/', { method: 'POST', body: payload });
+  // A TI's first offer may onboard it in EBSI first (its DID, keys, accreditation and its setup
+  // on the governance contract), which takes far longer than an ordinary request.
+  return backendRequest('/registry/issue/', {
+    method: 'POST',
+    body: payload,
+    timeoutMs: ONBOARDING_TIMEOUT_MS,
+  });
 }

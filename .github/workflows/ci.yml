@@ -72,6 +72,7 @@ jobs:
       - run: npm run check:standalone
       - run: npm run format:check
       - run: npm run check:docs
+      - run: npm run check:schemas
       - run: npm run typecheck
       - run: npm run build:web
       - name: Install the contracts' dependencies

@@ -8,7 +8,11 @@ export interface InvitationOptions {
   maxAccreditationDays?: number;
   governanceEnabled?: boolean;
   protection?: Protection;
+  /** Whether the DID Registry knows a DID: an organization is appointed by its own DID. */
+  didRegistered?: (did: string) => Promise<boolean>;
   onboard?: (organization: string, actor: number) => Promise<void>;
+  /** Check an organization's accreditation in EBSI's registries (onboarding's `check`). */
+  check?: (organization: string, actor: number) => Promise<EbsiAccreditation>;
   refresh?: (organization: string) => Promise<void>;
   withdraw?: (organization: string) => Promise<void>;
   reportIntegrationError?: (operation: string) => void;
@@ -67,4 +71,22 @@ export interface OrganizationView {
     organization_kind: OrganizationKind;
   } | null;
   accredited?: OrganizationView[];
+}
+
+/** An appointed organization's accreditation in EBSI, as checked in the registries. */
+export interface EbsiAccreditation {
+  did: string;
+  /** The credential its accreditor issued, for it to store in the Trusted Issuers Registry. */
+  accreditation: string | null;
+  attribute_id: string | null;
+  /** The back-office's keys its DID document must list, and whether it does. */
+  keys: {
+    purpose: string;
+    kid: string;
+    public_jwk: unknown;
+    relationships: string[];
+    listed: boolean;
+  }[];
+  /** Whether the registry holds the credential, with the keys listed. */
+  accredited: boolean;
 }

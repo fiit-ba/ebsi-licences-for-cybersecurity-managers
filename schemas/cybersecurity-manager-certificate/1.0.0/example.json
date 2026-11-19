@@ -1,0 +1,56 @@
+{
+  "@context": ["https://www.w3.org/2018/credentials/v1"],
+  "id": "urn:uuid:3f1c8a52-6d1e-4f7b-9a0e-5b2c7d4e8f10",
+  "type": ["VerifiableCredential", "VerifiableAttestation", "CybersecurityManagerCertificate"],
+  "issuer": "did:ebsi:zvHWX359A3CvfJnCYaAiAde",
+  "issuanceDate": "2026-11-17T10:00:00Z",
+  "issued": "2026-11-17T10:00:00Z",
+  "validFrom": "2026-11-17T10:00:00Z",
+  "expirationDate": "2031-11-17T10:00:00Z",
+  "credentialSubject": {
+    "id": "did:key:z2dmzD81cgPx8Vki7JbuuMmFYrWPgYoytykUZ3eyqht1j9KbsEYvdrjxMjQ4tpnje9BDBTzuNDP3knn6qLZErzd4bJ5go2CChoPjd5GAH3zpFJP5fuwSk66U5Pq6EhF4nKnHzDnznEP8fX99nZGgwbAh1o7Gj1X52Tdhf7U4KTk66xsA5r",
+    "certificateTitle": "Certificate of completion of a training activity and successful completion of the final test",
+    "holderName": "Ing. Janko Mrkvička, PhD.",
+    "jobPosition": "cybersecurity manager",
+    "trainingName": "Cybersecurity Manager",
+    "trainingStart": "2026-11-10",
+    "trainingEnd": "2026-11-14",
+    "trainingDays": 5,
+    "teachingHours": 40,
+    "knowledgeStandard": "Decree of the National Security Authority No. 492/2022 Coll.",
+    "certificateNumber": "248",
+    "placeOfIssue": "Bratislava",
+    "issueDate": "2026-11-17",
+    "certificationBody": "Slovak University of Technology in Bratislava, Faculty of Informatics and Information Technologies",
+    "signatory": "prof. Ing. Ján Novák, PhD., dean",
+    "funding": "Recovery and Resilience Plan of the Slovak Republic, Component 17, Reform No. 5"
+  },
+  "credentialSchema": [
+    {
+      "id": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/zIdOfThisSchemaOnceRegistered",
+      "type": "FullJsonSchemaValidator2021"
+    },
+    {
+      "id": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/z9pKTuKc7E8BFzj3ajMyru7ndpiZeXaLqwehMyBV4Dex7",
+      "type": "FullJsonSchemaValidator2021"
+    },
+    {
+      "id": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/z2yw1Mq2Cq4jN8B2bJ66cGcFEqjrJQUinxHAUjZTkVKjz",
+      "type": "FullJsonSchemaValidator2021"
+    }
+  ],
+  "termsOfUse": [
+    {
+      "id": "https://api-pilot.ebsi.eu/trusted-issuers-registry/v5/issuers/did:ebsi:zvHWX359A3CvfJnCYaAiAde/attributes/0x9f1a4c3e2b7d6a5f8e0c1b2a3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6",
+      "type": "IssuanceCertificate"
+    }
+  ],
+  "credentialStatus": [
+    {
+      "id": "eip155:1337:0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "type": "PlrLedgerStatusEntry",
+      "chainId": 1337,
+      "contract": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    }
+  ]
+}

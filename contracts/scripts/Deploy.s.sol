@@ -126,7 +126,7 @@ contract Deploy is Script, Networks {
             )
         );
 
-        implementationAddress = address(new CertificateGovernance());
+        implementationAddress = address(new CertificateGovernance(ebsi.didRegistry, ebsi.issuersRegistry));
         storageLayoutHash = _storageLayoutHash(development, "GOVERNANCE_STORAGE_LAYOUT_HASH", implementationAddress);
         beaconAddress = address(new VersionedUpgradeableBeacon(beaconOwner, implementationAddress, storageLayoutHash));
 
@@ -142,10 +142,7 @@ contract Deploy is Script, Networks {
             })
         );
 
-        bytes memory init = abi.encodeCall(
-            CertificateGovernance.initialize,
-            (tao, taoDid, ebsi.didRegistry, ebsi.issuersRegistry, address(registry))
-        );
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (tao, taoDid, address(registry)));
         // The proxy owner is the beacon owner too: the only proxy on its beacon.
         governance = CertificateGovernance(
             IProxyFactory(ebsi.proxyFactory).deployProxy(GOVERNANCE_TEMPLATE_NAME, templateVersion, init, deployerDID, beaconOwner)

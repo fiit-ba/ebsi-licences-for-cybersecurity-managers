@@ -30,9 +30,20 @@ export interface LedgerStatus {
 /** The certificate registry: its deployment and registration/status operations. */
 export interface CertificateLedger {
   chainId: number;
-  contract: string;
+  /**
+   * The certificate registry a TI's certificates are recorded in: its TAO's.
+   * @param issuerDid - The TI.
+   * @returns The registry's address.
+   */
+  contractFor(issuerDid: string): Promise<string>;
   ensureRegistered(record: LedgerRegistration): Promise<unknown>;
-  status(statusKey: string): Promise<LedgerStatus>;
+  /**
+   * A certificate's record, in the registry of its TI's TAO.
+   * @param statusKey - The record's key.
+   * @param issuerDid - The TI that issued it.
+   * @returns The record.
+   */
+  status(statusKey: string, issuerDid: string): Promise<LedgerStatus>;
 }
 
 /** Issuer trust check with optional exact accreditation and schema binding. */
@@ -89,7 +100,7 @@ export type CredentialKeyLoader = (
 /** Dependencies required by the existing certificate finalization pipeline. */
 export interface FinalizerOptions {
   signingKey: CredentialKeyLoader;
-  ledger: Pick<CertificateLedger, 'chainId' | 'contract' | 'ensureRegistered'>;
+  ledger: Pick<CertificateLedger, 'chainId' | 'contractFor' | 'ensureRegistered'>;
   protection: Protection;
   schemaAddress(id: string): string;
   ledgerStatusSchema: string;

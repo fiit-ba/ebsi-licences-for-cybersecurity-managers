@@ -247,8 +247,6 @@ export default {
   'napr. SK-CSM-2026-000123': 'e.g. SK-CSM-2026-000123',
   'Certifikačný orgán': 'Certification body',
   'napr. CertOrg s.r.o.': 'e.g. CertOrg Ltd.',
-  'Certifikačná schéma': 'Certification scheme',
-  'Verzia schémy': 'Scheme version',
   'Platnosť do (voliteľné)': 'Valid until (optional)',
   'Vyberte dátum': 'Select a date',
   'Referencia držiteľa je pseudonymný kľúč do internej evidencie — nikdy nie meno a nikdy nie DID držiteľa (komponent 1.2). Atribúty sa uložia šifrovane a stanú sa z nich':
@@ -564,98 +562,28 @@ export default {
   'Vydávať môže len TI, ktorú vybral TAO. Tento účet nie je TI v reťazci dôvery.':
     'Only a TI selected by a TAO may issue. This account is not a TI in the trust chain.',
   '(voliteľné)': '(optional)',
-  'Názov osvedčenia': 'Certificate title',
-  'napr. Osvedčenie o absolvovaní školenia': 'e.g. Certificate of training completion',
-  'Meno a priezvisko s titulmi': 'Name with titles',
-  'napr. Ing. Janko Mrkvička, PhD.': 'e.g. Ing. Janko Mrkvička, PhD.',
-  'Pracovné zaradenie': 'Job position',
-  'napr. manažér kybernetickej bezpečnosti': 'e.g. cybersecurity manager',
-  'Názov školenia': 'Training',
-  'napr. Manažér kybernetickej bezpečnosti': 'e.g. Cybersecurity manager',
-  'Školenie od': 'Training from',
-  'Školenie do': 'Training until',
-  'Počet školiacich dní': 'Training days',
-  'napr. 5': 'e.g. 5',
-  'Počet vyučovacích hodín': 'Teaching hours',
-  'napr. 40': 'e.g. 40',
-  'Znalostný štandard': 'Knowledge standard',
-  'napr. vyhláška č. 492/2022 Z. z.': 'e.g. Regulation No. 492/2022 Coll.',
-  'napr. 248': 'e.g. 248',
-  'Miesto vydania': 'Place of issue',
-  'napr. Bratislava': 'e.g. Bratislava',
-  'Dátum vydania': 'Date of issue',
-  'Vydavateľ osvedčenia': 'Issued by',
-  'Podpísal (meno a funkcia)': 'Signed by (name and function)',
-  'napr. prof. Ing. Ján Novák, PhD., dekan': 'e.g. prof. Ing. Ján Novák, PhD., dean',
   Financovanie: 'Funding',
-  'napr. Plán obnovy a odolnosti SR, Komponent 17, Reforma č. 5':
-    'e.g. Recovery and Resilience Plan of the SR, Component 17, Reform 5',
-  'Registračné číslo': 'Registration number',
   Držiteľ: 'Holder',
   Školenie: 'Training',
   Osvedčenie: 'Certificate',
   // Certificate schemas (design decisions D17).
   Atribút: 'Attribute',
-  'Atribút {0}': 'Attribute {0}',
-  'Atribút {0} je neplatný.': 'Attribute {0} is not valid.',
-  'Atribút {0} potrebuje slovenský názov.': 'Attribute {0} needs a Slovak name.',
-  'Atribút „{1}“ mal v predchádzajúcej verzii iný typ. Typ sa meniť nemôže: certifikáty vydané skôr by schéme prestali zodpovedať.':
-    'Attribute “{1}” had a different kind in the previous version. A kind cannot change: certificates issued earlier would no longer fit the schema.',
-  'Atribút „{1}“ má neznámu sekciu.': 'Attribute “{1}” has an unknown section.',
-  'Atribút „{1}“ má neznámy typ.': 'Attribute “{1}” has an unknown kind.',
   Atribúty: 'Attributes',
   'Celé číslo': 'Whole number',
   'Certifikačné schémy': 'Certificate schemas',
   'Druh certifikátu': 'Kind of certificate',
-  'Druhy certifikátov a ich atribúty. Určuje ich RootTAO a registrujú sa v TSR.':
-    'Kinds of certificate and their attributes. The RootTAO defines them and they are registered in the TSR.',
   Dátum: 'Date',
-  'Identifikátor v TSR nie je platný.': 'The TSR identifier is not valid.',
-  'Identifikátor, ktorý verzii {0} pridelil TSR': 'Identifier the TSR gave version {0}',
   'Každý výber, zmena schém, nová pozvánka aj registrácia sa zapíše do auditného záznamu. Pozvánka je jednorazová; register uchováva len jej odtlačok. Každá TI vydáva pod vlastným DID a vlastnými kľúčmi, stav jej certifikátov vedie kontrakt riadenia; v EBSI ju akredituje TAO, ktorý ju vybral.':
     'Every selection, change of schemas, new invitation and registration is written to the audit log. An invitation works once; the registry keeps only its digest. Each TI issues under its own DID and with its own keys, and the governance contract keeps the standing of its certificates; in EBSI it is accredited by the TAO that selected it.',
-  'Kľúč atribútu {0} musí začínať malým písmenom a obsahovať len písmená a číslice, napr. holderName.':
-    'The key of attribute {0} must start with a lower-case letter and contain only letters and digits, e.g. holderName.',
-  'Kľúč „{1}“ je použitý dvakrát.': 'The key “{1}” is used twice.',
-  'Kľúč „{1}“ je vyhradený.': 'The key “{1}” is reserved.',
-  'Nová schéma': 'New schema',
-  'Nová verzia schémy {0}': 'New version of the schema {0}',
-  'Názov (anglicky)': 'Name (English)',
-  'Názov (slovensky)': 'Name (Slovak)',
-  'Názov vydavateľa môže byť len textový atribút.':
-    "The issuer's name can only be a text attribute.",
-  'Názov vydavateľa môže vypĺňať len jeden atribút.':
-    "Only one attribute can hold the issuer's name.",
   Odstrániť: 'Remove',
   Organizácie: 'Organizations',
-  'Posunúť nižšie': 'Move down',
-  'Posunúť vyššie': 'Move up',
-  'Potvrdiť registráciu': 'Confirm the registration',
   Povinný: 'Required',
   'Predvolená hodnota': 'Default value',
-  'Predvolená hodnota atribútu „{1}“ nezodpovedá jeho typu.':
-    'The default value of attribute “{1}” does not fit its kind.',
-  'Pridať atribút': 'Add an attribute',
-  'Príklad (anglicky)': 'Example (English)',
-  'Príklad (slovensky)': 'Example (Slovak)',
-  'Registrácia v TSR zlyhala. Návrh je uložený, skúste ho uložiť znova.':
-    'Registration in the TSR failed. The proposal is saved; try saving it again.',
   'Reťazec dôvery: RootTAO vyberá TAO, TAO vyberá TI a prideľuje im schémy, ktoré smú vydávať.':
     'The trust chain: the RootTAO selects TAOs, a TAO selects TIs and gives them the schemas they may issue.',
-  'RootTAO určuje, aké druhy certifikátov existujú a čo každý uvádza. TAO ich v Akreditácii prideľuje TI a TI vydáva len tie, ktoré dostala.':
-    'The RootTAO decides which kinds of certificate exist and what each states. A TAO gives them to TIs in Accreditation, and a TI issues only the ones it was given.',
   Schéma: 'Schema',
-  'Schéma je vyradená; nová verzia sa už nedá pridať.':
-    'The schema is retired; no new version can be added.',
-  'Schéma môže mať najviac 40 atribútov.': 'A schema can have at most 40 attributes.',
   'Schéma odobratá TAO sa odoberie aj jeho TI.':
     'A schema taken from a TAO is taken from its TIs too.',
-  'Schéma potrebuje aspoň jeden atribút.': 'A schema needs at least one attribute.',
-  'Schéma {0} je vyradená.': 'The schema {0} is retired.',
-  'Schéma {0} je zaregistrovaná v TSR, verzia {1}. Teraz ju môžete v Akreditácii prideliť TAO.':
-    'The schema {0} is registered in the TSR, version {1}. You can now give it to TAOs in Accreditation.',
-  'Schému v EBSI registruje Support Office na základe návrhu (komponent 7). Kým ju TSR neposkytuje, nedá sa podľa nej vydávať.':
-    'In EBSI the Support Office registers a schema on a proposal (component 7). Until the TSR serves it, nothing can be issued under it.',
   Schémy: 'Schemas',
   'Schémy pre {0}': 'Schemas for {0}',
   'Schémy určuje len RootTAO.': 'Only the RootTAO defines schemas.',
@@ -663,20 +591,8 @@ export default {
   'Schémy, ktoré TI smie vydávať': 'Schemas the TI may issue',
   Sekcia: 'Section',
   Skryť: 'Hide',
-  'TSR schému s týmto identifikátorom neposkytuje.':
-    'The TSR serves no schema with this identifier.',
-  'Tento typ je vyhradený pre EBSI.': 'This type is reserved for EBSI.',
   Text: 'Text',
   Typ: 'Kind',
-  'Typ certifikátu': 'Credential type',
-  'Typ certifikátu je jeho identifikátor v každom certifikáte a v TSR; neskôr sa meniť nedá.':
-    'The credential type identifies the schema in every certificate and in the TSR; it cannot be changed later.',
-  'Typ certifikátu musí začínať veľkým písmenom a obsahovať len písmená a číslice, napr. DataProtectionOfficerCertificate.':
-    'The credential type must start with a capital letter and contain only letters and digits, e.g. DataProtectionOfficerCertificate.',
-  'Táto verzia už je zaregistrovaná.': 'This version is already registered.',
-  'Ukladá sa…': 'Saving…',
-  'Uložiť a zaregistrovať v TSR': 'Save and register in the TSR',
-  'Uložiť návrh pre TSR': 'Save the proposal for the TSR',
   'Uložiť schémy': 'Save the schemas',
   Upraviť: 'Edit',
   'Vaša TI nie je akreditovaná na vydávanie tejto schémy. Pridelí vám ju váš TAO.':
@@ -685,32 +601,15 @@ export default {
     'Your organization may not issue any certificate schema yet. Your TAO gives you schemas in the back-office.',
   Verzia: 'Version',
   'Verzia {0}': 'Version {0}',
-  'Verzia {0} schémy {1} je uložená a čaká na registráciu v TSR.':
-    'Version {0} of the schema {1} is saved and awaits registration in the TSR.',
-  'Vypĺňa sa názvom vydávajúcej TI': "Filled with the issuing TI's name",
   Vyradiť: 'Retire',
-  'Vyradiť schému {0}?': 'Retire schema {0}?',
-  'Vyradiť schému': 'Retire schema',
-  'Vyraďuje sa…': 'Retiring…',
-  'Podľa tejto schémy už nebude možné vydávať nové certifikáty.':
-    'New certificates can no longer be issued under this schema.',
-  'Doteraz vydané certifikáty zostanú platné.': 'Certificates issued so far will remain valid.',
-  'Vývojové prostredie: schéma sa hneď zaregistruje v TSR mocku a akreditácie registra sa rozšíria tak, aby ju pokrývali.':
-    "Development environment: the schema is registered in the mock TSR at once, and the registry's accreditations are widened to cover it.",
-  'Zadajte slovenský názov schémy.': "Enter the schema's Slovak name.",
   'Zatiaľ nemáte žiadnu schému, ktorú by ste mohli prideliť.':
     'You have no schema to give out yet.',
-  'Zmena vytvorí verziu {0}. Doteraz vydané certifikáty zostávajú pod svojou verziou; typ atribútu sa medzi verziami meniť nemôže.':
-    "The change creates version {0}. Certificates issued so far keep their version; an attribute's kind cannot change between versions.",
   Zrušiť: 'Cancel',
   'bez schém': 'no schemas',
-  'navrhnutá {0}, čaká na registráciu v TSR': 'proposed {0}, awaiting registration in the TSR',
   'verzia {0}': 'version {0}',
-  'verzia {0} čaká na registráciu v TSR': 'version {0} awaits registration in the TSR',
   vydavateľ: 'issuer',
   vyradená: 'retired',
   zaregistrovaná: 'registered',
-  'zaregistrovaná v TSR': 'registered in the TSR',
 
   // Governance contract v2: roles and policies (design decisions D19).
   'zmena pravidiel': 'rule change',
@@ -780,10 +679,10 @@ export default {
   'Časový zámok ešte platí. Vykonať sa dá až po jeho uplynutí.':
     'The timelock is still running. It can be executed only once it has elapsed.',
   'Neznáma rola.': 'Unknown role.',
-  'Takéto pravidlo sa nedá splniť — povinných rolí je viac než prah, alebo rola nemá žiadny kľúč.':
-    'Such a rule cannot be met — more roles are required than the threshold counts, or a role holds no key.',
-  'Platnosť návrhu je mimo rozsahu, ktorý kontrakt pripúšťa.':
-    'The proposal validity is outside the range the contract allows.',
+  'Takéto pravidlo sa nedá splniť — povinných rolí je viac než prah, rola nemá žiadny kľúč, alebo časový zámok nenechá v platnosti návrhu aspoň deň na podpisy a vykonanie.':
+    'Such a rule cannot be met — more roles are required than the threshold counts, a role holds no key, or the timelock leaves less than a day of the proposal validity to sign and execute.',
+  'Platnosť návrhu je mimo rozsahu, ktorý kontrakt pripúšťa: aspoň o deň dlhšia než najdlhší časový zámok TI a najviac 365 dní.':
+    "The proposal validity is outside the range the contract allows: at least a day longer than the TI's longest timelock, and at most 365 days.",
   'Bez tohto kľúča by sa niektoré pravidlo už nedalo splniť.':
     'Without this key some rule could no longer be met.',
   'Kľúč nemôže vetovať vlastné odobratie ani výmenu — inak by kompromitovaný kľúč zablokoval rotáciu (komponent 10.9).':
@@ -1087,4 +986,60 @@ export default {
     "The record is created when the holder collects the licence — under a key from the TI's DID and the collected licence's identifier. Lifecycle then shows its standing, and an auditor verifies it in the Audit tab.",
   'a záznam v registri certifikátov ho uvádza (komponent 1.1). Záznam vzniká, keď si držiteľ licenciu vyzdvihne. Identifikátor vyzdvihnutej licencie sa tu nezobrazuje — spája návrhy na chaine s certifikátom (komponent 1.2). Nová ponuka zruší predchádzajúcu a má vlastný PIN.':
     "and the record in the certificate registry states it (component 1.1). The record is created when the holder collects the licence. The collected licence's identifier is not shown here — it links the proposals on chain to the certificate (component 1.2). A new offer cancels the previous one and has its own PIN.",
+  'Druhy certifikátov a ich atribúty, z registra schém EBSI (TSR).':
+    "Certificate kinds and their attributes, from EBSI's Trusted Schemas Registry (TSR).",
+  'Druhy certifikátov z registra schém EBSI (TSR). Schémy v ňom registruje Support Office EBSI; táto inštalácia používa tie, ktoré má nastavené. TAO ich v Akreditácii prideľuje TI a TI vydáva len tie, ktoré dostala.':
+    "Certificate kinds from EBSI's Trusted Schemas Registry (TSR). EBSI's Support Office registers schemas there; this installation uses the ones it is configured with. A TAO hands them to TIs in Accreditation, and a TI issues only those it was given.",
+  'Inštalácia zatiaľ nepoužíva žiadnu schému z TSR.':
+    'The installation uses no schema from the TSR yet.',
+  'v TSR': 'in the TSR',
+  načítaná: 'read',
+  'Vyradená schéma už nie je nastavená: nové certifikáty podľa nej vydať nemožno, doteraz vydané zostávajú platné.':
+    'A retired schema is no longer configured: no new certificates can be issued under it, and those already issued stay valid.',
+  'DID nie je platný; má tvar did:ebsi:z….': 'The DID is not valid; it has the form did:ebsi:z….',
+  'DID organizácie': "Organization's DID",
+  EBSI: 'EBSI',
+  'Iná organizácia v registri už má tento DID.':
+    'Another organization in the registry already has this DID.',
+  'Register DID tento DID nepozná. Organizácia ho musí najprv zaregistrovať svojou peňaženkou.':
+    'The DID Registry does not know this DID. The organization must first register it with its own wallet.',
+  'Vaša akreditácia v EBSI': 'Your accreditation in EBSI',
+  '1. Kľúče back-office v DID dokumente': "1. The back-office's keys in the DID document",
+  '2. Akreditácia na zápis do TIR': '2. The accreditation to store in the TIR',
+  'Akreditácia sa vydá, keď sa organizácia zaregistruje pozvánkou.':
+    'The accreditation is issued when the organization registers with its invitation.',
+  'Akreditáciu môže skontrolovať len organizácia sama alebo tá, ktorá ju vybrala.':
+    'Only the organization itself or the one that appointed it can check its accreditation.',
+  'Akreditáciu ste vydali vy; organizácia si ju stiahne a uloží do TIR svojou peňaženkou. Môžete ju poslať aj inak.':
+    'You issued the accreditation; the organization downloads it and stores it in the TIR with its own wallet. You can also send it another way.',
+  'Kontroluje sa…': 'Checking…',
+  'Kontrolujú sa registre EBSI…': "Checking EBSI's registries…",
+  Kopírovať: 'Copy',
+  'Kľúče vzniknú, keď sa organizácia zaregistruje pozvánkou.':
+    'The keys are created when the organization registers with its invitation.',
+  'Organizácia ich pridáva do svojho DID dokumentu svojou peňaženkou.':
+    'The organization adds them to its DID document with its own wallet.',
+  'Pridajte tieto kľúče do svojho DID dokumentu svojou peňaženkou, ako kontrolór DID. Back-office nimi podpisuje za vašu organizáciu; kedykoľvek ich môžete odobrať.':
+    "Add these keys to your DID document with your wallet, as the DID's controller. The back-office signs for your organization with them; you can remove them at any time.",
+  'Registre EBSI nie sú v tejto inštalácii nastavené.':
+    "EBSI's registries are not configured in this installation.",
+  'Registre EBSI sa teraz nepodarilo skontrolovať. Skúste to znova.':
+    "EBSI's registries could not be checked now. Try again.",
+  'Skontrolovať v EBSI': 'Check in EBSI',
+  'Stiahnuť akreditáciu (.jwt)': 'Download the accreditation (.jwt)',
+  'V DID dokumente': 'In the DID document',
+  'Vašu akreditáciu vydal ten, kto vás vybral. Uložte ju do registra dôveryhodných vydavateľov (TIR) svojou peňaženkou: predložte ju pre token issuers-registry:invite a zapíšte ju cez setAttributeData.':
+    'Your accreditation was issued by the organization that appointed you. Store it in the Trusted Issuers Registry (TIR) with your wallet: present it for an issuers-registry:invite token and write it with setAttributeData.',
+  Vzťahy: 'Relationships',
+  'akreditovaná v EBSI': 'accredited in EBSI',
+  'autentifikácia DID': 'DID authentication',
+  'podpisovanie poverení': 'signing credentials',
+  'rola A v kontrakte riadenia': 'role A in the governance contract',
+  'rola B v kontrakte riadenia': 'role B in the governance contract',
+  'transakcie na ledgeri': 'ledger transactions',
+  Účel: 'Purpose',
+  'čaká na zápis do TIR': 'waiting to be stored in the TIR',
+  'Akreditácia v EBSI': 'Accreditation in EBSI',
+  'Vaša TI ešte nie je akreditovaná v EBSI: pridajte kľúče back-office do svojho DID dokumentu a uložte svoju akreditáciu do TIR svojou peňaženkou (nižšie).':
+    "Your TI is not accredited in EBSI yet: add the back-office's keys to your DID document and store your accreditation in the TIR with your wallet (below).",
 };

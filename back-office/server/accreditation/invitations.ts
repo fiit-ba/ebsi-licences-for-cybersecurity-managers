@@ -304,7 +304,10 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
       const email =
         typeof suppliedEmail === 'string' ? trimIdentityField(suppliedEmail) : suppliedEmail;
       const schemas = input.schemas ?? [];
+      // The organization's own DID: it registered it in the DID Registry itself.
+      const did = typeof input.did === 'string' ? input.did.trim() : '';
       if (!name || Array.from(name).length > 200) throw invalid(['name']);
+      if (!/^did:ebsi:z[1-9A-HJ-NP-Za-km-z]{1,100}$/.test(did)) throw invalid(['did']);
       if (
         typeof email !== 'string' ||
         email.length > 254 ||
@@ -313,6 +316,19 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         throw invalid(['contact_email']);
       if (!Array.isArray(schemas) || schemas.some((type) => typeof type !== 'string'))
         throw invalid(['schemas']);
+      if (!options.didRegistered)
+        throw new AccreditationError(
+          503,
+          'DidRegistryUnavailable',
+          'The DID Registry is not configured.',
+        );
+      if (!(await options.didRegistered(did)))
+        throw new AccreditationError(
+          400,
+          'DidNotRegistered',
+          'The DID Registry does not know this DID.',
+          { fields: ['did'] },
+        );
 
       return transaction(database, async (client) => {
         const {
@@ -354,6 +370,20 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
           kind === 'ti' ? accreditationEnd(input.accredited_until, now, maximumDays) : null;
 
         const allowed = await allowedSchemas(client, parent, schemas);
+        if (
+          (
+            await client.query(
+              'SELECT 1 FROM accredited_organizations WHERE did = $1 AND revoked_at IS NULL',
+              [did],
+            )
+          ).rowCount
+        )
+          throw new AccreditationError(
+            409,
+            'DidTaken',
+            'Another organization in the registry has this DID.',
+            { fields: ['did'] },
+          );
 
         const invitation = issueInvitation(lifetimeDays);
         const {
@@ -361,10 +391,20 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         } = await client.query(
           `
           INSERT INTO accredited_organizations
-            (name, kind, parent_id, contact_email, selected_by, accredited_until, invitation_digest, invitation_expires_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+            (name, kind, parent_id, contact_email, selected_by, accredited_until, invitation_digest, invitation_expires_at, did)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
         `,
-          [name, kind, parent.id, email, actor, until, invitation.digest, invitation.expiresAt],
+          [
+            name,
+            kind,
+            parent.id,
+            email,
+            actor,
+            until,
+            invitation.digest,
+            invitation.expiresAt,
+            did,
+          ],
         );
         await client.query(
           `
@@ -374,11 +414,15 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
           [organization.id, allowed.map((schema) => schema.id)],
         );
         const types = allowed.map((schema) => schema.credential_type).sort();
-        await record(client, 'organization_selected', organization.id, actor, { schemas: types });
+        await record(client, 'organization_selected', organization.id, actor, {
+          schemas: types,
+          did,
+        });
         return {
           organization_id: organization.id,
           name,
           kind,
+          did,
           schemas: types,
           invitation: invitation.code,
           invitation_expires_at: invitation.expiresAt,
@@ -387,6 +431,70 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
           revoked: null,
         };
       });
+    },
+
+    /**
+     * An organization's accreditation in EBSI, checked in the registries now: its DID, the
+     * credential its accreditor issued for it to store with its own wallet, the back-office's
+     * keys its DID document must list, and whether it is accredited. An organization asks about
+     * itself; an accreditor about one it appointed.
+     *
+     * @param actor - Current operator account ID.
+     * @param input - Optional `organization_id` of an organization the actor's appointed.
+     * @returns The organization's accreditation in EBSI.
+     * @throws AccreditationError without EBSI, for an organization of someone else's, for the
+     * RootTAO, or when the registries cannot be read; database errors.
+     */
+    async ebsi(actor: number, input: Record<string, unknown>) {
+      if (!options.check)
+        throw new AccreditationError(
+          503,
+          'EbsiUnavailable',
+          "EBSI's registries are not configured.",
+        );
+      const {
+        rows: [own],
+      } = await database.query(
+        `SELECT o.id, o.kind FROM accredited_organizations o
+        JOIN operator_accounts a ON a.id = o.account_id AND a.active WHERE a.id = $1`,
+        [actor],
+      );
+      if (!own) throw new AccreditationError(403, 'NoOrganization', 'An organization is required.');
+      let target = own;
+      if (input.organization_id !== undefined) {
+        const id = input.organization_id;
+        target =
+          typeof id === 'string' &&
+          /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) &&
+          (
+            await database.query(
+              'SELECT id, kind FROM accredited_organizations WHERE id = $1 AND parent_id = $2',
+              [id, own.id],
+            )
+          ).rows[0];
+        if (!target)
+          throw new AccreditationError(
+            403,
+            'NotYours',
+            'Only the organization or the one that appointed it can check it.',
+          );
+      }
+      if (target.kind === 'rtao')
+        throw new AccreditationError(
+          409,
+          'RootTao',
+          "The RootTAO is the installation's own; it stores nothing itself.",
+        );
+      try {
+        return await options.check(target.id, actor);
+      } catch (error) {
+        if (error instanceof AccreditationError) throw error;
+        throw new AccreditationError(
+          502,
+          'RegistryUnavailable',
+          "EBSI's registries could not be checked; try again.",
+        );
+      }
     },
 
     /**
@@ -744,12 +852,11 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         registered = { id: organization.id, account: account.id, kind: organization.kind };
         return { organization: organization.name, kind: organization.kind, username };
       });
-      if (registered!.kind === 'ti') {
-        try {
-          await options.onboard?.(registered!.id, registered!.account);
-        } catch {
-          options.reportIntegrationError?.('issuer onboarding');
-        }
+      // Its keys, and its accreditation from the accreditor, for it to store in EBSI.
+      try {
+        await options.onboard?.(registered!.id, registered!.account);
+      } catch {
+        options.reportIntegrationError?.('organization onboarding');
       }
       return result;
     },

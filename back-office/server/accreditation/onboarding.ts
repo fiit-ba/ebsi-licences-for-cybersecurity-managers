@@ -13,9 +13,10 @@ import {
   type AccreditationScope,
 } from '../ebsi/credentials.ts';
 import type { TiGovernanceSetup } from '../lifecycle/ti-governance.ts';
+import type { TaoContractDeployment } from '../lifecycle/tao-contracts.ts';
 
 /** Purpose-separated keys, the DID relationships each holds, and who holds them. */
-const relationships = {
+export const relationships = {
   credential_signing: ['assertionMethod'],
   did_authentication: ['authentication'],
   ledger_transactions: ['capabilityInvocation', 'authentication'],
@@ -41,10 +42,16 @@ export interface OrganizationPublication {
   ebsi: EbsiRuntime;
   /** Trusted Issuers Registry base, for the `termsOfUse` links of the chain. */
   tirUrl: string;
-  /** Schema of the trust chain's credentials. */
-  accreditationSchema: string;
+  /**
+   * The schemas the trust chain's credentials name: EBSI's Verifiable Accreditation Record and
+   * IssuanceCertificate type extension for an accreditation, EBSI's Verifiable Authorisation for
+   * an onboarding authorisation.
+   */
+  trustChainSchemas: { accreditation: string[]; onboarding: string[] };
   /** Per-TI setup on the governance contract, when one is configured. */
   governance?: TiGovernanceSetup;
+  /** Each TAO's own pair, deployed through EBSI's Proxy Factory once the TAO is confirmed. */
+  contracts?: TaoContractDeployment;
 }
 
 /**
@@ -256,33 +263,13 @@ export function postgresOrganizationOnboarding(
   }
 
   /**
-   * Store an accreditation unless the registry already holds one with the same coverage.
-   * @param subject - Accredited organization as a registry writer.
-   * @param attributeId - Its attribute.
-   * @param scopes - Requested coverage.
-   * @param issue - Issues the credential when a new one is needed.
-   * @returns Completion.
-   * @throws Registry, token, KMS or RPC errors.
-   */
-  async function storeAccreditation(
-    subject: EbsiActor,
-    attributeId: string,
-    scopes: AccreditationScope[],
-    issue: () => Promise<string>,
-  ) {
-    const current = await publication!.ebsi.publisher!.attribute(subject.did, attributeId);
-    if (current?.body && storedCoverage(current.body) === coverageText(scopes)) return;
-    await publication!.ebsi.publisher!.store(subject, attributeId, await issue());
-  }
-
-  /**
-   * Publish a RootTAO or TAO: its keys, its DID and its accreditation, parents first.
-   * @param organizationId - RootTAO or TAO organization UUID.
+   * Publish the RootTAO: its keys, its DID, and the authorisation the Support Office gives it.
+   * The RootTAO is the installation's own organization; a TAO or TI publishes itself.
+   * @param organizationId - RootTAO organization UUID.
    * @returns It as a registry writer, with its attribute.
-   * @throws Error outside development, for a revoked or unregistered authority; registry, KMS
-   * or database errors.
+   * @throws Error outside development or for a revoked RootTAO; registry, KMS or database errors.
    */
-  async function ensureAuthority(organizationId: string): Promise<EbsiActor> {
+  async function ensureRootTao(organizationId: string): Promise<EbsiActor> {
     if (!publication?.ebsi.publisher || !publication.ebsi.supportOffice)
       throw new Error('EBSI onboarding is not automated outside development mock mode.');
     const { publisher, supportOffice } = publication.ebsi;
@@ -294,8 +281,8 @@ export function postgresOrganizationOnboarding(
       } = await connection.query('SELECT * FROM accredited_organizations WHERE id=$1', [
         organizationId,
       ]);
-      if (!organization || !['rtao', 'tao'].includes(organization.kind) || organization.revoked_at)
-        throw new Error('Only a live RootTAO or TAO is published as an authority.');
+      if (!organization || organization.kind !== 'rtao' || organization.revoked_at)
+        throw new Error('Only the live RootTAO is published by the back-office.');
       if (!organization.did) {
         organization.did = newDid();
         await connection.query(
@@ -311,163 +298,312 @@ export function postgresOrganizationOnboarding(
         connection.release();
       }
     }
+    const actor = await publication.ebsi.actor(organizationId);
+    // Gas for the RootTAO's ledger key on a development ledger.
+    await supportOffice.fund(await actor.ledger.signer.getAddress());
+    await publisher.ensureDid(
+      actor,
+      () => supportOffice.onboarding(actor.did),
+      await ledgerKeyActivation(organizationId),
+    );
+    await publisher.publishKeys(actor, await documentKeys(organizationId));
+    const stored = actor.attributeId && (await publisher.attribute(actor.did, actor.attributeId));
+    if (!stored?.body || stored.issuerType !== 'RootTAO') {
+      const root = await supportOffice.rootTao(actor.did);
+      await publisher.store(actor, root.attributeId, root.credential);
+      await recordAttribute(organizationId, actor.did, root.attributeId, 'RootTAO');
+      actor.attributeId = root.attributeId;
+    }
+    return actor;
+  }
+
+  /**
+   * An accreditor as a registry writer: the RootTAO, published as needed, or a TAO whose
+   * accreditation the Trusted Issuers Registry holds and that lists the back-office's keys.
+   * @param organizationId - RootTAO or TAO organization UUID.
+   * @returns It as a registry writer, with its attribute.
+   * @throws Error for a TAO not in the registry yet or revoked; registry, KMS or database errors.
+   */
+  async function ensureAuthority(organizationId: string): Promise<EbsiActor> {
+    if (!publication?.ebsi.publisher)
+      throw new Error('EBSI onboarding is not automated outside development mock mode.');
     const {
       rows: [organization],
     } = await database.query('SELECT * FROM accredited_organizations WHERE id=$1', [
       organizationId,
     ]);
-    const actor = await publication.ebsi.actor(organizationId);
-    // Gas for the authority's ledger key on a development ledger; EBSI charges none.
-    await supportOffice.fund(await actor.ledger.signer.getAddress());
-    if (organization.kind === 'tao' && !organization.ebsi_invoke_credential)
-      // The TAO sets its TIs up on the governance contract, a Trusted Contract.
-      await database.query(
-        'UPDATE accredited_organizations SET ebsi_invoke_credential=$2 WHERE id=$1 AND ebsi_invoke_credential IS NULL',
-        [organizationId, await supportOffice.invoke(actor.did)],
+    if (organization?.kind === 'rtao') return ensureRootTao(organizationId);
+    if (
+      organization?.kind !== 'tao' ||
+      organization.revoked_at ||
+      !organization.did ||
+      !/^0x[0-9a-f]{64}$/.test(organization.tir_attribute_id ?? '')
+    )
+      throw new Error(
+        'The TAO has not stored its accreditation in the Trusted Issuers Registry yet.',
       );
-    if (organization.kind === 'rtao') {
-      // The Support Office onboards a RootTAO and accredits it.
-      await publisher.ensureDid(
-        actor,
-        () => supportOffice.onboarding(actor.did),
-        await ledgerKeyActivation(organizationId),
-      );
-      await publisher.publishKeys(actor, await documentKeys(organizationId));
-      const stored = actor.attributeId && (await publisher.attribute(actor.did, actor.attributeId));
-      if (!stored?.body || stored.issuerType !== 'RootTAO') {
-        const root = await supportOffice.rootTao(actor.did);
-        await publisher.store(actor, root.attributeId, root.credential);
-        await recordAttribute(organizationId, actor.did, root.attributeId, 'RootTAO');
-        actor.attributeId = root.attributeId;
-      }
-      return actor;
-    }
-    const root = await ensureAuthority(organization.parent_id);
-    const rootSigner = await publication.ebsi.jws(organization.parent_id, 'credential_signing');
-    await publisher.ensureDid(
-      actor,
-      () =>
-        trustChainCredential({
-          signer: rootSigner,
-          issuer: root.did,
-          subject: actor.did,
-          type: 'VerifiableAuthorisationToOnboard',
-          schema: publication.accreditationSchema,
-        }),
-      await ledgerKeyActivation(organizationId),
-    );
-    await publisher.publishKeys(actor, await documentKeys(organizationId));
-    const attributeId = await publisher.accredit(root, actor.did, 'TAO');
-    // A TAO may accredit its TIs for any published schema; each TI's own coverage narrows it.
-    const scopes = await accreditationCoverage(database, options.schemaAddress);
-    await storeAccreditation(actor, attributeId, scopes, () =>
-      trustChainCredential({
-        signer: rootSigner,
-        issuer: root.did,
-        subject: actor.did,
-        type: 'VerifiableAccreditationToAccredit',
-        attributeId,
-        accreditedFor: scopes,
-        termsOfUse: `${publication.tirUrl}/issuers/${root.did}/attributes/${root.attributeId}`,
-        schema: publication.accreditationSchema,
-      }),
-    );
-    await recordAttribute(organizationId, actor.did, attributeId, 'TAO');
-    return { ...actor, attributeId };
+    return publication.ebsi.actor(organizationId);
   }
 
   /**
-   * Publish a TI's accreditation for its current schema coverage.
-   * @param id - TI organization UUID.
-   * @param connection - Internal onboarding session, omitted by standalone refresh callers.
-   * @returns Completion after the registry holds it, or no operation outside development or
-   * for a TI not onboarded yet.
-   * @throws Registry, KMS or database errors; callers retain the committed local change and
-   * retry later.
+   * What an issued accreditation says: its coverage, its end and the attribute it is for.
+   * @param credential - The accreditation JWT.
+   * @returns Its terms, or undefined for an unreadable credential.
    */
-  async function refresh(id: string, connection?: PoolClient) {
-    if (!publication?.ebsi.publisher) return;
+  function issuedTerms(credential: string | null) {
+    if (!credential) return undefined;
+    try {
+      const payload = JSON.parse(
+        Buffer.from(credential.split('.')[1], 'base64url').toString('utf8'),
+      );
+      return {
+        coverage: storedCoverage(credential),
+        exp: payload.exp as number,
+        attribute: payload.vc?.credentialSubject?.reservedAttributeId as string | undefined,
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Issue an organization's accreditation for what it may do now, as its accreditor: reserve its
+   * attribute in the Trusted Issuers Registry and sign the credential (a TAO's
+   * VerifiableAccreditationToAccredit, a TI's VerifiableAccreditationToAttest). The back-office
+   * keeps it for the organization to download and store in the registry with its own wallet; it
+   * never stores it there for the organization.
+   * @param id - TAO or TI organization UUID.
+   * @returns Whether a new credential was issued; none is when the last one still says the same,
+   * outside development, or for an organization not registered yet or revoked.
+   * @throws Error while its accreditor is not in the registry itself; registry, KMS or database
+   * errors.
+   */
+  async function issueAccreditation(id: string) {
+    if (!publication?.ebsi.publisher) return false;
     const {
-      rows: [ti],
-    } = await (connection ?? database).query(
-      `SELECT ti.*, COALESCE(ti.revoked_at,tao.revoked_at,root.revoked_at) AS chain_revoked
-       FROM accredited_organizations ti JOIN accredited_organizations tao ON tao.id=ti.parent_id
-       LEFT JOIN accredited_organizations root ON root.id=tao.parent_id WHERE ti.id=$1`,
+      rows: [organization],
+    } = await database.query(
+      `SELECT o.*, COALESCE(o.revoked_at,parent.revoked_at,root.revoked_at) AS chain_revoked
+       FROM accredited_organizations o JOIN accredited_organizations parent ON parent.id=o.parent_id
+       LEFT JOIN accredited_organizations root ON root.id=parent.parent_id WHERE o.id=$1`,
       [id],
     );
-    if (!ti?.did || ti.kind !== 'ti') return;
-    if (!connection && !ti.tir_attribute_id) return;
-    // A queued refresh must never seed an issuer after a committed withdrawal.
-    if (ti.chain_revoked) {
-      if (connection) throw new Error('The TI was revoked while onboarding.');
-      return;
-    }
-    const { publisher } = publication.ebsi;
-    const tao = await ensureAuthority(ti.parent_id);
-    const taoSigner = await publication.ebsi.jws(ti.parent_id, 'credential_signing');
-    const actor = await publication.ebsi.actor(id);
-    const attributeId = await publisher.accredit(tao, ti.did, 'TI');
-    const scopes = await accreditationCoverage(database, options.schemaAddress, id);
-    await storeAccreditation(actor, attributeId, scopes, () =>
-      trustChainCredential({
-        signer: taoSigner,
-        issuer: tao.did,
-        subject: ti.did,
-        type: 'VerifiableAccreditationToAttest',
-        attributeId,
-        accreditedFor: scopes,
-        termsOfUse: `${publication.tirUrl}/issuers/${tao.did}/attributes/${tao.attributeId}`,
-        schema: publication.accreditationSchema,
-        validUntil: ti.accredited_until ?? undefined,
-      }),
+    if (
+      !organization ||
+      !['tao', 'ti'].includes(organization.kind) ||
+      !organization.did ||
+      !organization.account_id ||
+      organization.chain_revoked
+    )
+      return false;
+    const type = organization.kind === 'tao' ? 'TAO' : 'TI';
+    const accreditor = await ensureAuthority(organization.parent_id);
+    const attributeId = await publication.ebsi.publisher.accredit(
+      accreditor,
+      organization.did,
+      type,
     );
-    await recordAttribute(id, ti.did, attributeId, 'TI');
+    // A TAO may accredit its TIs for any schema in use; each TI's own coverage narrows it.
+    const scopes =
+      type === 'TAO'
+        ? await accreditationCoverage(database, options.schemaAddress)
+        : await accreditationCoverage(database, options.schemaAddress, id);
+    const validUntil: Date | undefined = organization.accredited_until ?? undefined;
+    const last = issuedTerms(organization.accreditation_credential);
+    if (
+      last &&
+      last.coverage === coverageText(scopes) &&
+      last.attribute === attributeId &&
+      (!validUntil || last.exp === Math.floor(+validUntil / 1000))
+    )
+      return false;
+    const credential = await trustChainCredential({
+      signer: await publication.ebsi.jws(organization.parent_id, 'credential_signing'),
+      issuer: accreditor.did,
+      subject: organization.did,
+      type:
+        type === 'TAO' ? 'VerifiableAccreditationToAccredit' : 'VerifiableAccreditationToAttest',
+      attributeId,
+      accreditedFor: scopes,
+      termsOfUse: `${publication.tirUrl}/issuers/${accreditor.did}/attributes/${accreditor.attributeId}`,
+      schemas: publication.trustChainSchemas.accreditation,
+      validUntil,
+    });
+    await transaction(database, async (client) => {
+      await client.query(
+        'UPDATE accredited_organizations SET accreditation_credential=$2, accreditation_issued_at=now() WHERE id=$1',
+        [id, credential],
+      );
+      await appendAudit(client, {
+        event: 'organization.accreditation_issued',
+        organizationId: id,
+        detail: { did: organization.did, attribute: attributeId, issuer_type: type },
+      });
+    });
+    return true;
   }
 
   /**
-   * Run one onboarding attempt for a TI; see `onboard`.
-   * @param id - Registered TI UUID.
-   * @param actor - Registering account ID, or omitted for explicit synchronization.
-   * @returns Completion when the TI can issue; the governance setup may remain pending.
-   * @throws Error for unavailable KMS/EBSI, invalid authority or unresolved key creation;
-   * database/crypto errors.
+   * The back-office's keys an organization must list in its own DID document, and whether the
+   * DID Registry lists them in every relationship they need.
+   * @param id - Organization UUID.
+   * @param did - Its DID.
+   * @returns Active keys with their kid, relationships and whether they are listed.
+   * @throws Registry or database errors.
    */
-  async function onboardIssuer(id: string, actor?: number) {
+  async function keysToList(id: string, did: string) {
+    const document = (await publication!.ebsi.publisher!.document(did)) ?? {};
+    const { rows } = await database.query(
+      `SELECT purpose,kid,public_jwk FROM issuer_signing_keys
+       WHERE organization_id=$1 AND active AND purpose=ANY($2::text[]) ORDER BY purpose`,
+      [id, Object.keys(relationships)],
+    );
+    return rows.map((row) => {
+      const kid = `${did}#${row.kid.split('#').at(-1)}`;
+      const needed = [...relationships[row.purpose as OnboardingPurpose]];
+      return {
+        purpose: row.purpose as string,
+        kid,
+        public_jwk: row.public_jwk,
+        relationships: needed,
+        listed: needed.every(
+          (relationship) =>
+            Array.isArray(document[relationship]) &&
+            document[relationship].some(
+              (entry: unknown) => entry === kid || (entry as { id?: string } | null)?.id === kid,
+            ),
+        ),
+      };
+    });
+  }
+
+  /**
+   * Check what an organization did in EBSI's registries: whether its DID document lists the
+   * back-office's keys, and whether it stored the accreditation it was given. Once it has, it is
+   * recorded as accredited in EBSI: a TAO may then accredit TIs, and a TI gets access to the
+   * Trusted Contracts and is set up on the governance contract.
+   * @param id - TAO or TI organization UUID.
+   * @param actor - Account asking, for the journal.
+   * @returns The organization's DID, its credential, the keys to list and whether it is accredited.
+   * @throws Error outside development; registry, KMS or database errors.
+   */
+  async function check(id: string, actor?: number) {
+    if (!publication?.ebsi.publisher)
+      throw new Error('EBSI onboarding is not automated outside development mock mode.');
+    const { publisher, supportOffice } = publication.ebsi;
+    const {
+      rows: [organization],
+    } = await database.query('SELECT * FROM accredited_organizations WHERE id=$1', [id]);
+    if (!organization || !['tao', 'ti'].includes(organization.kind) || !organization.did)
+      throw new Error('Only an appointed TAO or TI is checked in EBSI.');
+    const keys = await keysToList(id, organization.did);
+    const terms = issuedTerms(organization.accreditation_credential);
+    let accredited = /^0x[0-9a-f]{64}$/.test(organization.tir_attribute_id ?? '');
+    if (terms?.attribute && !organization.revoked_at) {
+      const stored = await publisher.attribute(organization.did, terms.attribute);
+      const body = typeof stored?.body === 'string' ? stored.body : '';
+      // The registry holds the credential the accreditor issued last.
+      const current =
+        stored?.issuerType !== 'Revoked' &&
+        (body === organization.accreditation_credential ||
+          (/^0x[0-9a-f]*$/i.test(body) &&
+            Buffer.from(body.slice(2), 'hex').toString('utf8') ===
+              organization.accreditation_credential));
+      if (current && keys.every((key) => key.listed)) {
+        const wasIssuer = organization.kind === 'ti' && accredited;
+        await recordAttribute(
+          id,
+          organization.did,
+          terms.attribute,
+          organization.kind.toUpperCase(),
+        );
+        accredited = true;
+        if (supportOffice) {
+          // Gas for its keys on a development ledger, and access to the Trusted Contracts.
+          for (const key of keys.filter((key) =>
+            key.relationships.includes('capabilityInvocation'),
+          ))
+            await supportOffice.fund(
+              await (
+                await publication.ebsi.ledgerSigner(
+                  id,
+                  key.purpose as 'ledger_transactions' | 'governance_role_a' | 'governance_role_b',
+                )
+              ).getAddress(),
+            );
+          if (!organization.ebsi_invoke_credential)
+            await database.query(
+              'UPDATE accredited_organizations SET ebsi_invoke_credential=$2 WHERE id=$1 AND ebsi_invoke_credential IS NULL',
+              [id, await supportOffice.invoke(organization.did)],
+            );
+        }
+        if (organization.kind === 'tao' && publication.contracts) {
+          // The TAO's own certificate registry and governance contract, for its TIs.
+          try {
+            await publication.contracts.ensure(id);
+          } catch (error) {
+            console.error(`TAO contracts pending: ${(error as Error).message}`);
+          }
+        }
+        if (organization.kind === 'ti') {
+          const setup = await publication.governance?.ensure(id);
+          if (setup?.state === 'pending')
+            console.error(`TI governance setup pending: ${setup.reason}`);
+          if (!wasIssuer)
+            await transaction(database, (client) =>
+              appendAudit(client, {
+                event: 'organization.issuer_confirmed',
+                actor,
+                organizationId: id,
+                detail: { did: organization.did },
+              }),
+            );
+        }
+      }
+    }
+    return {
+      did: organization.did as string,
+      accreditation: organization.accreditation_credential as string | null,
+      attribute_id: terms?.attribute ?? null,
+      keys: keys.map(({ public_jwk: publicJwk, ...key }) => ({ ...key, public_jwk: publicJwk })),
+      accredited,
+    };
+  }
+
+  /**
+   * Run one onboarding attempt; see `onboard`.
+   * @param id - Registered TAO or TI UUID.
+   * @param actor - Registering account ID, or omitted for explicit synchronization.
+   * @returns Completion once its keys exist and its accreditation is issued.
+   * @throws Error for unavailable KMS, an accreditor not in the registry yet or unresolved key
+   * creation; database/crypto errors.
+   */
+  async function onboardOrganization(id: string, actor?: number) {
     const connection = await database.connect();
-    let wasIssuer = false;
-    let did: string;
     try {
       await connection.query('SELECT pg_advisory_lock(651904,hashtext($1))', [id]);
       const {
         rows: [organization],
       } = await connection.query(
-        `
-          SELECT ti.*, COALESCE(ti.revoked_at,tao.revoked_at,root.revoked_at) AS chain_revoked
-          FROM accredited_organizations ti LEFT JOIN accredited_organizations tao ON tao.id=ti.parent_id
-          LEFT JOIN accredited_organizations root ON root.id=tao.parent_id WHERE ti.id=$1
-        `,
+        `SELECT o.*, COALESCE(o.revoked_at,parent.revoked_at,root.revoked_at) AS chain_revoked
+         FROM accredited_organizations o LEFT JOIN accredited_organizations parent ON parent.id=o.parent_id
+         LEFT JOIN accredited_organizations root ON root.id=parent.parent_id WHERE o.id=$1`,
         [id],
       );
       if (
         !organization ||
-        organization.kind !== 'ti' ||
+        !['tao', 'ti'].includes(organization.kind) ||
         !organization.account_id ||
+        !organization.did ||
         organization.chain_revoked
       )
-        throw new Error('Only a registered, nonrevoked TI can be onboarded.');
-      if (!options.keys) throw new Error('KMS unavailable for issuer onboarding.');
-      wasIssuer = Boolean(organization.did && organization.tir_attribute_id);
-      if (!organization.did) {
-        organization.did = newDid();
-        await connection.query(
-          "UPDATE accredited_organizations SET did=$2 WHERE id=$1 AND (did IS NULL OR did='')",
-          [id, organization.did],
-        );
-      }
-      did = organization.did;
-      await ensureKeys(connection, organization, issuerPurposes, actor);
-      if (!publication?.ebsi.publisher || !publication.ebsi.supportOffice)
-        throw new Error('EBSI onboarding is not automated outside development mock mode.');
+        throw new Error('Only a registered, nonrevoked TAO or TI with its DID can be onboarded.');
+      await ensureKeys(
+        connection,
+        organization,
+        organization.kind === 'tao' ? authorityPurposes : issuerPurposes,
+        actor,
+      );
     } finally {
       try {
         await connection.query('SELECT pg_advisory_unlock(651904,hashtext($1))', [id]);
@@ -475,88 +611,40 @@ export function postgresOrganizationOnboarding(
         connection.release();
       }
     }
-
-    const { publisher, supportOffice } = publication.ebsi;
-    const {
-      rows: [ti],
-    } = await database.query(
-      'SELECT parent_id,ebsi_invoke_credential FROM accredited_organizations WHERE id=$1',
-      [id],
-    );
-    const tao = await ensureAuthority(ti.parent_id);
-    const taoSigner = await publication.ebsi.jws(ti.parent_id, 'credential_signing');
-    const issuer = await publication.ebsi.actor(id);
-    // Gas for the TI's keys on a development ledger; EBSI charges none.
-    for (const purpose of [
-      'ledger_transactions',
-      'governance_role_a',
-      'governance_role_b',
-    ] as const)
-      await supportOffice.fund(
-        await (await publication.ebsi.ledgerSigner(id, purpose)).getAddress(),
-      );
-    await publisher.ensureDid(
-      issuer,
-      () =>
-        trustChainCredential({
-          signer: taoSigner,
-          issuer: tao.did,
-          subject: did,
-          type: 'VerifiableAuthorisationToOnboard',
-          schema: publication.accreditationSchema,
-        }),
-      await ledgerKeyActivation(id),
-    );
-    await publisher.publishKeys(issuer, await documentKeys(id));
-    const lock = await database.connect();
-    try {
-      await lock.query('SELECT pg_advisory_lock(651904,hashtext($1))', [id]);
-      await refresh(id, lock);
-    } finally {
-      try {
-        await lock.query('SELECT pg_advisory_unlock(651904,hashtext($1))', [id]);
-      } finally {
-        lock.release();
-      }
-    }
-    if (!ti.ebsi_invoke_credential)
-      await database.query(
-        'UPDATE accredited_organizations SET ebsi_invoke_credential=$2 WHERE id=$1 AND ebsi_invoke_credential IS NULL',
-        [id, await supportOffice.invoke(did)],
-      );
-    const setup = await publication.governance?.ensure(id);
-    if (setup?.state === 'pending') console.error(`TI governance setup pending: ${setup.reason}`);
-    if (!wasIssuer)
-      await transaction(database, (client) =>
-        appendAudit(client, {
-          event: 'organization.issuer_confirmed',
-          actor,
-          organizationId: id,
-          detail: { did },
-        }),
-      );
+    await issueAccreditation(id);
   }
 
   return {
-    refresh,
     ensureAuthority,
+    check,
 
     /**
-     * Allocate purpose-separated keys and, in development, publish a registered TI: its DID and
-     * keys, its accreditation, its access to the contracts and its governance setup.
-     * @param id - Registered TI UUID.
+     * Issue an organization's accreditation again after what it may do changed (its schemas, its
+     * end, a new schema version); the organization stores the new one itself.
+     * @param id - TAO or TI organization UUID.
+     * @returns Completion; nothing happens outside development or before it is onboarded.
+     * @throws Error while its accreditor is not in the registry; registry, KMS or database errors.
+     */
+    async refresh(id: string) {
+      await issueAccreditation(id);
+    },
+
+    /**
+     * Onboard a registered TAO or TI: create the back-office's keys it will list in its own DID
+     * document, and issue its accreditation, which it then downloads and stores in EBSI itself.
+     * @param id - Registered TAO or TI UUID.
      * @param actor - Registering account ID, or omitted for explicit synchronization.
-     * @returns Completion when the TI can issue; the governance setup may remain pending.
-     * @throws Error for unavailable KMS/EBSI, invalid authority or unresolved key creation;
-     * database/crypto errors.
-     * @remarks Attempts for one TI queue here, in this process, rather than on pooled sessions:
-     * the attempt holding the TI's session lock needs further sessions for its registry writes.
+     * @returns Completion once the keys exist and the accreditation is issued.
+     * @throws Error for unavailable KMS, an accreditor not in the registry yet or unresolved key
+     * creation; database/crypto errors.
+     * @remarks Attempts for one organization queue here, in this process, rather than on pooled
+     * sessions: the attempt holding the session lock needs further sessions for registry writes.
      */
     async onboard(id: string, actor?: number) {
       const previous = onboarding.get(id);
       const attempt = (previous ?? Promise.resolve())
         .catch(() => undefined)
-        .then(() => onboardIssuer(id, actor));
+        .then(() => onboardOrganization(id, actor));
       onboarding.set(id, attempt);
       try {
         await attempt;

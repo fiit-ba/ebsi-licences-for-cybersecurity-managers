@@ -75,9 +75,10 @@ Smart Contracts Factory deploys a template: the implementation and its beacon
 are created, a template is registered for them in the Proxy Templates
 Registry, and the Proxy Factory creates the proxy and runs its initializer.
 The registry is deployed first, governance is initialized with its address,
-and then the registry is pointed at governance. Governance's initializer is
-the only place the DID Registry and the Trusted Issuers Registry are set: no
-call changes them afterwards.
+and then the registry is pointed at governance. The DID Registry and the
+Trusted Issuers Registry are given to the governance implementation's
+constructor and live in its code as immutables: no call changes them
+afterwards, and each network deploys its own implementation.
 
 ```mermaid
 sequenceDiagram
@@ -90,10 +91,10 @@ sequenceDiagram
     participant D as DID Registry
     participant T as Trusted Issuers Registry
 
-    Note over Dep,F: per contract, first: the implementation, a VersionedUpgradeableBeacon,<br/>and a template for them in the Proxy Templates Registry (addTemplate)
+    Note over Dep,F: per contract, first: the implementation (governance's with the DID Registry<br/>and TIR as constructor arguments), a VersionedUpgradeableBeacon,<br/>and a template for them in the Proxy Templates Registry (addTemplate)
     Dep->>F: deployProxy("CertificateRegistry", version, initialize(tao), deployerDid, beaconOwner)
     F->>R: initialize(tao)
-    Dep->>F: deployProxy("CertificateGovernance", version, initialize(tao, taoDid, DIDR, TIR, registry), deployerDid, beaconOwner)
+    Dep->>F: deployProxy("CertificateGovernance", version, initialize(tao, taoDid, registry), deployerDid, beaconOwner)
     F->>G: initialize(...)
     G-->>Dep: CertificateRegistryChanged
     TAO->>R: setGovernance(governance)

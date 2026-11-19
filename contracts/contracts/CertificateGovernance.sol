@@ -4,6 +4,7 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ICertificateGovernance} from "./interfaces/ICertificateGovernance.sol";
 import {StatusProposals} from "./governance/StatusProposals.sol";
 import {RuleChanges} from "./governance/RuleChanges.sol";
+import {TiAccreditation} from "./governance/TiAccreditation.sol";
 
 /**
  * @title CertificateGovernance
@@ -69,35 +70,35 @@ contract CertificateGovernance is ICertificateGovernance, StatusProposals, RuleC
     bytes4 private constant IMPLEMENTATION_INIT_SELECTOR_INTERFACE_ID = 0xf622b441;
 
     /**
-     * @notice Locks the implementation against initialization/reinitialization
-     * @dev Runs only behind a beacon proxy, whose storage `initialize`
-     *      sets up.
+     * @notice Fixes the EBSI registries every proxy on the beacon trusts, and
+     *         locks the implementation against initialization.
+     * @dev Runs once, when the implementation is deployed. The registries are
+     *      immutables, so they live in this implementation's code, which each
+     *      proxy runs; the rest is the proxy's storage, which `initialize`
+     *      sets up. Each network deploys its own implementation with its own
+     *      registries, and a new implementation version is the only way to
+     *      change them.
+     * @param didRegistry_ EBSI's DID Registry.
+     * @param issuersRegistry_ EBSI's Trusted Issuers Registry.
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor() {
+    constructor(address didRegistry_, address issuersRegistry_) TiAccreditation(didRegistry_, issuersRegistry_) {
         _disableInitializers();
     }
 
     /**
-     * @notice Set up the proxy's owner and the registries it trusts, once, in
-     *         the transaction that creates the proxy. TIs come after (`addTi`):
-     *         one contract serves them all.
+     * @notice Set up the proxy's owner and its TAO, once, in the transaction
+     *         that creates the proxy. The EBSI registries come with the
+     *         implementation (constructor). TIs come after (`addTi`): one
+     *         contract serves them all.
      * @param tao The contract's owner. Named, not taken from `msg.sender`,
      *        which is the Proxy Factory on a factory deployment.
      * @param taoDid_ The TAO's DID in the Trusted Issuers Registry.
-     * @param didRegistry_ EBSI's DID Registry.
-     * @param issuersRegistry_ EBSI's Trusted Issuers Registry.
      * @param certificateRegistry_ The registry of this TAO's certificates.
      */
-    function initialize(
-        address tao,
-        string memory taoDid_,
-        address didRegistry_,
-        address issuersRegistry_,
-        address certificateRegistry_
-    ) external initializer {
+    function initialize(address tao, string memory taoDid_, address certificateRegistry_) external initializer {
         __Ownable_init(tao);
-        _setRegistries(taoDid_, didRegistry_, issuersRegistry_);
+        _setTaoDid(taoDid_);
         _setCertificateRegistry(certificateRegistry_);
     }
 

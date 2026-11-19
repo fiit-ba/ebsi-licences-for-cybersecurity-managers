@@ -2,7 +2,7 @@
 // Technologies for the Professional License Registry. It is licensed under
 // the MIT License (see LICENSE).
 
-import { backendRequest } from './client.ts';
+import { backendRequest, ONBOARDING_TIMEOUT_MS } from './client.ts';
 
 /**
  * The trust chain the signed-in RootTAO or TAO oversees (design decisions D15).
@@ -14,20 +14,28 @@ export function trustChain() {
 }
 
 /**
- * Select an organization one level below, accredited for schemas. A TI is
+ * Appoint an organization one level below by its own DID, accredited for schemas. A TI is
  * accredited until `accreditedUntil` (design decisions D23); a TAO has no end.
  * @param name - Selected organization name.
  * @param contactEmail - Organization contact email.
  * @param schemas - Existing delegated credential-type identifiers.
  * @param accreditedUntil - Optional TI accreditation end timestamp.
+ * @param did - The organization's own DID, which it registered in the DID Registry.
  * @returns The selected organization and its one-time invitation details.
  * @throws Backend refusal, request timeout or network errors from the existing request client.
  */
-export function selectOrganization(name, contactEmail, schemas = [], accreditedUntil = null) {
+export function selectOrganization(
+  name,
+  contactEmail,
+  schemas = [],
+  accreditedUntil = null,
+  did = '',
+) {
   return backendRequest('/registry/trust-chain/select/', {
     method: 'POST',
     body: {
       name,
+      did,
       contact_email: contactEmail,
       schemas,
       ...(accreditedUntil ? { accredited_until: accreditedUntil } : {}),
@@ -107,5 +115,23 @@ export function registerOrganization(invitation, username, password) {
     method: 'POST',
     body: { invitation, username, password },
     auth: false,
+  });
+}
+
+/**
+ * An organization's accreditation in EBSI, checked in the registries now: its DID, the
+ * accreditation to store with its own wallet, the back-office's keys its DID document must list,
+ * and whether it is accredited. Without an identifier, the signed-in organization's own.
+ * @param organizationId - An organization the signed-in one appointed, or omitted.
+ * @returns `{did, accreditation, attribute_id, keys, accredited}`.
+ * @throws Backend refusal, request timeout or network errors from the existing request client.
+ */
+export function ebsiAccreditation(organizationId = null) {
+  // Confirming a TAO deploys its own contracts, and a TI is set up on its TAO's governance
+  // contract: several transactions, each awaiting its block.
+  return backendRequest('/registry/trust-chain/ebsi/', {
+    method: 'POST',
+    body: organizationId ? { organization_id: organizationId } : {},
+    timeoutMs: ONBOARDING_TIMEOUT_MS,
   });
 }

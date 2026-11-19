@@ -7,3 +7,4 @@ web/src/blockchain/certificateGovernanceContract.ts
 shared/governance-contract.json
 shared/governance-contract.ts
 web/public/
+shared/schemas.json

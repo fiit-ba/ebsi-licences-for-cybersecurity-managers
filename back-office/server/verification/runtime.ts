@@ -6,7 +6,8 @@ import { postgresRegistrationThrottle } from '../accreditation/registration-thro
 import { postgresRelyingParties } from './parties.ts';
 import { verificationService } from './service.ts';
 import { verificationHttp } from './http.ts';
-import type { AuthorizationSigning, CertificateLedger } from '../issuance/types.ts';
+import type { AuthorizationSigning } from '../issuance/types.ts';
+import type { CertificateRegistries } from './types.ts';
 import type { Protection } from '../issuance/protection.ts';
 
 /**
@@ -23,7 +24,7 @@ export async function configuredVerification(
     origin: string;
     protection: Protection;
     signing: AuthorizationSigning;
-    ledger: Pick<CertificateLedger, 'contract' | 'status'>;
+    ledger: CertificateRegistries;
   },
   env = process.env,
 ) {

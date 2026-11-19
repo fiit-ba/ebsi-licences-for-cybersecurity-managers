@@ -5,8 +5,6 @@ import { CredentialVerificationError } from '../verification/credential.ts';
 import { IssuanceError } from '../issuance/claims.ts';
 import { IssuanceInputError } from '../issuance/input.ts';
 import { issuanceScheme } from '../issuance/schemes.ts';
-import { SchemaError } from '../schemas/definition.ts';
-import { canManageSchemas } from '../schemas/management.ts';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { accreditationRefusal, organizationProfile } from '../accreditation/profile.ts';
 import { AccreditationError } from '../accreditation/invitations.ts';
@@ -19,14 +17,6 @@ import { clientAddress } from './client-address.ts';
 import { trimIdentityField } from '../identity/input-text.ts';
 import { verifierRefusal } from '../verification/http.ts';
 
-const schemaCommands = new Map<
-  string,
-  { method: 'propose' | 'confirm' | 'retire'; status: number }
->([
-  ['/registry/schemas/', { method: 'propose', status: 201 }],
-  ['/registry/schemas/confirm/', { method: 'confirm', status: 200 }],
-  ['/registry/schemas/retire/', { method: 'retire', status: 200 }],
-]);
 const statusDecisions = new Map<string, 'approved' | 'rejected'>([
   ['/registry/approve/', 'approved'],
   ['/registry/reject/', 'rejected'],
@@ -59,7 +49,7 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
     loginThrottle,
     operatorManagement = undefined,
     schemaCatalog = undefined,
-    schemaManagement = undefined,
+    registrySchemas = undefined,
     issuanceSchemes = undefined,
     issuer = undefined,
     presentations = undefined,
@@ -305,12 +295,12 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
     const command =
       invitations && request.method === 'POST' ? trustChainCommands.get(path) : undefined;
     const readChain = trustChain && path === '/registry/trust-chain/' && request.method === 'GET';
+    const ebsiAccreditation =
+      invitations && path === '/registry/trust-chain/ebsi/' && request.method === 'POST';
     const accreditationState =
       accreditation && path === '/registry/accreditation/' && request.method === 'GET';
     const listSchemas =
-      schemaManagement && path === '/registry/schemas/' && request.method === 'GET';
-    const schemaCommand =
-      schemaManagement && request.method === 'POST' ? schemaCommands.get(path) : undefined;
+      registrySchemas && path === '/registry/schemas/' && request.method === 'GET';
     const certificateScheme =
       issuanceSchemes && path === '/registry/certificate-scheme/' && request.method === 'GET';
     const issue = issuer && path === '/registry/issue/' && request.method === 'POST';
@@ -358,9 +348,9 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
       notificationList ||
       command ||
       readChain ||
+      ebsiAccreditation ||
       accreditationState ||
       listSchemas ||
-      schemaCommand ||
       certificateScheme ||
       certificates ||
       issue ||
@@ -628,27 +618,20 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
           ) && account.roles.some((role) => ['plr_issuer', 'plr_auditor'].includes(role));
         return send(response, 200, await accreditation!.state(refresh));
       }
-      if (listSchemas || schemaCommand) {
+      if (listSchemas) {
         if (!account.roles.length) {
           return send(response, 403, {
             reason: 'RoleRequired',
             detail: 'An operator role is required.',
           });
         }
-        if (listSchemas) return send(response, 200, await schemaManagement!.list(account));
-        if (!canManageSchemas(account)) {
-          return send(response, 403, {
-            reason: 'NotRootTao',
-            detail: 'Only the RootTAO defines certificate schemas.',
-          });
-        }
-        const input = await jsonBody(request, 96 * 1024);
+        return send(response, 200, await registrySchemas!.list());
+      }
+      if (ebsiAccreditation) {
+        // Any organization's own account, or its accreditor's.
+        const input = await jsonBody(request);
         if (input.status) return send(response, input.status, input.body);
-        return send(
-          response,
-          schemaCommand!.status,
-          await schemaManagement![schemaCommand!.method](account.id, input.body),
-        );
+        return send(response, 200, await invitations!.ebsi(account.id, input.body));
       }
       if (!profile) {
         const eligibleRoles =
@@ -673,7 +656,9 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
           account.governance_roles?.includes(role),
         ),
         ...organizationProfile(account),
-        governance_contract: governanceProfile.contract,
+        governance_contract:
+          (await governanceProfile.contractOf?.(account.id).catch(() => undefined)) ??
+          governanceProfile.contract,
         lifecycle_mode: statusProposals
           ? statusProposals!.governanceEnabled === false
             ? 'local'
@@ -688,7 +673,7 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
           audit: Boolean(audit),
           anchors: Boolean(listAnchors),
           trust_chain: Boolean(invitations && trustChain),
-          schemas: Boolean(schemaManagement),
+          schemas: Boolean(registrySchemas),
           accounts: Boolean(operatorManagement),
         },
       });
@@ -711,7 +696,6 @@ export function backOfficeServer(options: BackOfficeServerOptions) {
       if (
         error instanceof OperatorManagementError ||
         error instanceof AccreditationError ||
-        error instanceof SchemaError ||
         error instanceof IssuanceError ||
         error instanceof IssuanceInputError
       )

@@ -5,14 +5,13 @@ import { bootstrapRootAdministrator } from '../server/identity/administration/bo
 import { postgresOperatorManagement } from '../server/identity/administration/management.ts';
 import { postgresInvitations } from '../server/accreditation/invitations.ts';
 import { configuredOrganizations } from '../server/accreditation/runtime.ts';
-import { postgresSchemaManagement } from '../server/schemas/management.ts';
 import { trustedSchemaRegistry } from '../server/schemas/tsr.ts';
 import {
+  demoWallets,
   initializeDevelopmentRegistry,
-  initializeDevelopmentTao,
   synchronizeDevelopmentRegistry,
 } from './development-registry.ts';
-import { developmentSchema } from './development-schema.ts';
+import { developmentCredentialType } from './development-schema.ts';
 
 if (process.env.BACK_OFFICE_DEVELOPMENT !== 'true' || !process.env.PLR_EBSI_MOCK_URL)
   throw new Error(
@@ -105,6 +104,7 @@ async function roles(actor: number, id: number, names: string[]) {
  * @param username - Development account created only if absent.
  * @param name - Stable demonstration organization name.
  * @param kind - Expected TAO or TI kind.
+ * @param did - The organization's own DID, registered by its (development) wallet.
  * @returns Registered account and organization identifiers.
  * @throws Ownership conflicts, revoked/expired hierarchy, existing domain refusals or provider errors.
  */
@@ -114,6 +114,7 @@ async function organization(
   username: string,
   name: string,
   kind: 'tao' | 'ti',
+  did: string,
 ) {
   const existing = (
     await database.query(
@@ -126,7 +127,10 @@ async function organization(
   const prior = existing[0];
   if (
     prior &&
-    (prior.kind !== kind || prior.revoked_at || (prior.account_id && prior.username !== username))
+    (prior.kind !== kind ||
+      prior.did !== did ||
+      prior.revoked_at ||
+      (prior.account_id && prior.username !== username))
   )
     throw new Error('The existing demonstration organization changed ownership or was revoked.');
   if (!prior?.account_id) {
@@ -136,7 +140,8 @@ async function organization(
       ? await invitations.renew(actor, { organization_id: prior.id })
       : await invitations.select(actor, {
           name,
-          schemas: [developmentSchema.credential_type],
+          did,
+          schemas: [developmentCredentialType],
           ...(kind === 'ti'
             ? { accredited_until: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10) }
             : {}),
@@ -190,39 +195,36 @@ try {
     throw new Error('The existing administrator is not this development seed RootTAO.');
   await roles(supervisor, supervisor, ['plr_rtao', 'plr_auditor']);
   const registryIdentity = await initializeDevelopmentRegistry(database);
-  const schemas = postgresSchemaManagement(database, registry, integrations.schemaOptions);
+  // The certificate schema comes from the Trusted Schemas Registry, where the development
+  // Support Office registered it (initializeDevelopmentRegistry).
   if (
     !(
-      await database.query('SELECT 1 FROM certificate_schemas WHERE credential_type=$1', [
-        developmentSchema.credential_type,
-      ])
+      await database.query(
+        'SELECT 1 FROM certificate_schemas WHERE credential_type=$1 AND retired_at IS NULL',
+        [developmentCredentialType],
+      )
     ).rowCount
   )
-    await schemas.propose(supervisor, developmentSchema);
-  // Retry an unpublished initial draft with its CURRENT fields, not the defaults;
-  // an already published schema and later operator drafts remain untouched.
-  const published = await database.query(
-    'SELECT 1 FROM certificate_schema_versions v JOIN certificate_schemas s ON s.id=v.schema_id WHERE s.credential_type=$1 AND v.registered_at IS NOT NULL',
-    [developmentSchema.credential_type],
-  );
-  if (!published.rowCount) {
-    const draft = (
-      await database.query(
-        'SELECT s.name_sk,s.name_en,v.fields FROM certificate_schemas s JOIN certificate_schema_versions v ON v.schema_id=s.id WHERE s.credential_type=$1 AND s.retired_at IS NULL ORDER BY v.version DESC LIMIT 1',
-        [developmentSchema.credential_type],
-      )
-    ).rows[0];
-    if (!draft) throw new Error('No usable initial development schema draft exists.');
-    await schemas.propose(supervisor, {
-      ...draft,
-      credential_type: developmentSchema.credential_type,
-    });
-  }
-  const tao = await organization(supervisor, root.id, 'mirri', taoName, 'tao');
+    throw new Error('PLR_TSR_SCHEMAS does not name the development certificate schema.');
+  // The TAO and the TI bring their own DIDs. Bootstrap plays their wallets: each registers its DID,
+  // is appointed by it, lists the back-office's keys and stores the accreditation it is given.
+  const wallets = demoWallets(database, integrations);
+  await wallets.tao.register(root.id);
+  const tao = await organization(supervisor, root.id, 'mirri', taoName, 'tao', wallets.tao.did);
+  await integrations.onboarding.onboard(tao.id);
+  await wallets.tao.complete(tao.id);
+  if (!(await integrations.onboarding.check(tao.id)).accredited)
+    throw new Error('The demonstration TAO is not accredited in EBSI.');
   // The governance contracts were deployed for this TAO's DID; its ledger key must own them
   // before its TIs can be set up there (bootstrap transfers ownership, then synchronizes).
-  const taoIdentity = await initializeDevelopmentTao(database, supervisor, tao.id);
-  const ti = await organization(tao.account, tao.id, 'alice', tiName, 'ti');
+  const taoIdentity = {
+    did: wallets.tao.did,
+    address: await (
+      await integrations.ebsi!.ledgerSigner(tao.id, 'ledger_transactions')
+    ).getAddress(),
+  };
+  await wallets.ti.register(tao.id);
+  const ti = await organization(tao.account, tao.id, 'alice', tiName, 'ti', wallets.ti.did);
   await roles(supervisor, ti.account, [
     'plr_issuer',
     'plr_status_manager',

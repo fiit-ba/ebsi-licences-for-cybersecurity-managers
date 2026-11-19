@@ -23,7 +23,7 @@ import {
 } from '@infrastructure/organization/OrganizationService'
 import { describeOrganizationError } from '@features/organization/screens/Organization/describe'
 import { currentLanguage, inLanguage } from '@app/localization/Language'
-import { localDate } from '@shared/utils/labels'
+import { claimLabel, localDate } from '@shared/utils/labels'
 import IssueI18nKeys from './i18n/keys'
 import { useQrSide } from '@shared/hooks/useQrSide'
 import { ISSUE_KEEP_AWAKE_TAG } from './screen.constants'
@@ -188,12 +188,15 @@ const useIssueScreen = (_props: IssueScreenProps) => {
     setProblem(null)
     setHolderReference('')
     if (!scheme) return
+    // The next licence keeps what licences of one training share (its dates and numbers, and
+    // whatever has a default); the text written for one licence alone (a name, a number) is
+    // cleared. The schema says nothing more about its attributes.
     const fresh = initialValues(scheme)
     setValues((current) => ({
       ...current,
       ...Object.fromEntries(
         scheme.fields
-          .filter((field) => field.section === 'holder' || field.key === 'certificateNumber')
+          .filter((field) => field.kind === 'text' && !field.default)
           .map((field) => [field.key, fresh[field.key]]),
       ),
     }))
@@ -214,11 +217,10 @@ const useIssueScreen = (_props: IssueScreenProps) => {
   const errorColor = getThemeColor(ColorKeys.error)
   const highlight = (key: string) => (flagged.includes(key) ? { error: true, outlineColor: errorColor } : {})
   const label = (field: SchemeField) => {
-    const name = ownText(field.label) || String(t(`FIELD_${field.key}`, { defaultValue: field.key }))
+    const name = ownText(field.label) || claimLabel(field.key)
     return field.required || field.organization ? name : `${name} ${t(IssueI18nKeys.OPTIONAL)}`
   }
-  const hint = (field: SchemeField) =>
-    field.kind === 'date' ? '' : ownText(field.hint) || String(t(`HINT_${field.key}`, { defaultValue: '' }))
+  const hint = (field: SchemeField) => (field.kind === 'date' ? '' : ownText(field.hint))
   const changeHolderReference = (value: string) => {
     setHolderReference(value)
     setFlagged((current) => current.filter((key) => key !== 'holderReference'))

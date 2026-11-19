@@ -39,6 +39,23 @@ const READS = new Set([
   'web3_clientVersion',
 ]);
 
+/** What the pilot's Ledger API v4 forwards without a token (api-pilot.ebsi.eu/ledger/v4). */
+const PILOT_READS = new Set([
+  'eth_blockNumber',
+  'eth_call',
+  'eth_chainId',
+  'eth_estimateGas',
+  'eth_getBlockByHash',
+  'eth_getBlockByNumber',
+  'eth_getBlockReceipts',
+  'eth_getCode',
+  'eth_getLogs',
+  'eth_getTransactionByHash',
+  'eth_getTransactionCount',
+  'eth_getTransactionReceipt',
+  'net_version',
+]);
+
 const MAX_BATCH = 1024;
 
 const rpcError = (id, code, message) => ({jsonrpc: '2.0', id: id ?? null, error: {code, message}});
@@ -55,6 +72,13 @@ export function ledgerRouter(config, chain, verifyToken) {
     Object.keys(REGISTRY_ABIS).map((name) => [getAddress(config.contracts[name]), {name, abi: new Interface(REGISTRY_ABIS[name])}]),
   );
   const invoke = new Set(config.invoke.map((address) => getAddress(address)));
+  /**
+   * Whether a ledger:invoke token may call a contract: a named Trusted Contract, EBSI's Proxy
+   * Factory, or a contract it deployed (each TAO's certificate registry and governance).
+   * @param {string} target The contract.
+   * @returns {Promise<boolean>} Whether it is a Trusted Contract.
+   */
+  const trusted = async (target) => invoke.has(target) || (await chain.deployedByFactory(target));
 
   /**
    * Forward one request to the network as it is.
@@ -80,16 +104,19 @@ export function ledgerRouter(config, chain, verifyToken) {
    * Why a signed transaction may not go through with this token, if it may not.
    * @param {Transaction} tx The decoded transaction.
    * @param {object|undefined} claims The token's claims.
-   * @returns {string|undefined} The refusal.
+   * @returns {Promise<string|undefined>} The refusal.
    */
-  function refusal(tx, claims) {
+  async function refusal(tx, claims) {
     if (!claims) return 'missing or invalid access token';
     const scopes = String(claims.scope ?? '').split(' ');
     if (!tx.to) return 'contract creation is not offered by the Ledger API';
     const target = getAddress(tx.to);
     if (invoke.has(target)) return scopes.includes('ledger:invoke') ? undefined : 'missing scope ledger:invoke';
     const registry = registries[target];
-    if (!registry) return `${target} is neither a registry nor a Trusted Contract`;
+    if (!registry) {
+      if (await chain.deployedByFactory(target)) return scopes.includes('ledger:invoke') ? undefined : 'missing scope ledger:invoke';
+      return `${target} is neither a registry nor a Trusted Contract`;
+    }
     let call;
     try {
       call = registry.abi.parseTransaction({data: tx.data, value: tx.value});
@@ -120,10 +147,10 @@ export function ledgerRouter(config, chain, verifyToken) {
    * @param {object|undefined} claims The bearer token's claims, if valid.
    * @returns {Promise<object>} The response.
    */
-  async function answer(request, claims) {
+  async function answer(request, claims, pilot = false) {
     if (!request || typeof request !== 'object' || request.jsonrpc !== '2.0' || typeof request.method !== 'string')
       return rpcError(request?.id, -32600, 'invalid request');
-    if (READS.has(request.method)) return forward(request);
+    if ((pilot ? PILOT_READS : READS).has(request.method)) return forward(request);
     if (request.method !== 'eth_sendRawTransaction') return rpcError(request.id, -32601, `method ${request.method} not found`);
     let tx;
     try {
@@ -132,25 +159,80 @@ export function ledgerRouter(config, chain, verifyToken) {
       return rpcError(request.id, -32602, 'params[0] is not a signed transaction');
     }
     if (!tx.signature) return rpcError(request.id, -32602, 'the transaction is not signed');
-    const why = refusal(tx, claims);
+    // The pilot's Ledger API takes Trusted Contract calls; registry writes go to each registry.
+    if (pilot && tx.to && !(await trusted(getAddress(tx.to))))
+      return rpcError(request.id, -32600, 'send registry transactions to the registry\'s JSON-RPC sendSignedTransaction');
+    const why = await refusal(tx, claims);
     if (why) return rpcError(request.id, -32600, why);
     return forward(request);
   }
 
+  /**
+   * A registry's JSON-RPC on the pilot: `sendSignedTransaction` of a transaction signed by its
+   * sender, under the scope's token. The transaction builders (`insertDidDocument`…) are not
+   * offered: the back-office builds its transactions itself.
+   * @param {string} registry The registry the endpoint is for (`didRegistry`, `issuersRegistry`).
+   * @param {object} request The JSON-RPC request.
+   * @param {object|undefined} claims The access token's claims.
+   * @returns {Promise<object>} The JSON-RPC response.
+   */
+  async function registryCall(registry, request, claims) {
+    if (!request || request.jsonrpc !== '2.0') return rpcError(request?.id, -32600, 'invalid request');
+    if (request.method !== 'sendSignedTransaction')
+      return rpcError(request.id, -32601, `method ${request.method} is not offered by the development service`);
+    const params = request.params?.[0];
+    let tx;
+    try {
+      tx = Transaction.from(params?.signedRawTransaction);
+    } catch {
+      return rpcError(request.id, -32602, 'signedRawTransaction is not a signed transaction');
+    }
+    const unsigned = params?.unsignedTransaction ?? {};
+    if (
+      params?.protocol !== 'eth' ||
+      !tx.signature ||
+      !tx.to ||
+      getAddress(tx.to) !== getAddress(config.contracts[registry]) ||
+      getAddress(unsigned.to ?? '0x0000000000000000000000000000000000000000') !== getAddress(tx.to) ||
+      String(unsigned.data).toLowerCase() !== tx.data.toLowerCase() ||
+      BigInt(unsigned.nonce ?? -1) !== BigInt(tx.nonce)
+    )
+      return rpcError(request.id, -32602, 'the signed transaction is not the unsigned one, or not to this registry');
+    const why = await refusal(tx, claims);
+    if (why) return rpcError(request.id, -32600, why);
+    return forward({jsonrpc: '2.0', id: request.id, method: 'eth_sendRawTransaction', params: [params.signedRawTransaction]});
+  }
+
   const router = express.Router();
-  router.all('/v1/ledger', express.json({limit: '4mb', type: () => true}), async (req, res, next) => {
+  for (const [path, registry] of [
+    ['/did-registry/v5/jsonrpc', 'didRegistry'],
+    ['/trusted-issuers-registry/v5/jsonrpc', 'issuersRegistry'],
+  ])
+    router.post(path, express.json({limit: '4mb', type: () => true}), async (req, res, next) => {
+      try {
+        const bearer = /^Bearer (\S+)$/.exec(req.get('authorization') ?? '')?.[1];
+        const claims = bearer ? verifyToken(bearer) : undefined;
+        if (!claims)
+          return res.status(401).type('application/problem+json').json({title: 'Unauthorized', status: 401, type: 'about:blank', detail: 'Invalid or missing JWT'});
+        return res.json(await registryCall(registry, req.body, claims));
+      } catch (error) {
+        next(error);
+      }
+    });
+  router.all(['/v1/ledger', '/ledger/v4/blockchains/besu'], express.json({limit: '4mb', type: () => true}), async (req, res, next) => {
     try {
       if (req.method !== 'POST') return res.set('allow', 'POST').status(405).end();
       const bearer = /^Bearer (\S+)$/.exec(req.get('authorization') ?? '')?.[1];
       const claims = bearer ? verifyToken(bearer) : undefined;
+      const pilot = req.path.startsWith('/ledger/v4');
       const body = req.body;
       if (Array.isArray(body)) {
         if (!body.length) return res.json(rpcError(null, -32600, 'empty batch'));
         if (body.length > MAX_BATCH) return res.json(rpcError(null, -32005, 'batch too large'));
-        const responses = await Promise.all(body.map((request) => answer(request, claims)));
+        const responses = await Promise.all(body.map((request) => answer(request, claims, pilot)));
         return res.json(responses.filter((_, index) => body[index]?.id !== undefined));
       }
-      const response = await answer(body, claims);
+      const response = await answer(body, claims, pilot);
       if (body?.id === undefined) return res.status(204).end();
       return res.json(response);
     } catch (error) {

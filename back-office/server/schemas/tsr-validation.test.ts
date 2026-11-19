@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { ebsiSchemaIds, registrySchemaFiles } from './ebsi-schemas.ts';
 import { trustedSchemaRegistry } from './tsr.ts';
-import { tsrCredentialValidation } from '../verification/schema-validation.ts';
+import {
+  tsrCredentialValidation,
+  validateVerificationSchema,
+} from '../verification/schema-validation.ts';
 
 test('TSR validation checks both schemas and accepts only configured registry documents', async () => {
   const base = 'https://tsr.example/v3';
@@ -80,4 +85,99 @@ test('TSR validation checks both schemas and accepts only configured registry do
     /could not be compiled/,
   );
   assert.ok(fetched.every((url) => url.startsWith(base)));
+});
+
+test("a presentation may withhold a required attribute; the issuer's whole credential may not", async () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    allOf: [
+      {
+        properties: {
+          credentialSubject: {
+            type: 'object',
+            properties: { id: { type: 'string' }, number: { type: 'string', minLength: 1 } },
+            required: ['id', 'number'],
+          },
+        },
+      },
+    ],
+  };
+  const registry = trustedSchemaRegistry('https://tsr.example/v3', async () =>
+    Response.json(schema),
+  );
+  const references = [{ id: registry.address('license') }];
+  const withheld = { credentialSubject: { id: 'did:key:example' } };
+  await assert.rejects(tsrCredentialValidation(registry)(withheld, references), {
+    code: 'SchemaMismatch',
+  });
+  await tsrCredentialValidation(registry, { presented: true })(withheld, references);
+  // What is disclosed must still match, and the subject's id stays required.
+  await assert.rejects(
+    tsrCredentialValidation(registry, { presented: true })(
+      { credentialSubject: { id: 'did:key:example', number: '' } },
+      references,
+    ),
+    { code: 'SchemaMismatch' },
+  );
+  await assert.rejects(
+    tsrCredentialValidation(registry, { presented: true })({ credentialSubject: {} }, references),
+    { code: 'SchemaMismatch' },
+  );
+  // Domain verification reads a presentation too.
+  await validateVerificationSchema(withheld, schema, references[0].id);
+  assert.deepEqual(schema.allOf[0].properties.credentialSubject.required, ['id', 'number']);
+});
+
+test("a schema extending EBSI's Verifiable Attestation is validated with it, read by id from the configured registry", async () => {
+  const licence = registrySchemaFiles.cybersecurityManagerCertificate;
+  const base = registrySchemaFiles.ebsi[ebsiSchemaIds.attestation];
+  // The licence names the base by its pilot address; this registry holds it under the same id.
+  const documents = new Map<string, Record<string, unknown>>([
+    ['licence', licence],
+    [ebsiSchemaIds.attestationHex, base],
+  ]);
+  const requested: string[] = [];
+  const registry = trustedSchemaRegistry('https://tsr.example/v1/schemas-registry', async (url) => {
+    const id = String(url).split('/').pop()!;
+    requested.push(id);
+    return documents.has(id)
+      ? Response.json(documents.get(id))
+      : new Response(null, { status: 404 });
+  });
+  const references = [{ id: registry.address('licence') }];
+  const example = JSON.parse(
+    readFileSync(
+      new URL(
+        '../../../schemas/cybersecurity-manager-certificate/1.0.0/example.json',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
+  await tsrCredentialValidation(registry)(example, references);
+  assert.deepEqual(requested, ['licence', ebsiSchemaIds.attestationHex]);
+  // The base requires `issued`.
+  const { issued: _issued, ...withoutIssued } = example;
+  await assert.rejects(tsrCredentialValidation(registry)(withoutIssued, references), {
+    code: 'SchemaMismatch',
+  });
+  // A presentation may withhold the licence's attributes, not the base's.
+  const { holderName: _holder, ...subject } = example.credentialSubject;
+  await tsrCredentialValidation(registry, { presented: true })(
+    { ...example, credentialSubject: subject },
+    references,
+  );
+  await assert.rejects(
+    validateVerificationSchema(withoutIssued, licence, references[0].id, (url) =>
+      registry.document(url),
+    ),
+    { message: /issued/ },
+  );
+  // A reference outside a schemas registry is not followed.
+  documents.set('outside', { allOf: [{ $ref: 'https://elsewhere.example/base.json' }] });
+  await assert.rejects(
+    tsrCredentialValidation(registry)(example, [{ id: registry.address('outside') }]),
+    /could not be compiled/,
+  );
 });

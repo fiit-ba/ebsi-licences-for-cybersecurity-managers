@@ -87,6 +87,8 @@ export function postgresVerificationRequests(
    * @throws Database query errors.
    */
   async function owned(state: string, owner: VerificationOwner) {
+    // Not a state this verifier makes (base64url): unknown, before it reaches a query.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(state)) return;
     const {
       rows: [row],
     } = await database.query(`SELECT * FROM presentation_requests WHERE state=$1`, [state]);

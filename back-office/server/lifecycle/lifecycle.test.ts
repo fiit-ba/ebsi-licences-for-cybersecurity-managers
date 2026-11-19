@@ -405,7 +405,8 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         post('reject', body, second),
       ]);
       assert.equal(race[1].status, 200);
-      assert.ok([200, 403].includes(race[0].status));
+      // An approval that finds the case rejected is refused as closed.
+      assert.ok([200, 409].includes(race[0].status));
       const decisions = await Promise.all(race.map((response) => response.json()));
       const winner =
         decisions.find((body) => body.rejected) ??
@@ -471,7 +472,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       let chainState: GovernanceState = 'approved';
       const governance: GovernanceActions = {
         chainId: 1337,
-        contract: '0x' + 'ab'.repeat(20),
+        contractFor: async () => '0x' + 'ab'.repeat(20),
         withdraw: unexpectedWithdrawal,
         async advance(proposal) {
           attempts++;
@@ -500,7 +501,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         proposalId,
       ]);
       assert.equal(failed.delivery_failed, true);
-      assert.equal(failed.onchain_contract, governance.contract);
+      assert.equal(failed.onchain_contract, await governance.contractFor(''));
       assert.equal(failed.applied_at, null);
       assert.equal(failed.onchain_proposal_id, null);
 
@@ -518,7 +519,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         database,
         {
           ...governance,
-          contract: '0x' + 'cd'.repeat(20),
+          contractFor: async () => '0x' + 'cd'.repeat(20),
           async advance() {
             switched = true;
             throw new Error('Must not run');
@@ -534,7 +535,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         'SELECT onchain_contract FROM certificate_status_proposals WHERE id = $1',
         [proposalId],
       );
-      assert.equal(pinned.onchain_contract, governance.contract);
+      assert.equal(pinned.onchain_contract, await governance.contractFor(''));
 
       chainState = 'executed';
       await readyToRetry();
@@ -566,7 +567,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         database,
         {
           chainId: 1337,
-          contract: '0x' + 'ab'.repeat(20),
+          contractFor: async () => '0x' + 'ab'.repeat(20),
           withdraw: unexpectedWithdrawal,
           async advance() {
             return { id: '56', state: 'cancelled' };
@@ -663,7 +664,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       let attempts = 0;
       const ledger: EmergencyLedger = {
         chainId: 1337,
-        contract: '0x' + 'ab'.repeat(20),
+        contractFor: async () => '0x' + 'ab'.repeat(20),
         async suspend(record) {
           attempts++;
           assert.equal(record.credentialId, credentialId);
@@ -690,7 +691,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       ]);
       assert.equal(pending.delivery_failed, true);
       assert.equal(pending.applied_at, null);
-      assert.equal(pending.onchain_contract, ledger.contract);
+      assert.equal(pending.onchain_contract, await ledger.contractFor(''));
       assert.equal(
         '0x' + pending.reason_hash.toString('hex'),
         sha256(
@@ -823,7 +824,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       let finalState: GovernanceState = 'cancelled';
       const governance: GovernanceActions = {
         chainId: 1337,
-        contract: '0x' + 'ab'.repeat(20),
+        contractFor: async () => '0x' + 'ab'.repeat(20),
         async advance() {
           advances++;
           return { id: String(90 + advances), state: 'approved' };
@@ -959,7 +960,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         database,
         {
           chainId: 1337,
-          contract: '0x' + 'ab'.repeat(20),
+          contractFor: async () => '0x' + 'ab'.repeat(20),
           withdraw: unexpectedWithdrawal,
           async advance() {
             called = true;

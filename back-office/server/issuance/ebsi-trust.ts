@@ -2,6 +2,7 @@ import { didRegistry, DidResolutionError } from '../ebsi/did-registry.ts';
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { IssuanceError } from './claims.ts';
 import type { CredentialPayload } from '../verification/types.ts';
+import { onIssuersRegistry } from '../ebsi/api.ts';
 
 const attestation = 'VerifiableAccreditationToAttest';
 const accreditation = 'VerifiableAccreditationToAccredit';
@@ -186,7 +187,7 @@ export function ebsiIssuerTrust(options: {
     }
     const unsigned = decodeJwt(token).vc as
       { issuanceDate?: unknown; issued?: unknown } | undefined;
-    const issuedAt = unsigned?.issuanceDate ?? unsigned?.issued;
+    const issuedAt = unsigned?.issued ?? unsigned?.issuanceDate;
     requireTrust(
       issuedAt === undefined || typeof issuedAt === 'string',
       'Invalid accreditation issuance timestamp.',
@@ -278,9 +279,10 @@ export function ebsiIssuerTrust(options: {
 
       const terms = Array.isArray(vc.termsOfUse) ? vc.termsOfUse : [vc.termsOfUse];
       const prefix = `${tir}/issuers/${signer}/attributes/`;
-      const linked = terms.find(
-        (term) => typeof term?.id === 'string' && term.id.startsWith(prefix),
-      );
+      const linked = terms
+        .filter((term) => typeof term?.id === 'string')
+        .map((term) => ({ ...term, id: onIssuersRegistry(term.id, tir) }))
+        .find((term) => term.id.startsWith(prefix));
       requireTrust(
         linked && attributePattern.test(linked.id.slice(prefix.length)),
         'The accreditation does not identify its parent in the configured TIR.',
@@ -305,7 +307,11 @@ export function ebsiIssuerTrust(options: {
     type: string,
     options: { reference: string; schemaId: string },
   ) {
-    const { reference, schemaId } = options;
+    const { schemaId } = options;
+    const reference =
+      typeof options.reference === 'string'
+        ? onIssuersRegistry(options.reference, tir)
+        : options.reference;
 
     const prefix = accreditationAddress(did, 'attribute').slice(0, -'attribute'.length);
     requireTrust(

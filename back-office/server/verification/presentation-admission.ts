@@ -54,9 +54,10 @@ export async function presentationAdmission(
         if (!underRegistry(reference.id, registry.tsr)) return false;
         // Validate the issuer-signed VC before the disclosure adapter reveals
         // the holder-selected attributes for descriptor resolution.
-        await tsrCredentialValidation({ document: (url) => registry.schema(url, true) })(vc, [
-          reference,
-        ]);
+        await tsrCredentialValidation(
+          { document: (url) => registry.schema(url, true) },
+          { presented: true },
+        )(vc, [reference]);
       }
     }
     return true;

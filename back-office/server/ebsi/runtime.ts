@@ -8,6 +8,7 @@ import { ebsiAuthorisation } from './authorisation.ts';
 import { EbsiLedgerProvider } from './ledger.ts';
 import { ebsiPublisher, type EbsiActor } from './publisher.ts';
 import { developmentSupportOffice } from './support-office.ts';
+import { ebsiApi, ebsiApiVersion } from './api.ts';
 
 /** Organization key purposes that sign ledger transactions (secp256k1). */
 export const ledgerPurposes = [
@@ -40,7 +41,8 @@ export function jwkAddress(jwk: unknown) {
  * @param database - PostgreSQL pool.
  * @param env - `PLR_EBSI_URL`, `PLR_LEDGER_RPC_URL`, `PLR_LEDGER_CHAIN_ID`, KMS and the
  * optional development `PLR_EBSI_MOCK_URL`.
- * @param contracts - The Trusted Contracts a `ledger:invoke` token is presented for.
+ * @param contracts - The Trusted Contracts a `ledger:invoke` token is presented for: a list, or
+ * a test of an address (each TAO's pair and EBSI's Proxy Factory).
  * @param client - KMS client to sign with; omitted, one for `PLR_KMS_ENDPOINT_URL`.
  * @returns The runtime, or undefined when no ledger is configured.
  * @throws Error for invalid configuration.
@@ -51,7 +53,7 @@ export function jwkAddress(jwk: unknown) {
 export function configuredEbsi(
   database: Pool,
   env = process.env,
-  contracts: string[] = [],
+  contracts: string[] | ((address: string) => Promise<boolean>) = [],
   client?: KMSClient,
 ) {
   if (!env.PLR_LEDGER_RPC_URL) return undefined;
@@ -59,14 +61,22 @@ export function configuredEbsi(
   if (!Number.isSafeInteger(chainId) || chainId < 1)
     throw new Error('PLR_LEDGER_CHAIN_ID must be a positive integer.');
   const baseUrl = env.PLR_EBSI_URL?.trim() || undefined;
-  const auth = baseUrl ? ebsiAuthorisation({ baseUrl }) : undefined;
+  // The shape of EBSI's APIs: the pilot's by default.
+  const version = ebsiApiVersion(env.PLR_EBSI_API);
+  const auth = baseUrl ? ebsiAuthorisation({ baseUrl, version }) : undefined;
   const kms =
     client ??
     new KMSClient({
       region: env.AWS_REGION,
       endpoint: env.PLR_KMS_ENDPOINT_URL || undefined,
     });
-  const invoke = new Set(contracts.filter(Boolean).map((address) => getAddress(address)));
+  const listed = new Set(
+    (Array.isArray(contracts) ? contracts : [])
+      .filter(Boolean)
+      .map((address) => getAddress(address)),
+  );
+  const invoked = async (address: string) =>
+    listed.has(address) || (typeof contracts === 'function' && (await contracts(address)));
   const signers = new Map<string, Promise<Signer & { keyId: string }>>();
   const owners = new Map<string, { organizationId: string; did: string }>();
 
@@ -114,7 +124,7 @@ export function configuredEbsi(
     auth &&
       (async (raw, fresh) => {
         const tx = Transaction.from(raw);
-        if (!tx.to || !invoke.has(getAddress(tx.to)) || !tx.from) return undefined;
+        if (!tx.to || !(await invoked(getAddress(tx.to))) || !tx.from) return undefined;
         const owner = await ownerOf(tx.from);
         if (!owner) return undefined;
         const {
@@ -132,10 +142,27 @@ export function configuredEbsi(
           scope: 'ledger:invoke',
           holder: owner.did,
           signer: await jws(owner.organizationId, 'ledger_transactions'),
+          alternate: await authentication(owner.organizationId),
           credential: organization.ebsi_invoke_credential,
         });
       }),
+    // The pilot's Ledger API forwards no fee method: fees are priced from the block.
+    { feesFromBlock: version === 'pilot' },
   );
+
+  /**
+   * An organization's P-256 authentication key, which signs the presentations the pilot takes
+   * as ES256 only; none for an organization without one.
+   * @param organizationId - Organization UUID.
+   * @returns Its signer, or undefined.
+   */
+  async function authentication(organizationId: string) {
+    try {
+      return await jws(organizationId, 'did_authentication');
+    } catch {
+      return undefined;
+    }
+  }
 
   /**
    * A JWS signer for an organization's active key of one purpose.
@@ -186,7 +213,21 @@ export function configuredEbsi(
     kms,
     auth,
     publisher:
-      auth && baseUrl ? ebsiPublisher({ database, baseUrl, provider, auth, chainId }) : undefined,
+      auth && baseUrl
+        ? ebsiPublisher({
+            database,
+            baseUrl,
+            api: ebsiApi(baseUrl, version),
+            // The pilot's APIs do not name the registry contracts: EBSI's pilot ones by default.
+            registryContracts:
+              env.PLR_DIDR_CONTRACT && env.PLR_TIR_CONTRACT
+                ? { didRegistry: env.PLR_DIDR_CONTRACT, issuersRegistry: env.PLR_TIR_CONTRACT }
+                : undefined,
+            provider,
+            auth,
+            chainId,
+          })
+        : undefined,
     supportOffice: developmentSupportOffice(env.PLR_EBSI_MOCK_URL),
     jws,
     ledgerSigner,
@@ -212,6 +253,7 @@ export function configuredEbsi(
           signer: await ledgerSigner(organizationId, 'ledger_transactions'),
           jws: await jws(organizationId, 'ledger_transactions'),
         },
+        authentication: await authentication(organizationId),
       };
     },
     /** Release the provider and KMS client. @returns No return value. */

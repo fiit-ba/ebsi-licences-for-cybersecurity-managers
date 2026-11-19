@@ -55,7 +55,7 @@ const useCredentialDetail = (props: CredentialDetailProps): CredentialDetailView
     [credential],
   )
   const expiresAt = parsed.expirationDate ?? parsed.validUntil
-  const issuedAt = parsed.issuanceDate ?? parsed.issued
+  const issuedAt = parsed.issued ?? parsed.issuanceDate
   const normalizedTypes = Array.isArray(parsed.type) ? parsed.type : parsed.type ? [String(parsed.type)] : []
   const displayCredentialType = filterCredentialType(normalizedTypes)
   const subject = parsed.credentialSubject
