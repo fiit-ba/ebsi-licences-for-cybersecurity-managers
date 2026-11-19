@@ -106,6 +106,8 @@ export function verificationService(
    * @throws KMS, signing or database errors.
    */
   async function requestObject(flowId: string, state: string) {
+    // Not a state this verifier makes (base64url): unknown, before it reaches a query.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(state)) return;
     const flow = await requests.flow(flowId);
     if (!flow?.dcql || flow.response_type !== 'vp_token') return;
     const {

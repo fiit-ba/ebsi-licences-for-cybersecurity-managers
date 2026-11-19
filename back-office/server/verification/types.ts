@@ -1,5 +1,5 @@
 import type { JWTPayload } from 'jose';
-import type { AssertionKeyResolver, CertificateLedger } from '../issuance/types.ts';
+import type { AssertionKeyResolver, LedgerStatus } from '../issuance/types.ts';
 
 /** Existing credential status reference, including explicitly enrolled historical lists. */
 export interface CredentialStatusEntry {
@@ -75,7 +75,12 @@ export interface CredentialVerifierOptions {
     type: string,
     options: { reference: string; schemaId: string },
   ): Promise<unknown>;
-  ledger: Pick<CertificateLedger, 'chainId' | 'contract' | 'status'>;
+  /** One certificate registry, the only one this verifier reads. */
+  ledger: {
+    chainId: number;
+    contract: string;
+    status(statusKey: string): Promise<LedgerStatus>;
+  };
   ledgerStatusSchema?: string;
   isIssuerRevoked?: (issuer: string) => Promise<boolean>;
   isCertificateSuspended?: (issuer: string, credentialId: string) => Promise<boolean>;
@@ -104,3 +109,26 @@ export type VerifyPresentation = (
   token: string,
   options: PresentationConstraints,
 ) => Promise<Omit<VerifiedCredential, 'subject'>[]>;
+
+/**
+ * The certificate registries a verifier reads: one per TAO, each trusted only once the chain
+ * shows it is a genuine registry of the TAO that accredited the issuing TI.
+ */
+export interface CertificateRegistries {
+  chainId: number;
+  /**
+   * Check a registry a credential names.
+   * @param contract - The registry's address.
+   * @param taoDid - The TAO that accredited the issuing TI, from the Trusted Issuers Registry.
+   * @returns Completion when it is that TAO's registry.
+   * @throws UntrustedRegistry otherwise; RPC errors.
+   */
+  trust(contract: string, taoDid: string): Promise<void>;
+  /**
+   * Read a record.
+   * @param contract - A registry {@link CertificateRegistries.trust} accepted.
+   * @param statusKey - The record's key.
+   * @returns The record; standing 0 when there is none.
+   */
+  status(contract: string, statusKey: string): Promise<LedgerStatus>;
+}

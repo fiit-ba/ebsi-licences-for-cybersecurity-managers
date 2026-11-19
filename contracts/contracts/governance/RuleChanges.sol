@@ -36,6 +36,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function proposeAddSigner(bytes32 tiId, address signer, Role role) external returns (uint256) {
+        // slither-disable-next-line uninitialized-local
         AdminChange memory change;
         change.action = AdminAction.ADD_SIGNER;
         change.subject = signer;
@@ -44,6 +45,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function proposeRemoveSigner(bytes32 tiId, address signer) external returns (uint256) {
+        // slither-disable-next-line uninitialized-local
         AdminChange memory change;
         change.action = AdminAction.REMOVE_SIGNER;
         change.subject = signer;
@@ -51,6 +53,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function proposeReplaceSigner(bytes32 tiId, address signer, address replacement) external returns (uint256) {
+        // slither-disable-next-line uninitialized-local
         AdminChange memory change;
         change.action = AdminAction.REPLACE_SIGNER;
         change.subject = signer;
@@ -66,6 +69,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         RoleSet vetoRoleMask,
         uint64 timelock
     ) external returns (uint256) {
+        // slither-disable-next-line uninitialized-local
         AdminChange memory change;
         change.action = AdminAction.SET_POLICY;
         change.kind = kind;
@@ -74,6 +78,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function proposeProposalTtl(bytes32 tiId, uint64 ttl) external returns (uint256) {
+        // slither-disable-next-line uninitialized-local
         AdminChange memory change;
         change.action = AdminAction.SET_PROPOSAL_TTL;
         change.ttl = ttl;
@@ -185,7 +190,9 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         return _policy(tiId, PolicyKind.ADMIN);
     }
 
-    /// @dev A change is valid if applying it now leaves every policy reachable.
+    /// @dev A change is valid if applying it now leaves every policy reachable,
+    ///      and every timelock within the proposal lifetime. Asked again at
+    ///      execution, so two changes approved apart cannot break it together.
     function _requireValid(bytes32 tiId, AdminChange memory change) private view {
         AdminAction action = change.action;
         if (action == AdminAction.ADD_SIGNER) {
@@ -198,9 +205,10 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
             _requireNewSigner(tiId, change.replacement, _signerRole(tiId, change.subject));
         } else if (action == AdminAction.SET_POLICY) {
             _requirePolicy(change.policy, _rolesPresent(tiId));
+            _requireTimelockWithinTtl(tiId, change.policy.timelock);
         } else {
             // SET_PROPOSAL_TTL
-            _requireTtl(change.ttl);
+            _requireTtl(tiId, change.ttl);
         }
     }
 

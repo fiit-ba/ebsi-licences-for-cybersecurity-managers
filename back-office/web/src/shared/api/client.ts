@@ -14,6 +14,8 @@ import { SESSION_EXPIRED, accessToken, signOut } from './session.ts';
 const BACKEND = '/api-backend';
 // At least 30 s: a slow connection that does answer must not be cut off.
 const REQUEST_TIMEOUT_MS = 30000;
+/** For a request that onboards an organization in EBSI, transaction by transaction. */
+export const ONBOARDING_TIMEOUT_MS = 120000;
 
 /** Existing JSON request method, body, bearer-authentication and timeout controls. */
 type RequestOptions = { method?: string; body?: unknown; auth?: boolean; timeoutMs?: number };

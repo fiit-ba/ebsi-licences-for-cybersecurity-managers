@@ -10,9 +10,15 @@ import { postgresInvitations } from './invitations.ts';
 import { trustedSchemaRegistry } from '../schemas/tsr.ts';
 import { ebsiIssuerTrust } from '../issuance/ebsi-trust.ts';
 import { testLedger } from '../lifecycle/fixtures/ledger.ts';
+import { developmentWalletDid } from './development-wallet.ts';
+import { testDid } from './fixtures/dids.ts';
+import { developmentSupportOffice } from '../ebsi/support-office.ts';
+import { registerDevelopmentSchemas } from '../schemas/publication.ts';
+import { certificateSchemaDocument } from '../schemas/fixtures/certificate-schema.ts';
+import { testEbsi } from '../ebsi/fixtures/environment.ts';
 
 test(
-  'development synchronization CLI restores retired schema history and live issuers through HTTP KMS without reviving withdrawn TIs',
+  'development synchronization CLI reads the configured schemas, plays the demonstration wallets and keeps withdrawn TIs withdrawn, through HTTP KMS',
   { skip: !process.env.BACK_OFFICE_TEST_EBSI_URL },
   async (context) => {
     assert.equal(process.env.PGDATABASE, 'atest_back_office_test');
@@ -27,6 +33,18 @@ test(
       try {
         await kms.close();
         await database.end();
+        // The pool reports itself ended before its connections have closed. Dropping the
+        // database then would terminate one still closing, an error no listener takes.
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const {
+            rows: [{ open }],
+          } = await control.query(
+            'SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname=$1',
+            [name],
+          );
+          if (!open) break;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
         await control.query(`DROP DATABASE ${name} WITH (FORCE)`);
       } finally {
         await control.end();
@@ -39,8 +57,8 @@ test(
     );
     const base = process.env.BACK_OFFICE_TEST_EBSI_URL!;
     const network = await testLedger();
-    const tirUrl = base + '/v1/issuers-registry';
-    const schemas = trustedSchemaRegistry(base + '/v1/schemas-registry');
+    const tirUrl = testEbsi(base).PLR_TIR_URL;
+    const schemas = trustedSchemaRegistry(testEbsi(base).PLR_TSR_URL);
     /**
      * A fresh issuer-trust reader, so no earlier answer is reused.
      * @returns EBSI trust-chain checks against the development registries.
@@ -48,13 +66,13 @@ test(
     const trust = () =>
       ebsiIssuerTrust({
         tirUrl,
-        didRegistryUrl: base + '/v1/did-registry/identifiers',
+        didRegistryUrl: testEbsi(base).PLR_DIDR_URL,
         trustedRoots: ['did:ebsi:zSupport'],
       });
     const suffix = randomUUID().replaceAll('-', '');
     const organizations: string[] = [];
     const accounts: number[] = [];
-    for (let i = 0; i < 2; i++)
+    for (let i = 0; i < 3; i++)
       accounts.push(
         (
           await database.query(
@@ -64,16 +82,21 @@ test(
         ).rows[0].id,
       );
     await database.query("INSERT INTO operator_roles VALUES($1,'plr_rtao')", [accounts[0]]);
+    // The demonstration TAO and TI, whose wallets the CLI plays: the TAO's DID is the one the
+    // governance contracts were deployed for, the TI's that of the second development wallet.
+    const taoDid = testDid();
+    const dids = ['', taoDid, developmentWalletDid(1)];
     for (const [index, kind] of ['rtao', 'tao', 'ti'].entries())
       organizations.push(
         (
           await database.query(
-            'INSERT INTO accredited_organizations(name,kind,parent_id,account_id) VALUES($1,$2,$3,$4) RETURNING id',
+            'INSERT INTO accredited_organizations(name,kind,parent_id,account_id,did) VALUES($1,$2,$3,$4,$5) RETURNING id',
             [
               suffix + kind,
               kind,
               organizations.at(-1) ?? null,
-              index === 0 ? accounts[0] : index === 2 ? accounts[1] : null,
+              accounts[[0, 2, 1][index]],
+              dids[index],
             ],
           )
         ).rows[0].id,
@@ -85,6 +108,23 @@ test(
       )
     ).rows[0].id;
     const ids = ['zSync' + suffix + 'V1', 'zSync' + suffix + 'V2'];
+    // EBSI's Support Office registered both versions; the CLI reads the ones it is configured with.
+    const field = {
+      key: 'number',
+      kind: 'text',
+      label: { sk: 'Číslo', en: 'Číslo' },
+      hint: { sk: '', en: '' },
+      required: true,
+      default: '',
+    };
+    const supportOffice = developmentSupportOffice(base)!;
+    await registerDevelopmentSchemas(
+      supportOffice,
+      ids.map((id) => ({
+        id,
+        document: certificateSchemaDocument('Sync' + suffix, 'Sync', [field]),
+      })),
+    );
     for (const [index, id] of ids.entries())
       await database.query(
         "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,$2,'[]',$3,now())",
@@ -108,12 +148,15 @@ test(
           // /__mock. No governance contract: the TAO here is not the one it was deployed for.
           PLR_EBSI_MOCK_URL: base,
           PLR_EBSI_URL: base,
+          PLR_EBSI_API: testEbsi(base).PLR_EBSI_API,
           PLR_TIR_URL: tirUrl,
-          PLR_TSR_URL: base + '/v1/schemas-registry',
-          PLR_LEDGER_RPC_URL: base + '/v1/ledger',
+          PLR_TSR_URL: testEbsi(base).PLR_TSR_URL,
+          PLR_LEDGER_RPC_URL: testEbsi(base).PLR_LEDGER_RPC_URL,
           PLR_LEDGER_CHAIN_ID: String(network.chainId),
           PLR_GOVERNANCE_CONTRACT: '',
           PLR_CERTIFICATE_REGISTRY: '',
+          PLR_GOVERNANCE_TAO_DID: taoDid,
+          PLR_TSR_SCHEMAS: ids.join(','),
           AWS_REGION: 'eu-central-1',
           AWS_ACCESS_KEY_ID: 'fixture-only',
           AWS_SECRET_ACCESS_KEY: 'fixture-only',

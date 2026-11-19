@@ -11,6 +11,7 @@ import { createHash, randomUUID, generateKeyPairSync, sign } from 'node:crypto';
 import { credentialEvaluator } from './evaluate.ts';
 import { verificationRegistry } from './registry.ts';
 import type { AddressInfo } from 'node:net';
+import { testEbsi } from '../ebsi/fixtures/environment.ts';
 
 test('verification contracts with real HTTP, PostgreSQL, Redis and development DID/TIR/TSR', async (context) => {
   const fixture = await verificationFixture('https://verifier.example');
@@ -384,7 +385,10 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
   await context.test(
     'DID/TIR/TSR unavailability is indeterminate and recovers without widening trust',
     async () => {
-      for (const part of ['/v1/did-registry', '/v1/issuers-registry', '/v1/schemas-registry']) {
+      const ebsi = testEbsi(process.env.BACK_OFFICE_TEST_EBSI_URL!);
+      for (const part of [ebsi.PLR_DIDR_URL, ebsi.PLR_TIR_URL, ebsi.PLR_TSR_URL].map((url) =>
+        new URL(url).pathname.replace(/\/identifiers$/, ''),
+      )) {
         fixture.state.registryDown = part;
         const result = await service.verifyCredential(credential.token);
         assert.equal(result.state, 'INDETERMINATE', part);
@@ -816,13 +820,16 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
       let mode = 'ec';
       const base = process.env.BACK_OFFICE_TEST_EBSI_URL!;
       const registry = verificationRegistry({
-        didr: base + '/v1/did-registry/identifiers',
-        tir: base + '/v1/issuers-registry',
-        tsr: base + '/v1/schemas-registry',
+        didr: testEbsi(base).PLR_DIDR_URL,
+        tir: testEbsi(base).PLR_TIR_URL,
+        tsr: testEbsi(base).PLR_TSR_URL,
         roots: ['did:ebsi:zSupport'],
         didSeconds: 0,
         fetchRegistry: async (url, init) => {
-          if (new URL(String(url)).pathname === '/v1/did-registry/identifiers/' + fixture.did)
+          if (
+            new URL(String(url)).pathname ===
+            new URL(testEbsi(base).PLR_DIDR_URL).pathname + '/' + fixture.did
+          )
             return Response.json({
               id: fixture.did,
               assertionMethod: [fixture.oldKid],

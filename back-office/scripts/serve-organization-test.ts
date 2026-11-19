@@ -11,10 +11,13 @@ import { postgresSchemaCatalog } from '../server/schemas/catalog.ts';
 import { postgresIssuanceSchemes } from '../server/issuance/schemes.ts';
 import { postgresNotifications } from '../server/lifecycle/notifications.ts';
 import { configuredOrganizations } from '../server/accreditation/runtime.ts';
-import { postgresSchemaManagement } from '../server/schemas/management.ts';
+import { registrySchemas } from '../server/schemas/registry-schemas.ts';
+import { developmentWallet } from '../server/accreditation/development-wallet.ts';
+import { organizationSuiteWallets } from '../server/accreditation/fixtures/organization-wallets.ts';
 import { trustedSchemaRegistry } from '../server/schemas/tsr.ts';
 import { kmsHttpFixture } from '../server/keys/fixtures/kms-http.ts';
 import { testLedger } from '../server/lifecycle/fixtures/ledger.ts';
+import { testEbsi } from '../server/ebsi/fixtures/environment.ts';
 
 if (process.env.PGDATABASE !== 'atest_back_office_test')
   throw new Error(
@@ -23,7 +26,6 @@ if (process.env.PGDATABASE !== 'atest_back_office_test')
 const database = new pg.Pool({ connectionTimeoutMillis: 3000 });
 const usernames = ['browser.organization.root', 'browser.organization.observer'];
 const credentialType = 'OrganizationBrowserCredential';
-const publishedType = 'BrowserPublishedCertificate';
 
 /**
  * Remove this fixture's hierarchy, accounts and schema without modifying other domains' fixtures.
@@ -68,13 +70,13 @@ async function cleanup(): Promise<void> {
   );
   await database.query(
     'DELETE FROM certificate_schema_versions WHERE schema_id IN (SELECT id FROM certificate_schemas WHERE credential_type=ANY($1::text[]))',
-    [[credentialType, publishedType]],
+    [[credentialType]],
   );
   await database.query('DELETE FROM schema_events WHERE credential_type=ANY($1::text[])', [
-    [credentialType, publishedType],
+    [credentialType],
   ]);
   await database.query('DELETE FROM certificate_schemas WHERE credential_type=ANY($1::text[])', [
-    [credentialType, publishedType],
+    [credentialType],
   ]);
   await database.query(`DELETE FROM operator_groups WHERE name IN ('plr_tao','plr_issuer','plr_status_manager','plr_verifier')
     AND NOT EXISTS (SELECT 1 FROM operator_account_groups m WHERE m.group_id=operator_groups.id)`);
@@ -107,12 +109,10 @@ await database.query(
     schema.id,
     JSON.stringify([
       {
-        key: 'certificate_number',
+        key: 'certificateNumber',
         kind: 'text',
-        section: 'body',
         label: { sk: 'Číslo', en: 'Number' },
         hint: { sk: '', en: '' },
-        organization: false,
         required: true,
         default: '',
       },
@@ -123,7 +123,9 @@ await database.query(
 // registration-only suite. KMS is an in-memory EC fixture behind the AWS protocol; no mail
 // transport is composed.
 const mock = process.env.BACK_OFFICE_TEST_EBSI_URL;
-const schemas = trustedSchemaRegistry((mock ?? 'https://tsr.example') + '/v1/schemas-registry');
+const schemas = trustedSchemaRegistry(
+  mock ? testEbsi(mock).PLR_TSR_URL : 'https://tsr.example/v1/schemas-registry',
+);
 const kms = mock ? await kmsHttpFixture() : undefined;
 // AWS clients read credentials from the process, as in production.
 process.env.AWS_ACCESS_KEY_ID = 'fixture-only';
@@ -134,10 +136,11 @@ const organizations =
         DID: 'did:ebsi:zBrowserRegistry',
         PLR_EBSI_MOCK_URL: mock,
         PLR_EBSI_URL: mock,
-        PLR_TIR_URL: mock + '/v1/issuers-registry',
-        PLR_DIDR_URL: mock + '/v1/did-registry/identifiers',
+        PLR_EBSI_API: testEbsi(mock).PLR_EBSI_API,
+        PLR_TIR_URL: testEbsi(mock).PLR_TIR_URL,
+        PLR_DIDR_URL: testEbsi(mock).PLR_DIDR_URL,
         PLR_TRUSTED_ROOT_DIDS: 'did:ebsi:zSupport',
-        PLR_LEDGER_RPC_URL: mock + '/v1/ledger',
+        PLR_LEDGER_RPC_URL: testEbsi(mock).PLR_LEDGER_RPC_URL,
         PLR_LEDGER_CHAIN_ID: String((await testLedger()).chainId),
         AWS_REGION: 'eu-central-1',
         PLR_KMS_ENDPOINT_URL: kms.origin,
@@ -145,6 +148,18 @@ const organizations =
     : undefined;
 // The test ledger mines at once; look for receipts often rather than every second.
 if (organizations?.ebsi) organizations.ebsi.provider.pollingInterval = 200;
+// The TAO and the TI the suite appoints bring their own DIDs. With the development EBSI service,
+// their wallets register them first, with onboarding authorisations from the RootTAO.
+if (organizations?.publication) {
+  const root = (
+    await database.query(
+      "SELECT id FROM accredited_organizations WHERE kind='rtao' AND name='Browser Root Authority'",
+    )
+  ).rows[0].id;
+  await organizations.onboarding.ensureAuthority(root);
+  for (const index of Object.values(organizationSuiteWallets))
+    await developmentWallet(database, organizations.publication, index).register(root);
+}
 const secret = 'organization-browser-only-test-secret-'.repeat(2);
 const server = backOfficeServer({
   accounts: postgresAccounts(database),
@@ -154,16 +169,18 @@ const server = backOfficeServer({
     database,
     organizations
       ? {
+          didRegistered: organizations.invitationOptions.didRegistered,
+          check: organizations.onboarding.check,
           onboard: organizations.onboarding.onboard,
           refresh: organizations.onboarding.refresh,
           withdraw: organizations.withdrawals.deliver,
           governanceEnabled: false,
         }
-      : {},
+      : // Without the EBSI service the suite only registers: every DID counts as registered.
+        { didRegistered: async () => true },
   ),
-  schemaManagement: postgresSchemaManagement(database, schemas, {
-    publish: organizations?.schemaOptions.publish,
-  }),
+  // Read-only: the stored schemas, as if read from the registry; this suite configures no ids.
+  registrySchemas: registrySchemas(database, schemas, { ids: [] }),
   trustChain: postgresTrustChain(database),
   notifications: postgresNotifications(database),
   schemaCatalog: postgresSchemaCatalog(database),

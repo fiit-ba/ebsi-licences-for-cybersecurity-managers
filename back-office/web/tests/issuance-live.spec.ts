@@ -234,6 +234,9 @@ async function change(sql: string, values: unknown[] = []) {
 test('Back Office form creates an offer; holder collects with metadata, PIN and browser P-256 proof', async ({
   page,
 }) => {
+  // The first offer onboards the TAO and the TI on the ledger (DIDs, keys, accreditations),
+  // which alone takes most of the default 30 s.
+  test.setTimeout(60_000);
   await page.goto('/issue');
   await page.getByLabel('Používateľ', { exact: true }).fill('browser.issuance.ti');
   await page.getByLabel('Heslo', { exact: true }).fill(password);

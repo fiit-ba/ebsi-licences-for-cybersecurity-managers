@@ -10,7 +10,18 @@ import type {InterfaceAbi} from 'ethers';
 
 export const GOVERNANCE_ABI: InterfaceAbi = [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "didRegistry_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "issuersRegistry_",
+        "type": "address"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
@@ -374,7 +385,7 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "certificateRegistry",
         "type": "address"
@@ -830,6 +841,19 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_SIGNING_WINDOW",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -1533,16 +1557,6 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "string",
         "name": "taoDid_",
         "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "didRegistry_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "issuersRegistry_",
-        "type": "address"
       },
       {
         "internalType": "address",
@@ -2456,7 +2470,7 @@ export const REGISTRY_ABI: InterfaceAbi = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "governance",
         "type": "address"
@@ -2851,5 +2865,6 @@ export const LIMITS = {
   "MAX_TRUST_CHAIN_DEPTH": 32,
   "MAX_ROLE": 8,
   "MAX_TIMELOCK": 7776000,
-  "MAX_PROPOSAL_TTL": 31536000
+  "MAX_PROPOSAL_TTL": 31536000,
+  "MIN_SIGNING_WINDOW": 86400
 } as const;

@@ -13,6 +13,7 @@ import { GOVERNANCE_ABI } from '../../shared/governance-contract.ts';
 import { transaction } from '../adapters/transaction.ts';
 import { appendAudit } from '../audit/journal.ts';
 import { jwkAddress } from '../ebsi/runtime.ts';
+import type { TaoContracts } from './tao-contracts.ts';
 
 /** The roles of component 10.2, as the contract numbers them. */
 const roles = { A: 1, B: 2, C: 3 } as const;
@@ -85,21 +86,19 @@ const mask = (letters: (keyof typeof roles)[] = []) =>
  * @returns The idempotent setup operation.
  * @remarks The contract checks what the back-office cannot vouch for: that the TI is the TAO's
  * live accreditation in the Trusted Issuers Registry and that every key is a valid key of the
- * TI's DID. One contract serves one TAO; a TI of another TAO stays unconfigured.
+ * TI's DID. Each TAO has its own contract, and its TIs are set up on it.
  */
 export function tiGovernanceSetup(
   database: Pool,
   options: {
-    governance: string;
     provider: Provider;
-    taoSigner(organizationId: string): Promise<Signer>;
+    /** The TI's TAO's pair; one deployed first if the back-office deploys them. */
+    pairOf(taoId: string): Promise<TaoContracts | undefined>;
+    taoSigner(organizationId: string, pair: TaoContracts): Promise<Signer>;
     rules: TiRules;
     supervisorDid?: string;
   },
 ) {
-  const address = getAddress(options.governance);
-  const reader = new Contract(address, GOVERNANCE_ABI, options.provider);
-
   return {
     /**
      * Set one TI up, once per contract: the contract is asked whether it knows the TI.
@@ -123,6 +122,12 @@ export function tiGovernanceSetup(
           state: 'pending',
           reason: 'The TI is not accredited in the Trusted Issuers Registry yet.',
         };
+      // The TI is set up on its TAO's own governance contract.
+      const pair = await options.pairOf(ti.tao_id);
+      if (!pair)
+        return { state: 'pending', reason: "The TI's TAO has no governance contract yet." };
+      const address = pair.governance;
+      const reader = new Contract(address, GOVERNANCE_ABI, options.provider);
       // The chain decides, not the flag: a contract deployed again knows no TI yet.
       const tiId = tiIdOf(ti.did);
       const known = await reader.getTi(tiId).then(
@@ -136,7 +141,7 @@ export function tiGovernanceSetup(
       if (!known) {
         if ((await reader.taoDid()) !== ti.tao_did)
           return { state: 'pending', reason: 'The governance contract belongs to another TAO.' };
-        const tao = await options.taoSigner(ti.tao_id);
+        const tao = await options.taoSigner(ti.tao_id, pair);
         if ((await reader.owner()) !== (await tao.getAddress()))
           return {
             state: 'pending',

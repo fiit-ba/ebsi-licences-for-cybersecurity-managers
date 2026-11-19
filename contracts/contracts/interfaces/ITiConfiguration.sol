@@ -51,6 +51,9 @@ interface ITiConfiguration is ITiAccreditation {
 
     function MAX_PROPOSAL_TTL() external view returns (uint64);
 
+    /// @notice How much longer than the TI's longest timelock a proposal lives.
+    function MIN_SIGNING_WINDOW() external view returns (uint64);
+
     /// @notice The role a key signs a TI's proposals with right now, as a
     ///         signer or for a cosigner's DID; 0 for none.
     function roleOf(bytes32 tiId, address account) external view returns (Role);

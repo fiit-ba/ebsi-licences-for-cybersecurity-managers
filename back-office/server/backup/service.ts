@@ -84,8 +84,13 @@ export function postgresWalletBackups(database: Pool, maxBytes = 128 * 1024 * 10
       if (typeof ciphertext !== 'string' || !ciphertext || !/^[A-Za-z0-9_-]+$/.test(ciphertext))
         throw new BackupRefused('InvalidBackup', 'The ciphertext is base64url text');
       if (ciphertext.length > maxBytes) throw backupTooLarge(maxBytes);
-      if (typeof version !== 'bigint' || version < 1n)
-        throw new BackupRefused('InvalidBackup', 'The version is a positive integer');
+      // A wallet counts versions in JavaScript numbers: past 2^53 - 1 its next version (one
+      // higher) would be the same number, and it could never upload again.
+      if (typeof version !== 'bigint' || version < 1n || version > BigInt(Number.MAX_SAFE_INTEGER))
+        throw new BackupRefused(
+          'InvalidBackup',
+          'The version is a positive integer of at most 9007199254740991',
+        );
       return transaction(database, async (client) => {
         const stored = (
           await client.query<BackupRow>(

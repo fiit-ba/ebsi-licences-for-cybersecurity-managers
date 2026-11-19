@@ -26,7 +26,7 @@ test('the actual Wallet SD-JWT consumer reconstructs replacement credential clai
     protection: issuanceProtection(Buffer.alloc(32, 28)),
     ledger: {
       chainId: 1337,
-      contract: '0x' + 'ab'.repeat(20),
+      contractFor: async () => '0x' + 'ab'.repeat(20),
       ensureRegistered: async () => undefined,
     },
     schemaAddress: () => 'https://tsr.example/schema',

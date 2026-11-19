@@ -50,7 +50,12 @@ export interface GovernanceProgress {
 /** Pinned governance deployment and operations for decision delivery or cancellation. */
 export interface GovernanceActions {
   chainId: number;
-  contract: string;
+  /**
+   * The governance contract a TI's cases go to: its TAO's.
+   * @param issuerDid - The TI.
+   * @returns The contract's address.
+   */
+  contractFor(issuerDid: string): Promise<string>;
   advance(proposal: GovernanceCase): Promise<GovernanceProgress>;
   withdraw(proposal: GovernanceCase, reasonHash: string): Promise<GovernanceProgress>;
 }
@@ -224,7 +229,11 @@ export function governanceActions(options: {
 
   return {
     chainId,
-    contract,
+    /**
+     * This contract, the one of the TAO it serves.
+     * @returns Its address.
+     */
+    contractFor: async () => contract,
     /**
      * Cancel the exact case without creating, signing or executing another decision.
      *

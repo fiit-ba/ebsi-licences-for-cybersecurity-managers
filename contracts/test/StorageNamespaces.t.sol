@@ -26,10 +26,15 @@ contract StorageNamespacesTest is GovernanceTest {
         return vm.load(address(governance), slot);
     }
 
-    function test_TheRegistriesLiveInTheirNamespace() public view {
+    /// The namespace holds the TAO's DID alone: the registries are immutables,
+    /// in the implementation's code. A string under 32 bytes keeps its bytes
+    /// and twice its length in the one slot.
+    function test_TheTaoDidLivesInItsNamespace() public view {
         bytes32 location = _location("plr.storage.TiAccreditation");
-        assertEq(_load(location), bytes32(uint256(uint160(didRegistry))));
-        assertEq(_load(bytes32(uint256(location) + 1)), bytes32(uint256(uint160(issuersRegistry))));
+        bytes memory did = bytes(taoDid);
+        assertLt(did.length, 32);
+        assertEq(_load(location), bytes32(did) | bytes32(did.length * 2));
+        assertEq(_load(bytes32(uint256(location) + 1)), bytes32(0));
     }
 
     function test_TisLiveInTheirNamespace() public view {
@@ -59,7 +64,7 @@ contract StorageNamespacesTest is GovernanceTest {
 
     function test_RuleChangesLiveInTheirNamespace() public {
         vm.prank(A);
-        governance.proposeProposalTtl(TI_ID, 1 days);
+        governance.proposeProposalTtl(TI_ID, 7 days);
         assertEq(uint256(_load(_location("plr.storage.RuleChanges"))), 1);
     }
 
@@ -70,7 +75,7 @@ contract StorageNamespacesTest is GovernanceTest {
         );
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, keccak256("reason"));
         vm.prank(A);
-        governance.proposeProposalTtl(TI_ID, 1 days);
+        governance.proposeProposalTtl(TI_ID, 7 days);
         for (uint256 slot = 0; slot < 64; slot++) {
             assertEq(_load(bytes32(slot)), bytes32(0));
             assertEq(vm.load(address(registry), bytes32(slot)), bytes32(0));

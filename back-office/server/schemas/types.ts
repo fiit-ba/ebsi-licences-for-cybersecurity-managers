@@ -1,11 +1,13 @@
-/** Published certificate attribute definition used by schema validation and issuance. */
+/**
+ * A certificate attribute, as the issuance form fills it and the credential carries it. It is
+ * read from the schema in EBSI's Trusted Schemas Registry: the property's `title` is its label,
+ * its `description` the hint, the same in both console languages.
+ */
 export interface SchemaField {
   key: string;
   kind: string;
-  section: string;
   label: { sk: string; en: string };
   hint: { sk: string; en: string };
-  organization: boolean;
   required: boolean;
   default: string;
 }

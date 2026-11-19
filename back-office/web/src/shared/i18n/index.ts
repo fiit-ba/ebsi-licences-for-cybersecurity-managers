@@ -240,9 +240,28 @@ const SERVER: [RegExp, string][] = [
   ],
   [/^No governance contract is configured\.$/, 'Nie je nakonfigurovaný žiadny kontrakt riadenia.'],
   [/^Unknown proposal$/, 'Neznámy návrh.'],
+  [/^This proposal is already closed\.$/, 'Tento návrh je už uzavretý.'],
+  [
+    /^Only an approved proposal can be withdrawn; an open one is rejected\.$/,
+    'Stiahnuť možno len schválený návrh; otvorený návrh sa zamieta.',
+  ],
+  [
+    /^Only an open approved proposal can be withdrawn once\.$/,
+    'Stiahnuť možno len otvorený schválený návrh, a to iba raz.',
+  ],
+  // Text no field may carry (back-office/server/http/body.ts).
+  [/^Null characters are not allowed\.$/, 'Znak NUL nie je povolený.'],
+  [
+    /^Unpaired surrogate characters are not allowed\.$/,
+    'Text obsahuje neplatný znak Unicode (nespárovaný náhradný znak).',
+  ],
+  [
+    /^Bidirectional control characters are not allowed\.$/,
+    'Riadiace znaky smeru textu (napr. U+202E) nie sú povolené.',
+  ],
   // The trust chain and the certificate scheme (design decisions D15, D16).
   [/^Only a TI selected by a TAO issues certificates\.$/, 'Vydávať môže len TI, ktorú vybral TAO.'],
-  [/^The certificate does not fit the certificate scheme$/, 'Certifikát nezodpovedá schéme.'],
+  [/^The certificate does not fit the certificate scheme\.?$/, 'Certifikát nezodpovedá schéme.'],
   // A TI's accreditation end (design decisions D23).
   [/^The TI's accreditation ended on (\S+)\.$/, 'Akreditácia TI skončila {1}.'],
   [

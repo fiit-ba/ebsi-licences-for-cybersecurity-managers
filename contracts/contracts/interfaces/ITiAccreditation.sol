@@ -7,12 +7,12 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  * @notice The EBSI registries the contract trusts, and whether a TI is active.
  */
 interface ITiAccreditation is IGovernanceTypes {
-    /// @notice EBSI's DID Registry, set when the proxy is initialized and
-    ///         never changed.
+    /// @notice EBSI's DID Registry: an immutable of the implementation, set
+    ///         by its constructor and never changed.
     function didRegistry() external view returns (address);
 
-    /// @notice EBSI's Trusted Issuers Registry, set when the proxy is
-    ///         initialized and never changed.
+    /// @notice EBSI's Trusted Issuers Registry: an immutable of the
+    ///         implementation, set by its constructor and never changed.
     function issuersRegistry() external view returns (address);
 
     /// @notice The DID of the TAO that accredits this contract's TIs.

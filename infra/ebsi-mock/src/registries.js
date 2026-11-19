@@ -66,22 +66,42 @@ function validAt(value) {
   return Number.isNaN(ms) ? NaN : Math.floor(ms / 1000);
 }
 
+/** Where each registry's API is, in Core API v1 and on EBSI's pilot network. */
+export const REGISTRY_PATHS = {
+  'core-v1': {didRegistry: '/v1/did-registry', issuersRegistry: '/v1/issuers-registry', schemasRegistry: '/v1/schemas-registry', timestamp: '/v1/timestamp'},
+  pilot: {didRegistry: '/did-registry/v5', issuersRegistry: '/trusted-issuers-registry/v5', schemasRegistry: '/trusted-schemas-registry/v3', timestamp: '/timestamp/v4'},
+};
+
 /**
- * Mount the registries' read API.
+ * Mount the registries' read API in both of EBSI's shapes: Core API v1 and the pilot's.
  * @param {object} chain From connectChain.
  * @param {object} config From readConfig.
  * @returns {import('express').Router} The router.
  */
 export function registriesRouter(chain, config) {
   const router = express.Router();
+  router.use(shapeRouter(chain, config, REGISTRY_PATHS['core-v1']));
+  router.use(shapeRouter(chain, config, REGISTRY_PATHS.pilot));
+  return router;
+}
+
+/**
+ * The registries' read API under one shape's paths; its links stay in that shape.
+ * @param {object} chain From connectChain.
+ * @param {object} config From readConfig.
+ * @param {object} p The shape's paths (REGISTRY_PATHS).
+ * @returns {import('express').Router} The router.
+ */
+function shapeRouter(chain, config, p) {
+  const router = express.Router();
   const {contracts} = chain;
-  const base = `${config.base}/v1`;
+  const named = {'did-registry': p.didRegistry, 'issuers-registry': p.issuersRegistry, 'schemas-registry': p.schemasRegistry, timestamp: p.timestamp};
 
   const describe = (name, contract, linked) => {
-    router.get(`/v1/${name}/abi`, (_req, res) =>
+    router.get(`${named[name]}/abi`, (_req, res) =>
       res.json({contractAddress: contract.target, abi: JSON.parse(contract.interface.formatJson())}),
     );
-    router.get(`/v1/${name}/details`, (_req, res) => res.json({contractAddress: contract.target, ...linked}));
+    router.get(`${named[name]}/details`, (_req, res) => res.json({contractAddress: contract.target, ...linked}));
   };
   describe('did-registry', contracts.didRegistry, {policyRegistryContract: contracts.policiesRegistry.target});
   describe('issuers-registry', contracts.issuersRegistry, {
@@ -97,18 +117,18 @@ export function registriesRouter(chain, config) {
 
   // --- DID Registry ----------------------------------------------------------
 
-  router.get('/v1/did-registry/identifiers', async (req, res, next) => {
+  router.get(`${p.didRegistry}/identifiers`, async (req, res, next) => {
     try {
       const page = pageOf(req);
       const result = await contracts.didRegistry.getDids(page.page, page.size);
-      const self = `${base}/did-registry/identifiers`;
+      const self = `${config.base}${p.didRegistry}/identifiers`;
       res.json(list(self, page, result.total, result.items.map((did) => ({did, href: `${self}/${did}`}))));
     } catch (error) {
       next(error);
     }
   });
 
-  router.get('/v1/did-registry/identifiers/:did', async (req, res, next) => {
+  router.get(`${p.didRegistry}/identifiers/:did`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const at = validAt(req.query['valid-at']);
@@ -129,9 +149,9 @@ export function registriesRouter(chain, config) {
 
   // --- Trusted Issuers Registry ----------------------------------------------
 
-  const issuers = `${base}/issuers-registry/issuers`;
+  const issuers = `${config.base}${p.issuersRegistry}/issuers`;
 
-  router.get('/v1/issuers-registry/issuers', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers`, async (req, res, next) => {
     try {
       const page = pageOf(req);
       const result = await contracts.issuersRegistry.getIssuers(page.page, page.size);
@@ -141,7 +161,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const ids = await chain.issuerAttributes(did);
@@ -153,7 +173,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did/attributes', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did/attributes`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const page = pageOf(req);
@@ -172,7 +192,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did/attributes/:attributeId', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did/attributes/:attributeId`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const id = String(req.params.attributeId);
@@ -195,7 +215,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did/attributes/:attributeId/revisions', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did/attributes/:attributeId/revisions`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const page = pageOf(req);
@@ -213,7 +233,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did/proxies', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did/proxies`, async (req, res, next) => {
     try {
       const did = param(req.params.did);
       const page = pageOf(req);
@@ -231,7 +251,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/issuers-registry/issuers/:did/proxies/:proxyId', async (req, res, next) => {
+  router.get(`${p.issuersRegistry}/issuers/:did/proxies/:proxyId`, async (req, res, next) => {
     try {
       const data = await contracts.issuersRegistry.getIssuerProxyById(param(req.params.did), req.params.proxyId);
       res.json(JSON.parse(data));
@@ -243,9 +263,9 @@ export function registriesRouter(chain, config) {
 
   // --- Trusted Schemas Registry ----------------------------------------------
 
-  const schemas = `${base}/schemas-registry/schemas`;
+  const schemas = `${config.base}${p.schemasRegistry}/schemas`;
 
-  router.get('/v1/schemas-registry/schemas', async (req, res, next) => {
+  router.get(`${p.schemasRegistry}/schemas`, async (req, res, next) => {
     try {
       const page = pageOf(req);
       const result = await contracts.schemasRegistry.getSchemaIds(page.page, page.size);
@@ -265,7 +285,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/schemas-registry/schemas/:schemaId', async (req, res, next) => {
+  router.get(`${p.schemasRegistry}/schemas/:schemaId`, async (req, res, next) => {
     try {
       const id = hexlify(toUtf8Bytes(param(req.params.schemaId)));
       let schema;
@@ -281,7 +301,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/schemas-registry/schemas/:schemaId/revisions', async (req, res, next) => {
+  router.get(`${p.schemasRegistry}/schemas/:schemaId/revisions`, async (req, res, next) => {
     try {
       const id = hexlify(toUtf8Bytes(param(req.params.schemaId)));
       const page = pageOf(req);
@@ -299,7 +319,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/schemas-registry/schemas/:schemaId/revisions/:revisionId', async (req, res, next) => {
+  router.get(`${p.schemasRegistry}/schemas/:schemaId/revisions/:revisionId`, async (req, res, next) => {
     try {
       const id = hexlify(toUtf8Bytes(param(req.params.schemaId)));
       const schema = await contracts.schemasRegistry.getSchemaRevision(id, req.params.revisionId);
@@ -320,18 +340,18 @@ export function registriesRouter(chain, config) {
     data,
   });
 
-  router.get('/v1/timestamp/timestamps', async (req, res, next) => {
+  router.get(`${p.timestamp}/timestamps`, async (req, res, next) => {
     try {
       const page = pageOf(req);
       const result = await contracts.timestamp.getTimestamps(page.page, page.size);
-      const self = `${base}/timestamp/timestamps`;
+      const self = `${config.base}${p.timestamp}/timestamps`;
       res.json(list(self, page, result.total, result.items.map((id) => ({timestampId: id, href: `${self}/${id}`}))));
     } catch (error) {
       next(error);
     }
   });
 
-  router.get('/v1/timestamp/timestamps/:timestampId', async (req, res, next) => {
+  router.get(`${p.timestamp}/timestamps/:timestampId`, async (req, res, next) => {
     try {
       const id = String(req.params.timestampId);
       if (!/^0x[0-9a-fA-F]{64}$/.test(id)) return problem(res, 400, 'invalid-parameter', 'Bad Request');
@@ -344,7 +364,7 @@ export function registriesRouter(chain, config) {
     }
   });
 
-  router.get('/v1/timestamp/hashes/:hashValue', async (req, res, next) => {
+  router.get(`${p.timestamp}/hashes/:hashValue`, async (req, res, next) => {
     try {
       const value = String(req.params.hashValue);
       if (!/^0x[0-9a-fA-F]{2,256}$/.test(value)) return problem(res, 400, 'invalid-parameter', 'Bad Request');

@@ -32,6 +32,7 @@ import { postgresCredentialNonces } from '../issuance/nonces.ts';
 import { postgresCertificateRegistration } from '../issuance/registration.ts';
 import { postgresIssuanceSchemes } from '../issuance/schemes.ts';
 import { operatorTokens } from '../identity/auth/tokens.ts';
+import { anyDid, testDid } from './fixtures/dids.ts';
 
 async function holderKey() {
   const { publicKey, privateKey } = await generateKeyPair('ES256', { extractable: true });
@@ -173,7 +174,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     }),
     ledger: {
       chainId: 1337,
-      contract: '0x' + 'ab'.repeat(20),
+      contractFor: async () => '0x' + 'ab'.repeat(20),
       async ensureRegistered(record) {
         ledgerRecords.push(record);
       },
@@ -185,7 +186,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   });
   const server = backOfficeServer({
     accounts: postgresAccounts(database),
-    invitations: postgresInvitations(database),
+    invitations: postgresInvitations(database, { didRegistered: anyDid }),
     trustChain: postgresTrustChain(database),
     tokens,
     issuer,
@@ -213,8 +214,12 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     });
   const register = '/organizations/v1/registrations/';
   const rootToken = (await tokens.pair({ id: account.id, username: 'test-root' })).access;
-  assert.equal((await post(select, { name: 'Test TAO' })).status, 401);
-  const tao = await post(select, { name: 'Test TAO', schemas: ['InvitationTest'] }, rootToken);
+  assert.equal((await post(select, { did: testDid(), name: 'Test TAO' })).status, 401);
+  const tao = await post(
+    select,
+    { did: testDid(), name: 'Test TAO', schemas: ['InvitationTest'] },
+    rootToken,
+  );
   assert.equal(tao.status, 201);
   const selected = await tao.json();
   organizations.push(selected.organization_id);
@@ -262,7 +267,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   const accredited_until = new Date(Date.now() + 86400000).toISOString();
   const refused = await post(
     select,
-    { name: 'Test TI', schemas: ['Unknown'], accredited_until },
+    { did: testDid(), name: 'Test TI', schemas: ['Unknown'], accredited_until },
     access,
   );
   assert.equal(refused.status, 403);
@@ -270,7 +275,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
 
   const accepted = await post(
     select,
-    { name: 'Test TI', schemas: ['InvitationTest'], accredited_until },
+    { did: testDid(), name: 'Test TI', schemas: ['InvitationTest'], accredited_until },
     access,
   );
   assert.equal(accepted.status, 201);
@@ -279,7 +284,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal(child.kind, 'ti');
   assert.deepEqual(child.schemas, ['InvitationTest']);
 
-  const unrelated = await post(select, { name: 'Other TAO' }, rootToken);
+  const unrelated = await post(select, { did: testDid(), name: 'Other TAO' }, rootToken);
   assert.equal(unrelated.status, 201);
   const sibling = await unrelated.json();
   organizations.push(sibling.organization_id);
@@ -372,7 +377,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     SELECT s.id, v.number, v.fields::jsonb, v.tsr, CASE WHEN v.tsr IS NOT NULL THEN now() END
     FROM certificate_schemas s CROSS JOIN (VALUES
       (1, '[{"key":"old"}]', 'test-v1'),
-      (2, '[{"key":"current","kind":"integer","required":true},{"key":"body","kind":"text","organization":true}]', 'test-v2'),
+      (2, '[{"key":"current","kind":"integer","required":true},{"key":"body","kind":"text"}]', 'test-v2'),
       (3, '[{"key":"draft"}]', NULL)
     ) v(number, fields, tsr)
     WHERE s.credential_type = 'InvitationTest'
@@ -475,7 +480,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.notEqual(stored.pin_digest.toString(), registered.pin);
   assert.deepEqual(protection.open(registered.certificate_id, stored.private_data), {
     holder_reference: 'case-42',
-    claims: { certificateNumber: 'Číslo-42', current: 7, body: 'Test TI' },
+    claims: { certificateNumber: 'Číslo-42', current: 7, body: 'Untrusted input' },
   });
   assert.deepEqual((await scheme(access)).schemas, []);
   const tokenExchange = postgresCredentialTokenExchange(database, protection, {
@@ -1047,7 +1052,11 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal((await redemption.redeem(oldBearer, credentialRequest)).status, 401);
   assert.equal((await grant(replacementCode, replacementOffer.pin)).status, 200);
 
-  const stillInvited = await post(select, { name: 'Pending TI', accredited_until }, access);
+  const stillInvited = await post(
+    select,
+    { did: testDid(), name: 'Pending TI', accredited_until },
+    access,
+  );
   assert.equal(stillInvited.status, 201);
   const pending = await stillInvited.json();
   organizations.push(pending.organization_id);

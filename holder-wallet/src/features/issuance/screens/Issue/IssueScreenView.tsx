@@ -13,7 +13,6 @@ import { OrgButton, OrgDateField, OrgField, OrgReadOnlyField } from '@features/o
 import type { Schema, SchemeField } from '@domain/organization/organization'
 import { localDate } from '@shared/utils/labels'
 import IssueI18nKeys from '@features/issuance/screens/Issue/i18n/keys'
-import { ISSUE_SECTIONS } from './screen.constants'
 import { screenStyles as styles } from './screen.styles'
 import type useIssueScreen from './useIssueScreen'
 
@@ -177,16 +176,15 @@ const IssueScreenView = ({
             {...highlight('holderReference')}
           />
           <Text style={styles.hint}>{t(IssueI18nKeys.HOLDER_REFERENCE_HINT)}</Text>
-          {scheme
-            ? ISSUE_SECTIONS.filter((section) =>
-                scheme.fields.some((field: SchemeField) => field.section === section),
-              ).map((section) => (
-                <View key={section}>
-                  <Text style={styles.section}>{t(`SECTION_${section}`)}</Text>
-                  {scheme.fields.filter((field: SchemeField) => field.section === section).map(renderField)}
-                </View>
-              ))
-            : problemText === '' && !available && <Text style={styles.hintCentered}>…</Text>}
+          {/* The schema's attributes, in its order and its words. */}
+          {scheme ? (
+            <View>
+              <Text style={styles.section}>{t(IssueI18nKeys.DETAILS)}</Text>
+              {scheme.fields.map(renderField)}
+            </View>
+          ) : (
+            problemText === '' && !available && <Text style={styles.hintCentered}>…</Text>
+          )}
           {problemText !== '' && <Text style={styles.error}>{problemText}</Text>}
           <OrgButton onPress={issueNow} loading={busy} disabled={busy || !scheme} style={styles.submit}>
             {t(IssueI18nKeys.ISSUE)}

@@ -40,15 +40,22 @@ x-runtime: &runtime
     PLR_ISSUER_DID: ${PLR_ISSUER_DID:?}
     # EBSI's Core API v1: authorisation, the registries and the Ledger API.
     PLR_EBSI_URL: ${PLR_EBSI_API_ORIGIN:?}
-    PLR_DIDR_URL: ${PLR_EBSI_API_ORIGIN}/v1/did-registry/identifiers
-    PLR_TIR_URL: ${PLR_EBSI_API_ORIGIN}/v1/issuers-registry
-    PLR_TSR_URL: ${PLR_EBSI_API_ORIGIN}/v1/schemas-registry
+    # EBSI's pilot APIs: Authorisation v4, DID Registry v5, Trusted Issuers Registry v5,
+    # Trusted Schemas Registry v3, Ledger API v4.
+    PLR_EBSI_API: pilot
+    PLR_DIDR_URL: ${PLR_EBSI_API_ORIGIN}/did-registry/v5/identifiers
+    PLR_TIR_URL: ${PLR_EBSI_API_ORIGIN}/trusted-issuers-registry/v5
+    PLR_TSR_URL: ${PLR_EBSI_API_ORIGIN}/trusted-schemas-registry/v3
+    # Registry ids of the certificate schemas this installation issues, oldest first.
+    PLR_TSR_SCHEMAS: ${PLR_TSR_SCHEMAS:?Name the certificate schemas, by their ids in the Trusted Schemas Registry}
     PLR_TRUSTED_ROOT_DIDS: ${PLR_TRUSTED_ROOT_DIDS:?}
     PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: ${PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL:?}
     PLR_LEDGER_RPC_URL: ${PLR_LEDGER_RPC_URL:?}
     PLR_LEDGER_CHAIN_ID: ${PLR_LEDGER_CHAIN_ID:?}
     PLR_GOVERNANCE_CONTRACT: ${PLR_GOVERNANCE_CONTRACT:?}
     PLR_CERTIFICATE_REGISTRY: ${PLR_CERTIFICATE_REGISTRY:?}
+    PLR_PROXY_FACTORY: ${PLR_PROXY_FACTORY:?}
+    PLR_CONTRACT_TEMPLATES: ${PLR_CONTRACT_TEMPLATES:-CertificateRegistry@1,CertificateGovernance@1}
     PLR_GOVERNANCE_CONSOLE_ROLES: ${PLR_GOVERNANCE_CONSOLE_ROLES:-A,B}
     AWS_REGION: ${AWS_REGION:?}
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}

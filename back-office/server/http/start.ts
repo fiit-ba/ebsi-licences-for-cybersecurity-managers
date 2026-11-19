@@ -10,7 +10,7 @@ import { postgresOperatorManagement } from '../identity/administration/managemen
 import { postgresNotifications } from '../lifecycle/notifications.ts';
 import { postgresAudit } from '../audit/service.ts';
 import { postgresIssuanceSchemes } from '../issuance/schemes.ts';
-import { postgresSchemaManagement } from '../schemas/management.ts';
+import { configuredSchemaIds, registrySchemas } from '../schemas/registry-schemas.ts';
 import { postgresTrustChain } from '../accreditation/chain.ts';
 import { postgresInvitations } from '../accreditation/invitations.ts';
 import pg from 'pg';
@@ -27,6 +27,11 @@ const database = new pg.Pool({ connectionTimeoutMillis: 3000 });
 const domains = await configuredDomains(database);
 const { registry, passwordRecovery, localLifecycle, organizations, issuer, timestamp } = domains;
 database.on('error', (error) => console.error('Idle database connection failed', error));
+// The certificate schemas are EBSI's: read from the Trusted Schemas Registry by the ids configured.
+const schemas = registrySchemas(database, registry, {
+  ids: configuredSchemaIds(process.env.PLR_TSR_SCHEMAS),
+  registered: organizations.schemaOptions.registered,
+});
 
 const consoleEnabled = process.env.BACK_OFFICE_CONSOLE_ENABLED ?? 'true';
 if (!['true', 'false'].includes(consoleEnabled))
@@ -120,12 +125,31 @@ const server = backOfficeServer({
   registrationEnabled: process.env.PLR_ORGANIZATION_REGISTRATION_ENABLED !== 'false',
   governanceProfile: {
     contract: process.env.PLR_GOVERNANCE_CONTRACT ?? '',
+    /**
+     * The governance contract of the account's own organization's TAO; with one TAO, its.
+     * @param accountId - The signed-in account.
+     * @returns The contract, or undefined when the account's TAO is not one to tell.
+     */
+    async contractOf(accountId: number) {
+      const contracts = issuer?.contracts;
+      if (!contracts) return undefined;
+      const {
+        rows: [own],
+      } = await database.query(
+        'SELECT id FROM accredited_organizations WHERE account_id=$1 AND revoked_at IS NULL ORDER BY registered_at NULLS LAST, id LIMIT 1',
+        [accountId],
+      );
+      const pair = own ? await contracts.ofOrganization(own.id) : undefined;
+      if (pair) return pair.governance;
+      const all = await contracts.all();
+      return all.length === 1 ? all[0].governance : undefined;
+    },
     consoleRoles: (process.env.PLR_GOVERNANCE_CONSOLE_ROLES ?? 'A,B')
       .split(',')
       .map((role) => role.trim().toUpperCase())
       .filter(Boolean),
   },
-  schemaManagement: postgresSchemaManagement(database, registry, organizations.schemaOptions),
+  registrySchemas: schemas,
   issuer,
   governance: issuer?.governance ?? postgresConsoleGovernance(database),
   consoleAssets,
@@ -165,6 +189,34 @@ if (process.env.PLR_LEDGER_RPC_URL) {
 }
 await ready();
 server.listen(Number(process.env.PORT ?? 8088), process.env.HOST ?? '127.0.0.1');
+
+/**
+ * Read the configured schemas from the registry, again every minute until it answers. Without
+ * `PLR_TSR_SCHEMAS` nothing is read and the stored schemas stay as they are.
+ * @returns Completion of this attempt.
+ */
+async function synchronizeSchemas() {
+  if (!schemas.ids.length) {
+    console.error(
+      'PLR_TSR_SCHEMAS names no schema: the stored certificate schemas stay as they are.',
+    );
+    return;
+  }
+  try {
+    const { added, retired } = await schemas.synchronize();
+    if (added.length || retired.length)
+      console.log(
+        `Certificate schemas from the TSR: added ${added.join(', ') || 'none'}, retired ${retired.join(', ') || 'none'}.`,
+      );
+  } catch (error) {
+    console.error(
+      'The certificate schemas could not be read from the TSR; retrying in a minute.',
+      (error as Error).message,
+    );
+    setTimeout(() => void synchronizeSchemas(), 60_000).unref();
+  }
+}
+void synchronizeSchemas();
 
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

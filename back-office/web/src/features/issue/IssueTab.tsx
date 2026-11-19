@@ -2,7 +2,7 @@
 // Technologies for the Professional License Registry. It is licensed under
 // the MIT License (see LICENSE).
 
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { certificateScheme, issueCertificate } from '../../shared/api/certificates.ts';
 import Button from '../../shared/ui/Button.tsx';
 import Field from '../../shared/ui/Field.tsx';
@@ -15,7 +15,8 @@ import SelectField from '../../shared/ui/SelectField.tsx';
 import Table from '../../shared/ui/Table.tsx';
 import TextInput from '../../shared/ui/TextInput.tsx';
 import { formatDate, t } from '../../shared/i18n/index.ts';
-import { SECTIONS, fieldHint, fieldLabel, inLang } from '../../shared/certificates/fields.ts';
+import { fieldHint, fieldLabel, inLang } from '../../shared/certificates/fields.ts';
+import EbsiAccreditation from '../accreditation/EbsiAccreditation.tsx';
 
 /** How soon a TI is told its accreditation is about to end, in days (D23). */
 const ENDING_SOON_DAYS = 30;
@@ -86,18 +87,12 @@ function today() {
 }
 
 /**
- * A schema's starting values: its defaults, the TI's own name.
+ * A schema's starting values: the defaults its registry document gives.
  * @param schema - Selected certificate schema and its current version.
- * @param organization - Existing issuing organization name.
- * @returns Claim defaults keyed by field identifier, using the TI name for organization fields.
+ * @returns Claim defaults keyed by field identifier.
  */
-function initial(schema, organization) {
-  return Object.fromEntries(
-    schema.fields.map((field) => [
-      field.key,
-      field.organization && organization ? organization : field.default,
-    ]),
-  );
+function initial(schema) {
+  return Object.fromEntries(schema.fields.map((field) => [field.key, field.default]));
 }
 
 /**
@@ -113,6 +108,8 @@ export default function IssueTab() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  // The TI's own accreditation in EBSI, which it stores itself before it can issue.
+  const [ebsi, setEbsi] = useState(false);
   const [problems, setProblems] = useState({ missing: [], invalid: [] });
   // Set when the back-office refuses because the accreditation ended (D23).
   const [ended, setEnded] = useState(false);
@@ -125,7 +122,7 @@ export default function IssueTab() {
         if (!alive) return;
         setAvailable(data);
         const first = data.schemas?.[0];
-        if (first) choose(first, data.organization);
+        if (first) choose(first);
       })
       .catch((e) => alive && setError(e.message));
     return () => {
@@ -134,15 +131,14 @@ export default function IssueTab() {
   }, []);
 
   /**
-   * Select the issuance schema and initialize its existing organization-dependent defaults.
+   * Select the issuance schema and start from its defaults.
    * @param schema - Selected certificate schema and its current version.
-   * @param organization - Existing issuing organization name.
    * @returns No return value; the existing operation updates its owned state or storage.
    */
-  function choose(schema, organization = available?.organization) {
+  function choose(schema) {
     if (!schema) return;
-    setScheme({ ...schema, organization });
-    setClaims(initial(schema, organization));
+    setScheme(schema);
+    setClaims(initial(schema));
     setProblems({ missing: [], invalid: [] });
   }
 
@@ -154,7 +150,7 @@ export default function IssueTab() {
    */
   function blank() {
     setHolderReference('');
-    setClaims(initial(scheme, scheme.organization));
+    setClaims(initial(scheme));
     setValidUntil('');
   }
 
@@ -203,6 +199,13 @@ export default function IssueTab() {
       if (e.reason === 'InvalidClaims') {
         setProblems({ missing: e.payload?.missing ?? [], invalid: e.payload?.invalid ?? [] });
         setError(t('Certifikát nezodpovedá schéme. Skontrolujte vyznačené polia.'));
+      } else if (e.reason === 'NotOnboarded') {
+        setError(
+          t(
+            'Vaša TI ešte nie je akreditovaná v EBSI: pridajte kľúče back-office do svojho DID dokumentu a uložte svoju akreditáciu do TIR svojou peňaženkou (nižšie).',
+          ),
+        );
+        setEbsi(true);
       } else if (e.reason === 'NotATI') {
         setError(
           t('Vydávať môže len TI, ktorú vybral TAO. Tento účet nie je TI v reťazci dôvery.'),
@@ -333,53 +336,35 @@ export default function IssueTab() {
           </div>
         )}
 
-        {scheme &&
-          Object.entries(SECTIONS)
-            .filter(([section]) => scheme.fields.some((f) => f.section === section))
-            .map(([section, title]) => (
-              <Fragment key={section}>
-                <h3>{t(title)}</h3>
-                <div className="grid">
-                  {scheme.fields
-                    .filter((field) => field.section === section)
-                    .map((field) => {
-                      const fixed = field.organization && scheme.organization;
-                      const wrong =
-                        problems.missing.includes(field.key) ||
-                        problems.invalid.includes(field.key);
-                      return (
-                        <Field
-                          key={field.key}
-                          id={`c-${field.key}`}
-                          label={`${fieldLabel(field.key, field)}${field.required || field.organization ? '' : ` ${t('(voliteľné)')}`}`}
-                        >
-                          <TextInput
-                            id={`c-${field.key}`}
-                            type={
-                              field.kind === 'date'
-                                ? 'date'
-                                : field.kind === 'integer'
-                                  ? 'number'
-                                  : 'text'
-                            }
-                            min={field.kind === 'integer' ? 1 : undefined}
-                            value={claims[field.key] ?? ''}
-                            onChange={(e) => set(field.key, e.target.value)}
-                            placeholder={
-                              field.kind === 'date'
-                                ? t('Vyberte dátum')
-                                : fieldHint(field.key, field)
-                            }
-                            required={field.required}
-                            readOnly={Boolean(fixed)}
-                            invalid={wrong}
-                          />
-                        </Field>
-                      );
-                    })}
-                </div>
-              </Fragment>
-            ))}
+        {scheme && (
+          // One list, in the order of the schema's registry document.
+          <div className="grid">
+            {scheme.fields.map((field) => {
+              const wrong =
+                problems.missing.includes(field.key) || problems.invalid.includes(field.key);
+              return (
+                <Field
+                  key={field.key}
+                  id={`c-${field.key}`}
+                  label={`${fieldLabel(field.key, field)}${field.required ? '' : ` ${t('(voliteľné)')}`}`}
+                >
+                  <TextInput
+                    id={`c-${field.key}`}
+                    type={
+                      field.kind === 'date' ? 'date' : field.kind === 'integer' ? 'number' : 'text'
+                    }
+                    min={field.kind === 'integer' ? 1 : undefined}
+                    value={claims[field.key] ?? ''}
+                    onChange={(e) => set(field.key, e.target.value)}
+                    placeholder={field.kind === 'date' ? t('Vyberte dátum') : fieldHint(field)}
+                    required={field.required}
+                    invalid={wrong}
+                  />
+                </Field>
+              );
+            })}
+          </div>
+        )}
 
         <p className="footnote">
           {t(
@@ -395,9 +380,13 @@ export default function IssueTab() {
           <Button disabled={!scheme || busy || accreditationEnded} type="submit">
             {busy ? t('Vydáva sa…') : t('Vydať certifikát')}
           </Button>
+          <Button variant="ghost" aria-expanded={ebsi} onClick={() => setEbsi(!ebsi)}>
+            {t('Akreditácia v EBSI')}
+          </Button>
         </FormActions>
 
         {error && <Notice tone="err">{error}</Notice>}
+        {ebsi && <EbsiAccreditation own />}
       </Panel>
 
       {result && <OfferPanel offer={result} />}

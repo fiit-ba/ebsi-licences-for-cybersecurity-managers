@@ -7,12 +7,15 @@ import {ITiAccreditation} from "../interfaces/ITiAccreditation.sol";
 /**
  * @title TiAccreditation
  * @notice The EBSI registries this contract trusts, and the question it asks
- *         them: is this TI accredited right now? The registries are set once,
- *         when the proxy is initialized, and nothing changes them afterwards:
- *         on EBSI their addresses are fixed, so a key that could repoint them
- *         (the TAO's, if it were compromised) would only be a risk. Should
- *         EBSI ever move one, a new implementation version, which each
- *         proxy's owner opts into, would have to carry the change.
+ *         them: is this TI accredited right now? The registries are
+ *         immutables of the implementation, given to its constructor: every
+ *         proxy on the beacon reads them from the implementation's code, and
+ *         no transaction changes them. On EBSI their addresses are fixed, so a
+ *         key that could repoint them (the TAO's, if it were compromised)
+ *         would only be a risk. Each network deploys its own implementation
+ *         with its own registries; should EBSI ever move one, a new
+ *         implementation version, which each proxy's owner opts into, carries
+ *         the change.
  */
 abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
     /// @notice Most accreditation hops walked above a TI: the registry's own
@@ -21,10 +24,13 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
     ///         charged (EBSI's production network; its PILOT charges none).
     uint8 public constant MAX_TRUST_CHAIN_DEPTH = 32;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address private immutable DID_REGISTRY;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address private immutable ISSUERS_REGISTRY;
+
     /// @custom:storage-location erc7201:plr.storage.TiAccreditation
     struct AccreditationStorage {
-        address didRegistry;
-        address issuersRegistry;
         string taoDid;
     }
 
@@ -37,14 +43,23 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
         }
     }
 
+    /// @dev Runs once, when the implementation is deployed: what it wrote to
+    ///      storage no proxy would see, so it sets only the immutables.
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(address didRegistry_, address issuersRegistry_) {
+        if (didRegistry_.code.length == 0 || issuersRegistry_.code.length == 0) revert InvalidRegistry();
+        DID_REGISTRY = didRegistry_;
+        ISSUERS_REGISTRY = issuersRegistry_;
+    }
+
     /// @inheritdoc ITiAccreditation
     function didRegistry() public view returns (address) {
-        return _accreditationStorage().didRegistry;
+        return DID_REGISTRY;
     }
 
     /// @inheritdoc ITiAccreditation
     function issuersRegistry() public view returns (address) {
-        return _accreditationStorage().issuersRegistry;
+        return ISSUERS_REGISTRY;
     }
 
     /// @inheritdoc ITiAccreditation
@@ -59,14 +74,10 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
         _;
     }
 
-    /// @dev Called once, by `initialize`: there is no other way to set them.
-    function _setRegistries(string memory taoDid_, address didRegistry_, address issuersRegistry_) internal {
+    /// @dev Called once, by `initialize`: there is no other way to set it.
+    function _setTaoDid(string memory taoDid_) internal {
         if (bytes(taoDid_).length == 0) revert InvalidTaoDid();
-        if (didRegistry_.code.length == 0 || issuersRegistry_.code.length == 0) revert InvalidRegistry();
-        AccreditationStorage storage $ = _accreditationStorage();
-        $.taoDid = taoDid_;
-        $.didRegistry = didRegistry_;
-        $.issuersRegistry = issuersRegistry_;
+        _accreditationStorage().taoDid = taoDid_;
     }
 
     /// @dev Without an owner no TI could be set up again, nor a TI's cosigners
@@ -107,7 +118,7 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
     ///      no longer shows stops counting at once. An unknown DID reverts in the
     ///      registry; here it controls nothing.
     function _controls(string memory did, address account) internal view returns (bool) {
-        try IEbsiDidRegistry(didRegistry()).checkController(bytes(did), account) returns (bool ok) {
+        try IEbsiDidRegistry(DID_REGISTRY).checkController(bytes(did), account) returns (bool ok) {
             return ok;
         } catch {
             return false;
@@ -122,7 +133,7 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
         view
         returns (bool found, IEbsiIssuersRegistry.Attribute memory attribute)
     {
-        try IEbsiIssuersRegistry(issuersRegistry()).getLatestRevisionAttribute(did, attributeId) returns (
+        try IEbsiIssuersRegistry(ISSUERS_REGISTRY).getLatestRevisionAttribute(did, attributeId) returns (
             IEbsiIssuersRegistry.Attribute memory latest
         ) {
             return (true, latest);

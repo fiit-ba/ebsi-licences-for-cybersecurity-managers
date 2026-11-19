@@ -17,6 +17,7 @@ import express from 'express';
 import {AbiCoder, getAddress, hexlify, isAddress, isError, sha256, toUtf8Bytes, toUtf8String} from 'ethers';
 import {derivedP256, thumbprint} from './keys.js';
 import {signJwt} from './jwt.js';
+import {trustChainSchemas} from './ebsi-schemas.js';
 
 const ROOT_TAO = 1;
 const FIVE_YEARS = 5 * 365 * 24 * 3600;
@@ -59,10 +60,7 @@ export function supportOffice(config, chain) {
       validFrom: iso(now),
       expirationDate: iso(now + FIVE_YEARS),
       credentialSubject: {id: subject, ...claims},
-      credentialSchema: {
-        id: `${config.base}/v1/schemas-registry/schemas/zPlrAccreditationV1`,
-        type: 'FullJsonSchemaValidator2021',
-      },
+      credentialSchema: trustChainSchemas(config.base, [type]),
     };
     return signJwt(
       {alg: 'ES256', typ: 'JWT', kid},
@@ -138,6 +136,19 @@ export function supportOffice(config, chain) {
     const subject = subjectOf(req, res);
     if (!subject) return;
     return res.json({credential: issue('VerifiableAuthorisationToInvoke', subject, {contracts: config.invoke})});
+  });
+
+  // Deploying contracts through EBSI's Proxy Factory: the Support Office grants the deployer
+  // (the RootTAO's ledger key) ProxyFactory:deployProxy in the Trusted Policies Registry.
+  router.post('/__mock/support-office/deployer', async (req, res, next) => {
+    try {
+      const address = String(req.body?.address ?? '');
+      if (!isAddress(address)) return res.status(400).json({title: 'Bad Request', detail: 'Name the deployer address.'});
+      await chain.grantPolicy('ProxyFactory:deployProxy', getAddress(address));
+      return res.json({address: getAddress(address), policy: 'ProxyFactory:deployProxy'});
+    } catch (error) {
+      next(error);
+    }
   });
 
   // Schema registration: on EBSI the Support Office registers a schema on a

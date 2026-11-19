@@ -23,32 +23,26 @@ export const fields = [
   {
     key: 'certificateNumber',
     kind: 'text',
-    section: 'certificate',
     label: { sk: 'Číslo osvedčenia', en: 'Certificate number' },
     hint: {},
     required: true,
-    organization: false,
     default: '',
   },
   {
     key: 'holderName',
     kind: 'text',
-    section: 'holder',
     label: { sk: 'Meno a priezvisko', en: 'Full name' },
     hint: {},
     required: true,
-    organization: false,
     default: '',
   },
   {
     key: 'certificationBody',
     kind: 'text',
-    section: 'certificate',
     label: { sk: 'Vydavateľ osvedčenia', en: 'Certification body' },
     hint: {},
     required: true,
-    organization: true,
-    default: '',
+    default: 'Odborná akadémia',
   },
 ];
 

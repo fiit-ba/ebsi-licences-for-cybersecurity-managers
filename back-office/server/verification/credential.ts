@@ -1,6 +1,7 @@
 import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK } from 'jose';
 import { certificateStatusKey, credentialHash, secretDigest } from '../issuance/protection.ts';
 import type { CredentialVerifierOptions, CredentialPayload, VerifyCredential } from './types.ts';
+import { ebsiSchemaIds, registrySchemaId } from '../schemas/ebsi-schemas.ts';
 
 /** Credential verification failure that cannot establish an accepted credential. */
 export class CredentialVerificationError extends Error {
@@ -174,7 +175,8 @@ export function credentialVerifier(options: CredentialVerifierOptions): VerifyCr
         kid.startsWith(issuer + '#'),
       'InvalidIssuer',
     );
-    const issuedAt = payload.vc?.issuanceDate ?? payload.vc?.issued;
+    // The signing instant: EBSI's `issued`; `issuanceDate` is when it becomes valid.
+    const issuedAt = payload.vc?.issued ?? payload.vc?.issuanceDate;
     const issuedTime = typeof issuedAt === 'string' ? Date.parse(issuedAt) : NaN;
     requireCredential(
       Number.isFinite(issuedTime) && issuedTime >= 0 && issuedTime <= +now + 5_000,
@@ -267,7 +269,10 @@ export function credentialVerifier(options: CredentialVerifierOptions): VerifyCr
       Array.isArray(schemas) &&
         (isLegacy
           ? schemas.length >= 1 && schemas.length <= 4
-          : schemas.length === 2 && schemas[1]?.id === ledgerStatusSchema) &&
+          : // Its own schema, its status entry's, and EBSI's IssuanceCertificate extension.
+            schemas.length === 3 &&
+            schemas[1]?.id === ledgerStatusSchema &&
+            registrySchemaId(String(schemas[2]?.id)) === ebsiSchemaIds.issuanceCertificate) &&
         schemas.every(
           (schema) =>
             schema?.type === 'FullJsonSchemaValidator2021' && typeof schema.id === 'string',

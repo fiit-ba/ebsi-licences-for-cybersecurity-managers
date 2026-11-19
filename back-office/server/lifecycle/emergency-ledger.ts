@@ -13,7 +13,12 @@ export interface EmergencyRecord {
 /** Pinned emergency-suspension deployment and confirmed delivery operation. */
 export interface EmergencyLedger {
   chainId: number;
-  contract: string;
+  /**
+   * The certificate registry a TI's certificates are in: its TAO's.
+   * @param issuerDid - The TI.
+   * @returns The registry's address.
+   */
+  contractFor(issuerDid: string): Promise<string>;
   suspend(record: EmergencyRecord): Promise<void>;
 }
 
@@ -121,7 +126,11 @@ export function emergencyLedger(options: {
 
   return {
     chainId,
-    contract,
+    /**
+     * This registry, the one of the TAO it serves.
+     * @returns Its address.
+     */
+    contractFor: async () => contract,
     /**
      * Deliver an emergency once or reconcile its exact previously confirmed event.
      *

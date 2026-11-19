@@ -11,6 +11,7 @@ import {
   type TransactionLike,
   type Provider,
 } from 'ethers';
+import { gasWithMargin } from '../ebsi/ledger.ts';
 import type { KmsSigningClient } from './kms-types.ts';
 import { rawEcdsaSignature } from './kms-ecdsa.ts';
 
@@ -90,6 +91,18 @@ class KmsLedgerSigner extends AbstractSigner {
    */
   async signMessage(): Promise<never> {
     throw new Error('The governance KMS signer signs transactions only.');
+  }
+
+  /**
+   * The gas limit of a transaction this key sends, when the request names none: the node's
+   * estimate with a margin, so that a governance or registry transaction does not run out of
+   * gas in a state that costs a little more than the one it was estimated in.
+   * @param transaction - The transaction request.
+   * @returns The gas limit.
+   * @throws Provider errors, including the estimate's revert.
+   */
+  override async estimateGas(transaction: TransactionRequest) {
+    return gasWithMargin(await super.estimateGas(transaction));
   }
 
   /**

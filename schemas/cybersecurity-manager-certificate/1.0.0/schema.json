@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cybersecurity Manager Licence",
+  "description": "Schema of a cybersecurity manager licence in the Slovak Professional License Registry: the holder, the training they completed, and the training institution that issued it, accredited in EBSI's trust chain. The licence's standing (valid, suspended, revoked) is its record on the registry's certificate registry contract, named by its credentialStatus. Every attribute is selectively disclosable. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/0xef484394a9c6622016a2e2e4eba7e093d96433474938fa2a70935697a139c5ec"
+    },
+    {
+      "properties": {
+        "type": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "contains": {
+            "const": "CybersecurityManagerCertificate"
+          }
+        },
+        "credentialSubject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "certificateTitle": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Certificate title",
+              "default": "Certificate of completion of a training activity and successful completion of the final test"
+            },
+            "holderName": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Full name with titles",
+              "description": "e.g. Ing. Janko Mrkvička, PhD."
+            },
+            "jobPosition": {
+              "type": "string",
+              "title": "Job position",
+              "default": "cybersecurity manager"
+            },
+            "trainingName": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Training name",
+              "default": "Cybersecurity Manager"
+            },
+            "trainingStart": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "title": "Training start date"
+            },
+            "trainingEnd": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "title": "Training end date"
+            },
+            "trainingDays": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Number of training days"
+            },
+            "teachingHours": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Number of teaching hours"
+            },
+            "knowledgeStandard": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Knowledge standard",
+              "default": "Decree of the National Security Authority No. 492/2022 Coll."
+            },
+            "certificateNumber": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Certificate number",
+              "description": "e.g. 248"
+            },
+            "placeOfIssue": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Place of issue",
+              "description": "e.g. Bratislava"
+            },
+            "issueDate": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "title": "Date of issue"
+            },
+            "certificationBody": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Issuing certification body"
+            },
+            "signatory": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Signed by (name and position)",
+              "description": "e.g. prof. Ing. Ján Novák, PhD., dean"
+            },
+            "funding": {
+              "type": "string",
+              "title": "Funding",
+              "description": "e.g. Recovery and Resilience Plan of the Slovak Republic, Component 17, Reform No. 5"
+            }
+          },
+          "required": [
+            "id",
+            "certificateTitle",
+            "holderName",
+            "trainingName",
+            "trainingStart",
+            "trainingEnd",
+            "trainingDays",
+            "teachingHours",
+            "knowledgeStandard",
+            "certificateNumber",
+            "placeOfIssue",
+            "issueDate",
+            "certificationBody",
+            "signatory"
+          ]
+        }
+      }
+    }
+  ]
+}

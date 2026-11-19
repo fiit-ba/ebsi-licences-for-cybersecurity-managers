@@ -205,7 +205,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
         const organization = await transaction(database, async (client) => {
           const issuer = await lockedIssuer(client, accountId, { allowUnconfigured: true });
           const schema = await chooseSchema(client, issuer, input);
-          normalizeClaims(input.claims, schema.fields, issuer.name);
+          normalizeClaims(input.claims, schema.fields);
           return issuer;
         });
         if (!organization.did || !organization.tir_attribute_id) {
@@ -219,7 +219,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
       return transaction(database, async (client) => {
         const issuer = await lockedIssuer(client, accountId);
         const schema = await chooseSchema(client, issuer, input);
-        const claims = normalizeClaims(input.claims, schema.fields, issuer.name);
+        const claims = normalizeClaims(input.claims, schema.fields);
         const suppliedNumber = claims.certificateNumber || claims.registrationNumber;
         const number =
           typeof suppliedNumber === 'string' || Number.isSafeInteger(suppliedNumber)

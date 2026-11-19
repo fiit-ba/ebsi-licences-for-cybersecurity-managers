@@ -40,6 +40,49 @@ const QUERIES = {
 };
 
 /**
+ * EBSI's pilot Authorisation API v4: one presentation definition per scope, as the pilot serves
+ * them (api-pilot.ebsi.eu/authorisation/v4/presentation-definitions), and the Core API v1 scope
+ * each grants here. The Trusted Issuers Registry and the Timestamp API take ES256 only.
+ */
+const PILOT = {
+  didr_invite: {scope: 'did-registry:invite', id: 'didr_invite_presentation', descriptor: 'didr_invite_credential', types: [['VerifiableAuthorisationToOnboard']], algs: ['ES256', 'ES256K']},
+  didr_write: {scope: 'did-registry:write', id: 'didr_write_presentation', algs: ['ES256', 'ES256K']},
+  tir_invite: {
+    scope: 'issuers-registry:invite',
+    id: 'tir_invite_presentation',
+    descriptor: 'tir_invite_credential',
+    types: [['VerifiableAuthorisationForTrustChain'], ['VerifiableAccreditationToAttest'], ['VerifiableAccreditationToAccredit']],
+    algs: ['ES256'],
+  },
+  tir_write: {scope: 'issuers-registry:write', id: 'tir_write_presentation', algs: ['ES256']},
+  ledger_invoke: {scope: 'ledger:invoke', id: 'ledger_invoke_presentation', descriptor: 'ledger_invoke_credential', types: [['VerifiableAuthorisationToInvoke']], algs: ['ES256', 'ES256K']},
+  timestamp_write: {scope: 'timestamp:write', id: 'timestamp_write_presentation', algs: ['ES256']},
+};
+
+/**
+ * A pilot scope's presentation definition, in the pilot's form.
+ * @param {object} definition An entry of PILOT.
+ * @returns {object} The DIF presentation definition.
+ */
+function presentationDefinition(definition) {
+  const vp = {alg: definition.algs};
+  const contains = definition.types?.length === 1 ? {const: definition.types[0][0]} : {anyOf: definition.types?.map((set) => ({const: set[0]}))};
+  return {
+    id: definition.id,
+    format: {jwt_vp: vp, jwt_vp_json: vp},
+    input_descriptors: definition.descriptor
+      ? [
+          {
+            id: definition.descriptor,
+            format: {jwt_vc: {alg: ['ES256']}, jwt_vc_json: {alg: ['ES256']}},
+            constraints: {fields: [{path: ['$.vc.type'], filter: {type: 'array', contains}}]},
+          },
+        ]
+      : [],
+  };
+}
+
+/**
  * Parse a scope request into its scopes, without `openid` and instance suffixes.
  * @param {string} value The `scope` parameter.
  * @returns {{scopes: string[]}|{error: string}} The scopes, or why not.
@@ -96,6 +139,7 @@ function dcqlFor(scopes) {
  */
 export function authorisation(config, chain, office) {
   const issuer = `${config.base}/v1/auth`;
+  const pilotIssuer = `${config.base}/authorisation/v4`;
   const audience = `${config.base}/v1`;
   const signing = derivedP256(config.adminKey, 'authorisation-tokens');
   const signingKid = thumbprint(signing.publicJwk);
@@ -187,9 +231,19 @@ export function authorisation(config, chain, office) {
     if (keys.length !== 1 || keys[0] !== credentialQuery.id || !Array.isArray(token[keys[0]]) || token[keys[0]].length !== 1)
       return {error: `vp_token must hold exactly one presentation under ${credentialQuery.id}.`};
 
+    return checkPresentation({scopes, jwt: token[credentialQuery.id][0], typeValues: credentialQuery.meta.type_values, algs, aud: issuer});
+  }
+
+  /**
+   * Check a presentation for a scope request, in either API shape.
+   * @param {object} request The scopes, the VP JWT, the credential types it must carry (none for
+   * an empty presentation), the algorithms accepted and the expected audience.
+   * @returns {Promise<{sub: string, jkt?: string}|{error: string}>} The holder, or why not.
+   */
+  async function checkPresentation({scopes, jwt, typeValues, algs, aud}) {
     let decoded;
     try {
-      decoded = decodeJwt(token[credentialQuery.id][0]);
+      decoded = decodeJwt(jwt);
     } catch {
       return {error: 'The presentation is not a JWT.'};
     }
@@ -219,7 +273,7 @@ export function authorisation(config, chain, office) {
 
     const now = Math.floor(Date.now() / 1000);
     sweepNonces(now);
-    if (payload.aud !== issuer) return {error: `The presentation's aud must be ${issuer}.`};
+    if (payload.aud !== aud) return {error: `The presentation's aud must be ${aud}.`};
     if (typeof payload.nonce !== 'string' || !payload.nonce || payload.nonce.length > 256) return {error: 'The presentation needs a nonce.'};
     if (seenNonces.has(payload.nonce)) return {error: 'The presentation was already used.'};
     if (!Number.isFinite(payload.iat) || payload.iat > now + 5 || payload.iat < now - VP_WINDOW)
@@ -229,10 +283,12 @@ export function authorisation(config, chain, office) {
     const vp = payload.vp;
     if (!vp || !Array.isArray(vp.type) || !vp.type.includes('VerifiablePresentation') || (vp.holder !== undefined && vp.holder !== holder))
       return {error: 'The presentation carries no vp of its holder.'};
-    const credentials = vp.verifiableCredential;
-    if (!Array.isArray(credentials) || credentials.length !== 1) return {error: 'The presentation must carry exactly one credential.'};
-    const refusal = await credentialRefusal(credentials[0], credentialQuery.meta.type_values, holder, now);
-    if (refusal) return {error: refusal};
+    const credentials = vp.verifiableCredential ?? [];
+    if (typeValues) {
+      if (!Array.isArray(credentials) || credentials.length !== 1) return {error: 'The presentation must carry exactly one credential.'};
+      const refusal = await credentialRefusal(credentials[0], typeValues, holder, now);
+      if (refusal) return {error: refusal};
+    } else if (!Array.isArray(credentials) || credentials.length) return {error: 'The presentation must carry no credential.'};
 
     seenNonces.set(payload.nonce, now + VP_WINDOW + 60);
     return {sub: holder, ...(jkt ? {jkt} : {})};
@@ -295,24 +351,99 @@ export function authorisation(config, chain, office) {
       if (parsed.error) return res.status(400).json({error: 'invalid_scope', error_description: parsed.error});
       const result = await presentation(parsed.scopes, body.vp_token);
       if (result.error) return res.status(400).json({error: 'invalid_request', error_description: result.error});
-      const now = Math.floor(Date.now() / 1000);
-      const scope = ['openid', ...parsed.scopes].join(' ');
-      const accessToken = signJwt(
-        {alg: 'ES256', typ: 'JWT', kid: signingKid},
-        {
-          iss: issuer,
-          aud: audience,
-          sub: result.sub,
-          scope,
-          iat: now,
-          exp: now + TOKEN_SECONDS,
-          jti: crypto.randomUUID(),
-          ...(result.jkt ? {cnf: {jkt: result.jkt}} : {}),
-        },
-        signing.privateKey,
-      );
-      if (!config.quiet) console.log('[ebsi-mock] token', scope, 'for', result.sub);
-      return res.set('cache-control', 'no-store').json({access_token: accessToken, token_type: 'Bearer', expires_in: TOKEN_SECONDS, scope});
+      return res.set('cache-control', 'no-store').json(issueToken(parsed.scopes, result));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+   * An access token for scopes, in Core API v1's names whichever shape asked: the Ledger API and
+   * the registries check those.
+   * @param {string[]} scopes Core API v1 scopes.
+   * @param {{sub: string, jkt?: string}} result The checked presentation.
+   * @returns {object} The token response.
+   */
+  function issueToken(scopes, result) {
+    const now = Math.floor(Date.now() / 1000);
+    const scope = ['openid', ...scopes].join(' ');
+    const accessToken = signJwt(
+      {alg: 'ES256', typ: 'JWT', kid: signingKid},
+      {
+        iss: issuer,
+        aud: audience,
+        sub: result.sub,
+        scope,
+        iat: now,
+        exp: now + TOKEN_SECONDS,
+        jti: crypto.randomUUID(),
+        ...(result.jkt ? {cnf: {jkt: result.jkt}} : {}),
+      },
+      signing.privateKey,
+    );
+    if (!config.quiet) console.log('[ebsi-mock] token', scope, 'for', result.sub);
+    return {access_token: accessToken, token_type: 'Bearer', expires_in: TOKEN_SECONDS, scope};
+  }
+
+  // --- EBSI's pilot: Authorisation API v4 -------------------------------------
+
+  router.get('/authorisation/v4/.well-known/openid-configuration', (_req, res) =>
+    res.json({
+      issuer: pilotIssuer,
+      authorization_endpoint: `${pilotIssuer}/authorize`,
+      token_endpoint: `${pilotIssuer}/token`,
+      presentation_definition_endpoint: `${pilotIssuer}/presentation-definitions`,
+      jwks_uri: `${pilotIssuer}/jwks`,
+      scopes_supported: ['openid', ...Object.keys(PILOT)],
+      grant_types_supported: ['vp_token'],
+      response_types_supported: ['token'],
+      subject_types_supported: ['public'],
+      subject_syntax_types_supported: ['did:ebsi', 'did:key'],
+      vp_formats_supported: {jwt_vp: {alg_values_supported: ['ES256']}, jwt_vc: {alg_values_supported: ['ES256']}},
+    }),
+  );
+
+  router.get('/authorisation/v4/jwks', (_req, res) => res.json({keys: [{...signing.publicJwk, kid: signingKid, alg: 'ES256', use: 'sig'}]}));
+
+  /** The pilot scope a `scope` parameter names: `openid <scope>`, exactly one. */
+  const pilotScope = (value) => {
+    const parts = String(value ?? '').split(/\s+/).filter(Boolean);
+    const named = parts.filter((part) => part !== 'openid');
+    return parts.includes('openid') && named.length === 1 && PILOT[named[0]] ? named[0] : undefined;
+  };
+
+  router.get('/authorisation/v4/presentation-definitions', (req, res) => {
+    const scope = pilotScope(req.query.scope);
+    if (!scope) return res.status(400).json({title: 'Bad Request', status: 400, detail: 'Invalid scope.'});
+    return res.json(presentationDefinition(PILOT[scope]));
+  });
+
+  router.post('/authorisation/v4/token', express.urlencoded({extended: false, limit: '256kb'}), async (req, res, next) => {
+    try {
+      const body = req.body ?? {};
+      if (body.grant_type !== 'vp_token') return res.status(400).json({error: 'unsupported_grant_type', error_description: 'grant_type must be vp_token.'});
+      const scope = pilotScope(body.scope);
+      if (!scope) return res.status(400).json({error: 'invalid_scope', error_description: 'Name one scope besides openid.'});
+      const definition = PILOT[scope];
+      let submission;
+      try {
+        submission = JSON.parse(String(body.presentation_submission));
+      } catch {
+        submission = undefined;
+      }
+      const map = Array.isArray(submission?.descriptor_map) ? submission.descriptor_map : undefined;
+      if (submission?.definition_id !== definition.id || !map || (definition.descriptor ? map.length !== 1 || map[0]?.id !== definition.descriptor : map.length))
+        return res.status(400).json({error: 'invalid_request', error_description: `presentation_submission must answer ${definition.id}.`});
+      if (typeof body.vp_token !== 'string') return res.status(400).json({error: 'invalid_request', error_description: 'vp_token must be a VP JWT.'});
+      const result = await checkPresentation({
+        scopes: [definition.scope],
+        jwt: body.vp_token,
+        typeValues: definition.types,
+        algs: definition.algs,
+        aud: pilotIssuer,
+      });
+      if (result.error) return res.status(400).json({error: 'invalid_request', error_description: result.error});
+      return res.set('cache-control', 'no-store').json(issueToken([definition.scope], result));
     } catch (error) {
       next(error);
     }

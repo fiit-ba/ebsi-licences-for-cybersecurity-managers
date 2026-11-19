@@ -13,6 +13,25 @@ import type { GovernanceActions } from './governance.ts';
 import { postgresOrganizationCancellations } from '../accreditation/cancellations.ts';
 
 /**
+ * The TI a status case is about.
+ * @param database - Installation pool.
+ * @param proposalId - The case.
+ * @returns The certificate's issuer DID.
+ * @throws Error for a case without a certificate.
+ */
+export async function issuerOfCase(database: Pool, proposalId: string) {
+  const {
+    rows: [row],
+  } = await database.query<{ issuer_did: string }>(
+    `SELECT c.issuer_did FROM certificate_status_proposals p
+     JOIN registered_certificates c ON c.id=p.certificate_id WHERE p.id=$1`,
+    [proposalId],
+  );
+  if (!row) throw new Error('The case names no certificate.');
+  return row.issuer_did;
+}
+
+/**
  * Create a bounded retry worker for approved decisions and withdrawals.
  *
  * @param database - PostgreSQL pool.
@@ -61,6 +80,8 @@ export function postgresGovernanceDelivery(
     );
     for (const { id } of rows) {
       try {
+        // The case goes to the governance contract of its TI's TAO.
+        const contract = await governance.contractFor(await issuerOfCase(database, id));
         // Pin deployment identity in a separate commit before any external
         // side effect. A lost transaction response cannot switch the case
         // to a newly configured contract on the next process start.
@@ -71,7 +92,7 @@ export function postgresGovernanceDelivery(
           WHERE id = $1 AND decision IS DISTINCT FROM 'rejected'
             AND requires_governance AND applied_at IS NULL AND closed_at IS NULL
         `,
-          [id, governance.contract, governance.chainId],
+          [id, contract, governance.chainId],
         );
         await transaction(database, async (client: PoolClient) => {
           const {
@@ -111,7 +132,7 @@ export function postgresGovernanceDelivery(
             }
             if (
               record.onchain_contract &&
-              (record.onchain_contract !== governance.contract ||
+              (record.onchain_contract !== contract ||
                 Number(record.onchain_chain_id) !== governance.chainId)
             ) {
               throw new Error('The approved case belongs to a different governance deployment.');
@@ -184,7 +205,7 @@ export function postgresGovernanceDelivery(
                   AND $5 IN ('cancelled', 'expired') THEN clock_timestamp() END
               WHERE id = $1
             `,
-              [id, result.id, governance.contract, governance.chainId, result.state, canApply],
+              [id, result.id, contract, governance.chainId, result.state, canApply],
             );
             if (result.state === 'executed' && canApply) {
               // A later decision may already have changed the standing again.
@@ -280,7 +301,7 @@ export function postgresGovernanceDelivery(
                   onchain_proposal_id: result.id,
                   state: result.state,
                   chain_id: governance.chainId,
-                  contract: governance.contract,
+                  contract,
                   reason_hash: '0x' + expectedReason.toString('hex'),
                 },
               });

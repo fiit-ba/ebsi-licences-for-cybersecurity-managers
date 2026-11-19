@@ -27,8 +27,8 @@ export async function configuredDomains(database: Pool) {
       registry,
       process.env,
       organizations.accreditation.ensureAccredited,
-      // A first issuance asks for its TI's onboarding (in development, of the worker).
-      organizations.onboardIssuer,
+      // A first issuance checks that its TI is accredited in EBSI.
+      organizations.ensureIssuer,
     );
     timestamp = await configuredTimestamp(database, process.env, issuer?.ledgerSignerAddresses);
     return {

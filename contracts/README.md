@@ -11,7 +11,7 @@ outside this directory.
 
 ```bash
 npm install                        # also the Solidity dependencies (forge soldeer install)
-forge test                         # 200 tests; test/integration/ (5 suites) skips without a deployed chain
+forge test                         # 210 tests; test/integration/ (5 suites) skips without a deployed chain
 node scripts/export-abi.js --check # the generated interface in abi/ is current
 npm run compile                    # compiles, then regenerates it
 make integration                   # deploys everything to a fresh anvil, then runs test/integration/
@@ -65,7 +65,12 @@ Registry. This contract is a template *candidate*.
 What works today is a local chain with EBSI's registry contracts on it, from
 [`local/ebsi-mock/`](local/ebsi-mock/). `make integration` deploys them and
 these contracts to a fresh anvil and runs the scenarios against them, with
-nothing but this package. In the Professional License Registry repository, the
+nothing but this package. On anvil, and in the tests, the DID Registry and the
+Trusted Issuers Registry stand at the addresses EBSI's PILOT network has them
+at ([`scripts/PilotRegistries.sol`](scripts/PilotRegistries.sol)), so the
+governance implementation, which keeps them as immutables, is the same
+bytecode there as on the pilot; the local Besu network deploys them at fresh
+addresses. In the Professional License Registry repository, the
 local Besu QBFT network is `infra/besu/besu-qbft-network/`, and the full
 sequence (the EBSI registry contracts first, then these) is in its
 `docs/GUIDE.md`; in short, from this directory there:
@@ -143,13 +148,13 @@ copies in `local/ebsi-mock/` (each receipt is left in `broadcast/`):
 
 | Transaction | EBSI's review | `make integration` |
 |---|---|---|
-| deploying a proxy (`deployProxy`) | about 600,000 to 670,000 | 558,000 (registry), 627,000 (governance) |
-| `registerCertificate` | about 270,000 | 344,000 |
-| `addTi` | about 590,000 | 674,000 |
-| a suspension through the quorum | about 750,000 | 1,018,000 |
-| — `proposeAction` | 430,000 | 484,000 |
-| — `signProposal` | 170,000 | 216,000 |
-| — `execute` | 145,000 | 318,000 |
+| deploying a proxy (`deployProxy`) | about 600,000 to 670,000 | 558,000 (registry), 576,000 (governance) |
+| `registerCertificate` | about 270,000 | 339,000 |
+| `addTi` | about 590,000 | 673,000 |
+| a suspension through the quorum | about 750,000 | 1,000,000 |
+| — `proposeAction` | 430,000 | 482,000 |
+| — `signProposal` | 170,000 | 209,000 |
+| — `execute` | 145,000 | 309,000 |
 
 The figures also depend on the length of the DIDs and on the TI's signers and
 cosigners. A longer trust chain costs more. `isActiveTi` reads the Trusted Issuers
@@ -221,10 +226,11 @@ owner). After `addTi` it can replace a TI's cosigners (`setCosigners`), follow
 a TI to a new accreditation (`setTiAttribute`: a revoked attribute never comes
 back) and point the two contracts at each other (`setCertificateRegistry`, and
 `setGovernance` on the registry). It cannot point the contract at other EBSI
-registries: they are set when the proxy is initialized and never change, as
-their addresses never change on EBSI, so a compromised TAO key cannot swap in
-registries of its own. Should EBSI ever move one, a new implementation version
-would have to carry the change. A TI's signer keys, policies and proposal lifetime
+registries: they are immutables of the implementation, given to its
+constructor, so no transaction changes them. Their addresses never change on
+EBSI, so a compromised TAO key cannot swap in registries of its own. Each
+network deploys its own implementation with its own registries; should EBSI
+ever move one, a new implementation version carries the change. A TI's signer keys, policies and proposal lifetime
 change only through the TI's own quorum. Ownership can be transferred, never
 renounced.
 
@@ -286,6 +292,11 @@ stops counting. And a proposal past the time to live can no longer be signed
 or executed. A stale proposal for the same certificate is expired when a new
 one is opened, instead of blocking it.
 
+The time to live runs from the proposal's opening and covers its timelock, so
+it is at least `MIN_SIGNING_WINDOW` (a day) longer than the TI's longest
+timelock, and at most `MAX_PROPOSAL_TTL`: otherwise a quorum could be reached
+and still never be executed. A proposal keeps the lifetime it opened with.
+
 **A quorum regained restarts the timelock.** A quorum can be lost after it was
 reached: a signer key is removed, replaced or dropped from the DID Registry,
 or a stricter policy is adopted.
@@ -345,8 +356,8 @@ own function, so a signer's wallet names what it is asked to approve:
 | `proposeAddSigner(tiId, signer, role)` | a new key for a role; it must be a valid key of the TI's DID in the DID Registry |
 | `proposeRemoveSigner(tiId, signer)` | refused if a policy could then no longer be met |
 | `proposeReplaceSigner(tiId, signer, replacement)` | a key rotation in one step; the replacement, a valid key of the TI's DID, takes the role |
-| `proposePolicy(tiId, kind, threshold, requiredRoleMask, vetoRoleMask, timelock)` | one policy |
-| `proposeProposalTtl(tiId, ttl)` | how long a proposal may stay open |
+| `proposePolicy(tiId, kind, threshold, requiredRoleMask, vetoRoleMask, timelock)` | one policy; its timelock must leave `MIN_SIGNING_WINDOW` within the proposal lifetime |
+| `proposeProposalTtl(tiId, ttl)` | how long a proposal may stay open, from `MIN_SIGNING_WINDOW` past the longest timelock up to `MAX_PROPOSAL_TTL`; it applies to proposals opened afterwards, an open one keeps the lifetime it opened with |
 
 Then `signAdminProposal`, `executeAdminProposal`, `cancelAdminProposal` and
 `expireAdminProposal`.
@@ -448,7 +459,7 @@ a dry run and writes no deployment record; `make deploy-besu DRY_RUN=1` is one.
 `npm run compile` also runs [`scripts/export-abi.js`](scripts/export-abi.js). It
 writes both contracts' ABIs (`abi`, `registryAbi`), the enums (read from the
 Solidity source), the role numbers and the contracts' own bounds
-(`MAX_TIMELOCK`, `MAX_PROPOSAL_TTL`, `MAX_ROLE`, `MAX_TRUST_CHAIN_DEPTH`, read
+(`MAX_TIMELOCK`, `MAX_PROPOSAL_TTL`, `MIN_SIGNING_WINDOW`, `MAX_ROLE`, `MAX_TRUST_CHAIN_DEPTH`, read
 from the source like the enums) to
 [`abi/governance-contract.json`](abi/governance-contract.json). A caller takes
 the interface from there rather than restating the contracts by hand.
@@ -541,16 +552,17 @@ known answers in `test/vectors/hashes.json` cover the commitment as well.
 
 ### Wiring it to the back-office
 
-The back-office sends to the ledger itself, through EBSI's Ledger API (Core API v1,
-`POST /v1/ledger`): each transaction is signed in KMS and carries a token from the
-Authorisation API whose scope covers it (`ledger:invoke` for these contracts, which
-EBSI lists as Trusted Contracts). Reads need no token. In development, the
+The back-office sends to the ledger itself, through EBSI's Ledger API (on the pilot
+`POST /ledger/v4/blockchains/besu`; in Core API v1 `POST /v1/ledger`): each transaction
+is signed in KMS and carries a token from the Authorisation API whose scope covers it
+(`ledger_invoke` on the pilot, `ledger:invoke` in Core API v1, for these contracts,
+which EBSI lists as Trusted Contracts). Reads need no token. In development, the
 Professional License Registry's EBSI service (`infra/ebsi-mock` in that
 repository) serves that API over the contracts here. The paths below are in
 that repository too.
 
 Each TI decides with its own keys. Its A and B keys are secp256k1 keys in the
-back-office's KMS, published as capabilityInvocation keys of the TI's DID; the
+back-office's KMS, which the TI lists as capabilityInvocation keys of its own DID; the
 back-office signs only the exact call recorded beforehand: this contract, that
 function with those arguments, this chain, no value, and only once
 (`back-office/server/keys/ledger-signing.ts`).
@@ -564,12 +576,15 @@ as proposals (`back-office/server/lifecycle/governance.ts`);
 the console reads the contract directly and votes through the back-office or a
 signer's wallet.
 
-Enable it by pointing the back-office at the deployment:
+Enable it by pointing the back-office at the first deployment and at EBSI's Proxy
+Factory, through which it deploys every further TAO's pair from the same templates
+(the RootTAO deploys, the TAO's own key owns the pair):
 
 ```bash
 export PLR_GOVERNANCE_CONTRACT=0x…   # CertificateGovernance
 export PLR_CERTIFICATE_REGISTRY=0x…  # CertificateRegistry
-export PLR_LEDGER_RPC_URL=https://api-pilot.ebsi.eu/v1/ledger
+export PLR_PROXY_FACTORY=0x…         # EBSI's ProxyFactory
+export PLR_LEDGER_RPC_URL=https://api-pilot.ebsi.eu/ledger/v4/blockchains/besu
 export PLR_LEDGER_CHAIN_ID=…
 ```
 

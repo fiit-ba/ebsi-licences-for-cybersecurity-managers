@@ -46,7 +46,7 @@ test('finalization signs a holder-bound credential without blocking on backgroun
     },
     ledger: {
       chainId: 1337,
-      contract,
+      contractFor: async () => contract,
       async ensureRegistered() {
         assert.fail('Signing must not deliver a background ledger registration.');
       },
@@ -88,17 +88,26 @@ test('finalization signs a holder-bound credential without blocking on backgroun
   records.push(record, record);
   const vc = payload.vc as {
     id: string;
+    issued: string;
     issuanceDate: string;
+    validFrom: string;
+    expirationDate: string;
     credentialSubject: Record<string, unknown>;
     credentialStatus: { id: string }[];
     termsOfUse: { id: string }[];
   };
   assert.equal(vc.id, certificate.credential_id);
-  assert.ok(Date.parse(vc.issuanceDate) > +certificate.created_at);
-  assert.equal(payload.iat, Math.floor(Date.parse(vc.issuanceDate) / 1000));
+  // EBSI's rules for a credential's dates (its verifiable-credential library refuses others):
+  // `issued` is the signing instant, the JWT's iat, never the earlier offer registration;
+  // `issuanceDate` is exactly `validFrom`, the JWT's nbf; `expirationDate` is its exp.
+  assert.ok(Date.parse(vc.issued) > +certificate.created_at);
+  assert.equal(payload.iat, Math.floor(Date.parse(vc.issued) / 1000));
+  assert.equal(vc.issuanceDate, vc.validFrom);
+  assert.equal(Date.parse(vc.validFrom), Number(payload.nbf) * 1000);
+  assert.equal(Date.parse(vc.expirationDate), Number(payload.exp) * 1000);
   assert.equal(
-    validatedCredential.issuanceDate,
-    vc.issuanceDate,
+    validatedCredential.issued,
+    vc.issued,
     'TSR validation must inspect the signed timestamp, not the registration date.',
   );
   assert.equal(vc.credentialSubject.id, subject);
@@ -128,7 +137,11 @@ test('finalization signs a holder-bound credential without blocking on backgroun
     },
     isIssuerRevoked: async () => localRevocation,
     validateSchemas: async (credential, schemas) => {
-      assert.equal(schemas.length, 2);
+      // The licence's own, its status entry's, and EBSI's IssuanceCertificate type extension.
+      assert.deepEqual(schemas.map((schema: { id: string }) => schema.id).slice(2), [
+        'https://tsr.example/schemas/z2yw1Mq2Cq4jN8B2bJ66cGcFEqjrJQUinxHAUjZTkVKjz',
+      ]);
+      assert.equal(schemas.length, 3);
       projectedSubject = credential.credentialSubject;
     },
     assertionKey: async (did, kid) => {

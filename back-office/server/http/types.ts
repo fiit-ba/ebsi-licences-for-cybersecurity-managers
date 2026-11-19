@@ -4,7 +4,7 @@ import type { postgresAccounts } from '../identity/auth/accounts.ts';
 import type { operatorTokens } from '../identity/auth/tokens.ts';
 import type { postgresOperatorManagement } from '../identity/administration/management.ts';
 import type { postgresSchemaCatalog } from '../schemas/catalog.ts';
-import type { postgresSchemaManagement } from '../schemas/management.ts';
+import type { registrySchemas } from '../schemas/registry-schemas.ts';
 import type { postgresIssuanceSchemes } from '../issuance/schemes.ts';
 import type { createIssuer } from '../issuance/issuer.ts';
 import type { walletPresentationProfile } from '../verification/http-profile.ts';
@@ -30,7 +30,8 @@ export interface BackOfficeServerOptions {
   loginThrottle?: (address: string) => Promise<number | null>;
   operatorManagement?: ReturnType<typeof postgresOperatorManagement>;
   schemaCatalog?: ReturnType<typeof postgresSchemaCatalog>;
-  schemaManagement?: ReturnType<typeof postgresSchemaManagement>;
+  /** The certificate schemas read from the Trusted Schemas Registry. */
+  registrySchemas?: ReturnType<typeof registrySchemas>;
   issuanceSchemes?: ReturnType<typeof postgresIssuanceSchemes>;
   issuer?: ReturnType<typeof createIssuer>;
   presentations?: Awaited<ReturnType<typeof walletPresentationProfile>>;
@@ -51,7 +52,12 @@ export interface BackOfficeServerOptions {
   consoleAssets?: (request: IncomingMessage, response: ServerResponse) => boolean;
   registrationEnabled?: boolean;
   registrationThrottle?: (address: string) => Promise<number | null>;
-  governanceProfile?: { contract: string; consoleRoles: readonly string[] };
+  governanceProfile?: {
+    contract: string;
+    consoleRoles: readonly string[];
+    /** The governance contract an account's console works with: its organization's TAO's. */
+    contractOf?(accountId: number): Promise<string | undefined>;
+  };
   governance?: ReturnType<typeof postgresConsoleGovernance>;
   ready?: () => Promise<unknown>;
   reportError?: (error: unknown) => void;

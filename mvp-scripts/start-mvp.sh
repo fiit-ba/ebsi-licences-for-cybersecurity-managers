@@ -281,6 +281,11 @@ ensure_governance_contract() {
   set_env_value "$ROOT/infra/.env" "PLR_CERTIFICATE_REGISTRY" "$registry"
   set_env_value "$ROOT/infra/.env" "PLR_GOVERNANCE_TAO_DID" "$DEVELOPMENT_TAO_DID"
   set_env_value "$ROOT/holder-wallet/.env" "CERTIFICATE_REGISTRY" "$registry"
+  # Every further TAO's pair is deployed through EBSI's Proxy Factory, and recognised by it.
+  factory="$(jq -r '.ebsi.ProxyFactory.contractAddress // empty' "$ROOT/contracts/deployments/besu-ebsi.json" 2>/dev/null || true)"
+  [ -n "$factory" ] || fail "No ProxyFactory address in contracts/deployments/besu-ebsi.json"
+  set_env_value "$ROOT/infra/.env" "PLR_PROXY_FACTORY" "$factory"
+  set_env_value "$ROOT/holder-wallet/.env" "EBSI_PROXY_FACTORY" "$factory"
   printf '%s\n' "$(contract_sources_hash)" > "$RUN_DIR/governance-source.sha256"
   ok "certificate registry: $registry, governance: $governance"
 }
@@ -397,8 +402,9 @@ set_env_value "$ROOT/holder-wallet/.env" "CRYPTO_SERVICE_URL" "http://$LAN_IP:80
 set_env_value "$ROOT/holder-wallet/.env" "BACKOFFICE_URL" "http://$LAN_IP:8000"
 set_env_value "$ROOT/holder-wallet/.env" "EBSI_URL" "http://$LAN_IP:8090"
 set_env_value "$ROOT/holder-wallet/.env" "LEDGER_CHAIN_ID" "1337"
-# The back-office signs through EBSI's Ledger API (the development EBSI service), not the node.
-set_env_value "$ROOT/infra/.env" "PLR_LEDGER_RPC_URL" "http://ebsi-mock:8090/v1/ledger"
+# The back-office signs through EBSI's Ledger API (the development EBSI service), not the node,
+# in the pilot's shape (PLR_EBSI_API=pilot).
+set_env_value "$ROOT/infra/.env" "PLR_LEDGER_RPC_URL" "http://ebsi-mock:8090/ledger/v4/blockchains/besu"
 set_env_value "$ROOT/holder-wallet/.env" "EBSI_SUPPORT_OFFICE_DID" "did:ebsi:zSupport"
 set_ios_ats_host "$LAN_IP"
 ok "server and Wallet URLs use $LAN_IP"

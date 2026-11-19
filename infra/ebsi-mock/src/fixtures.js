@@ -19,6 +19,7 @@ import express from 'express';
 import {AbiCoder, Wallet, concat, hexlify, keccak256, sha256, toUtf8Bytes} from 'ethers';
 import {derivedP256, registryKey, secp256k1Jwk, thumbprint} from './keys.js';
 import {signJwt} from './jwt.js';
+import {trustChainSchemas} from './ebsi-schemas.js';
 
 const ISSUER_TYPE = {RootTAO: 1, TAO: 2, TI: 3, Revoked: 4};
 const FIVE_YEARS = 5 * 365 * 24 * 3600;
@@ -136,7 +137,7 @@ export function fixturesRouter(config, chain, office) {
       validUntil: iso(now + FIVE_YEARS),
       credentialSubject: {id: subject, ...(accreditedFor ? {accreditedFor} : {})},
       ...(termsOfUse ? {termsOfUse} : {}),
-      credentialSchema: {id: `${config.base}/v1/schemas-registry/schemas/zPlrAccreditationV1`, type: 'FullJsonSchemaValidator2021'},
+      credentialSchema: trustChainSchemas(config.base, types, Boolean(termsOfUse)),
     };
     return signJwt({alg: 'ES256', typ: 'JWT', kid: signer.kid}, {iss: issuer, sub: subject, jti: id, iat: now, nbf: now, exp: now + FIVE_YEARS, vc}, signer.privateKey);
   }

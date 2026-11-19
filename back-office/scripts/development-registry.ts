@@ -4,7 +4,40 @@ import { ceremonyKmsClient, kmsKeyCeremony } from '../server/keys/kms-provider.t
 import { didRegistry } from '../server/ebsi/did-registry.ts';
 import { configuredOrganizations } from '../server/accreditation/runtime.ts';
 import { trustedSchemaRegistry } from '../server/schemas/tsr.ts';
-import { synchronizeSchemas } from '../server/schemas/publication.ts';
+import { registerDevelopmentSchemas } from '../server/schemas/publication.ts';
+import { configuredSchemaIds, registrySchemas } from '../server/schemas/registry-schemas.ts';
+import type { DevelopmentSupportOffice } from '../server/ebsi/support-office.ts';
+import { developmentSchemaDocument, developmentSchemaId } from './development-schema.ts';
+import { developmentWallet } from '../server/accreditation/development-wallet.ts';
+
+/**
+ * Register the development schemas as the Support Office, then read the configured ones back
+ * from the registry, as the server does at startup.
+ * @param database - Installation pool.
+ * @param supportOffice - The development Support Office.
+ * @param env - Development environment with `PLR_TSR_URL` and `PLR_TSR_SCHEMAS`.
+ * @param registered - What to do when a type gains a version (TI accreditations cover it).
+ * @returns The number of schemas read from the registry.
+ * @throws Configuration, registry or database errors.
+ */
+async function developmentSchemas(
+  database: Pool,
+  supportOffice: DevelopmentSupportOffice,
+  env: NodeJS.ProcessEnv,
+  registered?: (credentialType: string) => Promise<void>,
+) {
+  await registerDevelopmentSchemas(supportOffice, [
+    { id: developmentSchemaId, document: developmentSchemaDocument },
+  ]);
+  const ids = configuredSchemaIds(env.PLR_TSR_SCHEMAS);
+  // Without ids the stored schemas stay as they are, as the server does.
+  if (!ids.length) return 0;
+  await registrySchemas(database, trustedSchemaRegistry(env.PLR_TSR_URL!), {
+    ids,
+    registered,
+  }).synchronize();
+  return ids.length;
+}
 
 /**
  * Bind the registry's DIDs and publish its RootTAO in the development EBSI registries.
@@ -38,7 +71,7 @@ export async function initializeDevelopmentRegistry(database: Pool, env = proces
       dids: didRegistry({ identifiersUrl: env.PLR_DIDR_URL }),
     });
     await store.identity(root.account_id, root.id, did);
-    await synchronizeSchemas(database, organizations.ebsi!.supportOffice!);
+    await developmentSchemas(database, organizations.ebsi!.supportOffice!, env);
     await organizations.onboarding.ensureAuthority(root.id);
     return { registry: did };
   } finally {
@@ -48,39 +81,27 @@ export async function initializeDevelopmentRegistry(database: Pool, env = proces
 }
 
 /**
- * Bind a TAO to the DID the governance contracts were deployed for, and publish it.
- * @param database - Existing installation pool.
- * @param actor - Administrator binding the identity.
- * @param organizationId - TAO organization UUID.
- * @param env - Explicit development environment with `PLR_GOVERNANCE_TAO_DID`.
- * @returns The TAO's DID and the address of its ledger key.
- * @throws Configuration, identity, KMS or registry errors.
+ * The demonstration organizations' own wallets, which the development bootstrap plays for them:
+ * the TAO the governance contracts were deployed for (its DID is `PLR_GOVERNANCE_TAO_DID`) and
+ * its TI. Any other TAO or TI brings its own DID and wallet.
+ * @param database - Installation pool.
+ * @param organizations - The configured organizations, with the development EBSI service.
+ * @param env - Development environment with `PLR_GOVERNANCE_TAO_DID`.
+ * @returns The two wallets.
+ * @throws Error without the development EBSI service or the TAO's DID.
  */
-export async function initializeDevelopmentTao(
+export function demoWallets(
   database: Pool,
-  actor: number,
-  organizationId: string,
+  organizations: ReturnType<typeof configuredOrganizations>,
   env = process.env,
 ) {
+  if (!organizations.publication)
+    throw new Error('The demonstration wallets need the development EBSI service.');
   if (!env.PLR_GOVERNANCE_TAO_DID) throw new Error('Configure PLR_GOVERNANCE_TAO_DID.');
-  const kms = ceremonyKmsClient(env);
-  const organizations = configuredOrganizations(
-    database,
-    trustedSchemaRegistry(env.PLR_TSR_URL!),
-    env,
-  );
-  try {
-    const store = postgresKeyManagement(database, {
-      kms: kmsKeyCeremony(kms),
-      dids: didRegistry({ identifiersUrl: env.PLR_DIDR_URL! }),
-    });
-    await store.identity(actor, organizationId, env.PLR_GOVERNANCE_TAO_DID);
-    const tao = await organizations.onboarding.ensureAuthority(organizationId);
-    return { did: tao.did, address: await tao.ledger.signer.getAddress() };
-  } finally {
-    kms.destroy();
-    organizations.close();
-  }
+  return {
+    tao: developmentWallet(database, organizations.publication, 0, env.PLR_GOVERNANCE_TAO_DID),
+    ti: developmentWallet(database, organizations.publication, 1),
+  };
 }
 
 /**
@@ -102,27 +123,52 @@ export async function synchronizeDevelopmentRegistry(database: Pool, env = proce
     env,
   );
   try {
-    const versions = await synchronizeSchemas(database, organizations.ebsi!.supportOffice!);
-    const authorities = (
+    const versions = await developmentSchemas(
+      database,
+      organizations.ebsi!.supportOffice!,
+      env,
+      organizations.schemaOptions.registered,
+    );
+    for (const { id } of (
       await database.query(
-        `SELECT o.id FROM accredited_organizations o WHERE o.kind IN ('rtao','tao') AND o.account_id IS NOT NULL
-         AND o.revoked_at IS NULL AND (o.kind='rtao' OR o.did IS NOT NULL) ORDER BY o.kind<>'rtao',o.id`,
+        "SELECT id FROM accredited_organizations WHERE kind='rtao' AND account_id IS NOT NULL AND revoked_at IS NULL",
       )
-    ).rows;
-    for (const row of authorities) await organizations.onboarding.ensureAuthority(row.id);
-    const { rows } = await database.query(`SELECT ti.id FROM accredited_organizations ti
-    JOIN accredited_organizations tao ON tao.id=ti.parent_id JOIN accredited_organizations root ON root.id=tao.parent_id
-    WHERE ti.kind='ti' AND ti.account_id IS NOT NULL AND ti.revoked_at IS NULL AND tao.revoked_at IS NULL AND root.revoked_at IS NULL ORDER BY ti.id`);
+    ).rows)
+      await organizations.onboarding.ensureAuthority(id);
+    // The demonstration TAO and TI do their part with the wallets bootstrap plays for them;
+    // every other organization does it with its own, and is only issued and checked here.
+    const wallets = env.PLR_GOVERNANCE_TAO_DID
+      ? demoWallets(database, organizations, env)
+      : undefined;
+    const demo = new Map(
+      wallets ? [wallets.tao, wallets.ti].map((wallet) => [wallet.did, wallet]) : [],
+    );
+    const { rows } =
+      await database.query(`SELECT o.id,o.kind,o.did,o.parent_id FROM accredited_organizations o
+    JOIN accredited_organizations parent ON parent.id=o.parent_id LEFT JOIN accredited_organizations root ON root.id=parent.parent_id
+    WHERE o.kind IN ('tao','ti') AND o.account_id IS NOT NULL AND o.did<>'' AND o.revoked_at IS NULL
+      AND parent.revoked_at IS NULL AND root.revoked_at IS NULL ORDER BY o.kind<>'tao',o.id`);
     let completed = 0;
+    let pending = 0;
     let governancePending = 0;
     for (const row of rows) {
       try {
+        const wallet = demo.get(row.did);
+        await wallet?.register(row.parent_id);
         await organizations.onboarding.onboard(row.id);
+        await wallet?.complete(row.id);
+        const { accredited } = await organizations.onboarding.check(row.id);
+        if (row.kind !== 'ti') continue;
+        if (!accredited) {
+          pending++;
+          continue;
+        }
         completed++;
         const setup = await organizations.governance?.ensure(row.id);
         if (setup?.state === 'pending') governancePending++;
       } catch (error) {
-        console.error('A TI remains pending:', (error as Error).message);
+        if (row.kind === 'ti') pending++;
+        console.error('An organization remains pending:', (error as Error).message);
       }
     }
     // Reapply committed withdrawals too; never republish a revoked TI as trusted.
@@ -151,7 +197,7 @@ export async function synchronizeDevelopmentRegistry(database: Pool, env = proce
     return {
       schema_versions: versions,
       issuers: completed,
-      pending: rows.length - completed,
+      pending,
       governance_pending: governancePending,
       withdrawals_pending: pendingWithdrawals,
     };

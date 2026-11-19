@@ -4,7 +4,12 @@ import type { Pool } from 'pg';
 import type { JwsSigner } from '../keys/kms-jws.ts';
 import type { DidRelationship, PublicEcKey } from './did-registry.ts';
 import type { EbsiAuthorisation, EbsiScope } from './authorisation.ts';
-import { sendRegistryTransaction, type EbsiLedgerProvider } from './ledger.ts';
+import {
+  sendRegistryTransaction,
+  sendSignedRegistryTransaction,
+  type EbsiLedgerProvider,
+} from './ledger.ts';
+import { ebsiApi, pilotRegistryContracts, type EbsiApi } from './api.ts';
 
 /** The DID and TIR writes this back-office makes (EBSI's DidRegistry and IssuersRegistry). */
 const didRegistry = new Interface([
@@ -42,6 +47,11 @@ export interface EbsiActor {
   /** Its accreditation attribute, when it accredits others. */
   attributeId?: string;
   ledger: { signer: Signer; jws: JwsSigner };
+  /**
+   * Its P-256 authentication key, when it has one: the pilot's Trusted Issuers Registry takes
+   * only ES256 presentations, which its secp256k1 ledger key cannot sign.
+   */
+  authentication?: JwsSigner;
 }
 
 /** A public key and the DID relationships it holds, with its active window. */
@@ -121,6 +131,13 @@ export function attributeFor(subjectDid: string, accreditorDid: string, type: 'T
  */
 export function ebsiPublisher(options: {
   database: Pool;
+  /** EBSI's APIs, in the shape configured; Core API v1 below `baseUrl` unless given. */
+  api?: EbsiApi;
+  /**
+   * The DID Registry and Trusted Issuers Registry contracts, where the API does not name them
+   * (the pilot); EBSI's pilot ones unless given.
+   */
+  registryContracts?: { didRegistry: string; issuersRegistry: string };
   baseUrl: string;
   provider: EbsiLedgerProvider;
   auth: EbsiAuthorisation;
@@ -129,18 +146,18 @@ export function ebsiPublisher(options: {
 }) {
   const { database, provider, auth, chainId } = options;
   const request = options.fetchApi ?? fetch;
-  const root = options.baseUrl.replace(/\/+$/, '');
+  const api = options.api ?? ebsiApi(options.baseUrl, 'core-v1');
   let addresses: Promise<{ didRegistry: string; issuersRegistry: string }> | undefined;
 
   /**
-   * Read one JSON resource of the Core API.
-   * @param path - Path under the base.
+   * Read one JSON resource of EBSI's APIs.
+   * @param url - Its URL.
    * @param accept - Optional Accept header.
    * @returns The JSON, or undefined for 404.
    * @throws Error for other failures.
    */
-  async function read(path: string, accept?: string) {
-    const response = await request(root + path, {
+  async function read(url: string, accept?: string) {
+    const response = await request(url, {
       headers: accept ? { accept } : {},
       redirect: 'error',
       cache: 'no-store',
@@ -150,7 +167,7 @@ export function ebsiPublisher(options: {
       await response.body?.cancel();
       return undefined;
     }
-    if (!response.ok) throw new Error(`EBSI answered HTTP ${response.status} for ${path}.`);
+    if (!response.ok) throw new Error(`EBSI answered HTTP ${response.status} for ${url}.`);
     return response.json();
   }
 
@@ -159,12 +176,16 @@ export function ebsiPublisher(options: {
    * @returns DID and Issuers Registry addresses.
    * @throws Error when the details are unavailable.
    */
-  function registries() {
+  function registriesOf() {
     addresses ??= (async () => {
+      if (options.registryContracts) return options.registryContracts;
+      // Core API v1 names them; on the pilot only the development EBSI service does, and EBSI's
+      // pilot ones are the default.
       const [did, tir] = await Promise.all([
-        read('/v1/did-registry/details'),
-        read('/v1/issuers-registry/details'),
+        read(`${api.didRegistry}/details`),
+        read(`${api.issuersRegistry}/details`),
       ]);
+      if (api.version === 'pilot' && !did && !tir) return { ...pilotRegistryContracts };
       if (!did?.contractAddress || !tir?.contractAddress)
         throw new Error('EBSI names no registry contracts.');
       return { didRegistry: did.contractAddress, issuersRegistry: tir.contractAddress };
@@ -233,10 +254,32 @@ export function ebsiPublisher(options: {
           scope,
           holder: actor.did,
           signer: actor.ledger.jws,
+          alternate: actor.authentication,
           credential,
         });
         try {
-          await sendRegistryTransaction({ provider, signer: actor.ledger.signer, to, data, token });
+          if (api.version === 'pilot') {
+            const registries = await registriesOf();
+            await sendSignedRegistryTransaction({
+              provider,
+              signer: actor.ledger.signer,
+              jsonrpc:
+                (to.toLowerCase() === registries.didRegistry.toLowerCase()
+                  ? api.didRegistry
+                  : api.issuersRegistry) + '/jsonrpc',
+              to,
+              data,
+              token,
+              chainId,
+            });
+          } else
+            await sendRegistryTransaction({
+              provider,
+              signer: actor.ledger.signer,
+              to,
+              data,
+              token,
+            });
           return;
         } catch (error) {
           if ((error as { code?: unknown })?.code !== 'TOKEN_REFUSED' || fresh) throw error;
@@ -259,7 +302,7 @@ export function ebsiPublisher(options: {
    */
   async function document(did: string, at?: Date) {
     const query = at ? `?valid-at=${encodeURIComponent(at.toISOString())}` : '';
-    return read(`/v1/did-registry/identifiers/${did}${query}`, 'application/did+json');
+    return read(`${api.didRegistry}/identifiers/${did}${query}`, 'application/did+json');
   }
 
   /**
@@ -269,11 +312,12 @@ export function ebsiPublisher(options: {
    * @returns `{body, issuerType, tao, rootTao, hash}`, or undefined.
    */
   async function attribute(did: string, attributeId: string) {
-    return (await read(`/v1/issuers-registry/issuers/${did}/attributes/${attributeId}`))?.attribute;
+    return (await read(`${api.issuersRegistry}/issuers/${did}/attributes/${attributeId}`))
+      ?.attribute;
   }
 
   return {
-    registries,
+    registries: registriesOf,
     document,
     attribute,
 
@@ -304,7 +348,7 @@ export function ebsiPublisher(options: {
         await transact(
           actor,
           'did-registry:invite',
-          (await registries()).didRegistry,
+          (await registriesOf()).didRegistry,
           data,
           await onboarding(),
         );
@@ -322,7 +366,7 @@ export function ebsiPublisher(options: {
      * @throws Registry, token, KMS or RPC errors.
      */
     async publishKeys(actor: EbsiActor, keys: PublishedKey[]) {
-      const { didRegistry: to } = await registries();
+      const { didRegistry: to } = await registriesOf();
       const current = (await document(actor.did)) ?? {};
       const listed = (relationship: string, id: string) =>
         Array.isArray(current[relationship]) && current[relationship].includes(id);
@@ -417,7 +461,7 @@ export function ebsiPublisher(options: {
       await transact(
         accreditor,
         'issuers-registry:write',
-        (await registries()).issuersRegistry,
+        (await registriesOf()).issuersRegistry,
         issuersRegistry.encodeFunctionData('setAttributeMetadata', [
           subjectDid,
           salt,
@@ -441,7 +485,7 @@ export function ebsiPublisher(options: {
       await transact(
         subject,
         'issuers-registry:invite',
-        (await registries()).issuersRegistry,
+        (await registriesOf()).issuersRegistry,
         issuersRegistry.encodeFunctionData('setAttributeData', [
           subject.did,
           attributeId,
@@ -466,7 +510,7 @@ export function ebsiPublisher(options: {
         await transact(
           accreditor,
           'issuers-registry:write',
-          (await registries()).issuersRegistry,
+          (await registriesOf()).issuersRegistry,
           issuersRegistry.encodeFunctionData('setAttributeMetadata', [
             subjectDid,
             attributeId,

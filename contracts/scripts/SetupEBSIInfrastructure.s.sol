@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Networks} from "./Networks.sol";
+import {PilotRegistries, PILOT_DID_REGISTRY, PILOT_ISSUERS_REGISTRY} from "./PilotRegistries.sol";
 import {EBSIContracts, EBSIConfig} from "./DeployTypes.sol";
 
 // EBSI Contracts
@@ -28,6 +29,11 @@ import {ProxyFactory} from "ebsi-mock/contract-factory/ProxyFactory.sol";
  *      creation; EBSI itself runs them behind its versioned beacons (beacon-proxy/), which
  *      the governance contract does not depend on.
  *
+ *      On anvil the DID Registry and the Trusted Issuers Registry stand at the addresses EBSI's
+ *      PILOT network has them at (PilotRegistries.sol), so the governance implementation, which
+ *      keeps them as immutables, is the same bytecode as on the pilot. Elsewhere (the local Besu
+ *      network, which has no anvil_setCode) every mock is deployed at a fresh address.
+ *
  *      Environment:
  *        DEPLOY_EBSI              deploy the mocks (default true), or load existing addresses
  *        GOVERNANCE_DEPLOYER_KEY  the deployer; on a development chain the first development key
@@ -35,8 +41,10 @@ import {ProxyFactory} from "ebsi-mock/contract-factory/ProxyFactory.sol";
  *                                 (default: the deployer)
  *        EBSI_OPERATOR            the Policies Registry's operator (default: the deployer)
  *        EBSI_GOVERNOR            the factory contracts' EBSI governor (default: the deployer)
+ *        EBSI_DID_REGISTRY, EBSI_ISSUERS_REGISTRY
+ *                                 with DEPLOY_EBSI=false: default to the PILOT's registries
  */
-contract SetupEBSIInfrastructure is Script, Networks {
+contract SetupEBSIInfrastructure is Script, Networks, PilotRegistries {
     // solhint-disable private-vars-leading-underscore, ordering
 
     /// @param variable The environment variable that names the missing address.
@@ -124,7 +132,12 @@ contract SetupEBSIInfrastructure is Script, Networks {
      * @param policyRegistry_ Address of the Policies Registry
      */
     function _deployDidRegistry(address policyRegistry_) private returns (address) {
-        return _proxy(address(new DidRegistry()), abi.encodeCall(DidRegistry.initialize, (policyRegistry_)));
+        address implementation = address(new DidRegistry());
+        bytes memory init = abi.encodeCall(DidRegistry.initialize, (policyRegistry_));
+        if (block.chainid == ANVIL_CHAIN_ID) {
+            return _proxyAtPilotAddress(PILOT_DID_REGISTRY, implementation, init, true);
+        }
+        return _proxy(implementation, init);
     }
 
     /**
@@ -133,9 +146,12 @@ contract SetupEBSIInfrastructure is Script, Networks {
      * @param didRegistry_ Address of the DID Registry
      */
     function _deployIssuersRegistry(address policyRegistry_, address didRegistry_) private returns (address) {
-        return _proxy(
-            address(new IssuersRegistry()), abi.encodeCall(IssuersRegistry.initialize, (policyRegistry_, didRegistry_))
-        );
+        address implementation = address(new IssuersRegistry());
+        bytes memory init = abi.encodeCall(IssuersRegistry.initialize, (policyRegistry_, didRegistry_));
+        if (block.chainid == ANVIL_CHAIN_ID) {
+            return _proxyAtPilotAddress(PILOT_ISSUERS_REGISTRY, implementation, init, true);
+        }
+        return _proxy(implementation, init);
     }
 
     /**
@@ -199,8 +215,8 @@ contract SetupEBSIInfrastructure is Script, Networks {
      * @notice Get EBSI configuration from environment variables
      * @return config EBSIConfig struct with deployment settings
      * @dev if deployEBSI is false, every address of `existing` is required (EBSI_POLICY_REGISTRY,
-     *      EBSI_DID_REGISTRY, EBSI_PROXY_REGISTRY, EBSI_PROXY_FACTORY, EBSI_ISSUERS_REGISTRY,
-     *      EBSI_SCHEMAS_REGISTRY, EBSI_TIMESTAMP)
+     *      EBSI_PROXY_REGISTRY, EBSI_PROXY_FACTORY, EBSI_SCHEMAS_REGISTRY, EBSI_TIMESTAMP), but for
+     *      EBSI_DID_REGISTRY and EBSI_ISSUERS_REGISTRY, which default to the PILOT's
      * @dev if deployEBSI is true, all addresses are set to zero as their deployment is handled afterwards
      */
     function getEBSIConfig() public view returns (EBSIConfig memory config) {
@@ -211,10 +227,10 @@ contract SetupEBSIInfrastructure is Script, Networks {
             // Connect to existing EBSI - all addresses required
             config.existing = EBSIContracts({
                 policyRegistry: _requiredAddress("EBSI_POLICY_REGISTRY"),
-                didRegistry: _requiredAddress("EBSI_DID_REGISTRY"),
+                didRegistry: vm.envOr("EBSI_DID_REGISTRY", PILOT_DID_REGISTRY),
                 proxyTemplateRegistry: _requiredAddress("EBSI_PROXY_REGISTRY"),
                 proxyFactory: _requiredAddress("EBSI_PROXY_FACTORY"),
-                issuersRegistry: _requiredAddress("EBSI_ISSUERS_REGISTRY"),
+                issuersRegistry: vm.envOr("EBSI_ISSUERS_REGISTRY", PILOT_ISSUERS_REGISTRY),
                 schemasRegistry: _requiredAddress("EBSI_SCHEMAS_REGISTRY"),
                 timestamp: _requiredAddress("EBSI_TIMESTAMP")
             });

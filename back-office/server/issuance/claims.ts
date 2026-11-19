@@ -56,16 +56,19 @@ function decimalDigits(value: string): string {
   });
 }
 
+/** Where a licence's number may come from, whether or not its schema defines it. */
+const numberKeys = ['certificateNumber', 'registrationNumber'];
+
 /**
  * Normalize claims, apply defaults and validate schema and training dates.
  *
  * @param input - Untrusted claim object without a holder DID.
  * @param fields - Published field definitions.
- * @param organization - Trusted issuer name used by organization fields.
- * @returns Normalized claims including accepted additional input keys.
- * @throws IssuanceError for malformed claims, missing fields, invalid values or inconsistent dates.
+ * @returns Normalized claims: the schema's attributes and the licence's number.
+ * @throws IssuanceError for malformed claims, missing fields, invalid values, attributes the schema
+ * does not define or inconsistent dates.
  */
-export function normalizeClaims(input: unknown, fields: SchemaField[], organization: string) {
+export function normalizeClaims(input: unknown, fields: SchemaField[]) {
   if (
     !input ||
     typeof input !== 'object' ||
@@ -87,7 +90,7 @@ export function normalizeClaims(input: unknown, fields: SchemaField[], organizat
   const missing = [];
   const invalid = new Set();
   for (const field of fields) {
-    let value = field.organization ? organization : claims.get(field.key);
+    let value = claims.get(field.key);
     if (typeof value === 'string') value = trimIdentityField(value);
     if (value == null || value === '') value = field.default;
     if (value == null || value === '') {
@@ -99,6 +102,10 @@ export function normalizeClaims(input: unknown, fields: SchemaField[], organizat
     if (normalized === undefined) invalid.add(field.key);
     else claims.set(field.key, normalized);
   }
+  // A licence says only what its schema defines, and its number: the registry needs one even
+  // from a schema that defines none (registration.ts).
+  const known = new Set([...fields.map((field) => field.key), ...numberKeys]);
+  for (const key of claims.keys()) if (!known.has(key)) invalid.add(key);
   const dates = ['trainingStart', 'trainingEnd', 'issueDate'];
   const dateFields = new Set(
     fields.filter((field) => field.kind === 'date').map((field) => field.key),

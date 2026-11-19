@@ -17,6 +17,8 @@ export interface DevelopmentSupportOffice {
   invoke(did: string): Promise<string>;
   /** Register or update a schema in the TSR. */
   registerSchema(schemaId: string, schema: Record<string, unknown>): Promise<void>;
+  /** Grant a key ProxyFactory:deployProxy, so it deploys TAO contracts from the templates. */
+  deployer(address: string): Promise<void>;
 }
 
 /**
@@ -107,6 +109,14 @@ export function developmentSupportOffice(
      */
     async invoke(did) {
       return credential(await call('/__mock/support-office/invoke', { did }));
+    },
+    /**
+     * Grant a key EBSI's ProxyFactory:deployProxy policy, as the Support Office does.
+     * @param address - The deploying key's address.
+     * @returns Completion once granted.
+     */
+    async deployer(address) {
+      await call('/__mock/support-office/deployer', { address });
     },
     /**
      * Register a schema in the Trusted Schemas Registry, as the Support Office does.

@@ -34,15 +34,23 @@ x-runtime: &runtime
     PLR_REDIS_CACHE_URL: redis://redis:6379/2
     PLR_ISSUER_DID: ${PLR_ISSUER_DID:-did:ebsi:zvHWX359A3CvfJnCYaAiAde}
     PLR_EBSI_MOCK_URL: http://ebsi-mock:8090
-    # EBSI's Core API v1 (development: the ebsi-mock service over the local ledger).
+    # EBSI's API origin (development: the ebsi-mock service over the local ledger).
     PLR_EBSI_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}
-    PLR_TIR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/issuers-registry
-    PLR_DIDR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/did-registry/identifiers
-    PLR_TSR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/schemas-registry
+    # The development EBSI service in the shape of EBSI's pilot APIs (it serves Core API v1 too).
+    PLR_EBSI_API: ${PLR_EBSI_API:-pilot}
+    PLR_TIR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-issuers-registry/v5
+    PLR_DIDR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/did-registry/v5/identifiers
+    PLR_TSR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-schemas-registry/v3
+    # The certificate schemas the installation takes from the TSR; the development Support Office
+    # registers this one (back-office/scripts/development-schema.ts).
+    PLR_TSR_SCHEMAS: ${PLR_TSR_SCHEMAS:-zPlrCybersecurityManagerV1}
     PLR_TRUSTED_ROOT_DIDS: ${PLR_TRUSTED_ROOT_DIDS:-did:ebsi:zSupport}
-    PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/v1/schemas-registry/schemas/zPlrCertificateStatusEntryV4
+    PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-schemas-registry/v3/schemas/zPlrCertificateStatusEntryV4
     PLR_GOVERNANCE_CONTRACT: ${PLR_GOVERNANCE_CONTRACT:?}
     PLR_CERTIFICATE_REGISTRY: ${PLR_CERTIFICATE_REGISTRY:?Deploy the certificate registry first}
+    # EBSI's Proxy Factory: the back-office deploys every further TAO's registry and governance
+    # through it, and a verifier recognises a TAO's registry by it.
+    PLR_PROXY_FACTORY: ${PLR_PROXY_FACTORY:?Deploy EBSI's contracts first}
     # The TAO the contracts were deployed for, and the supervisory authority that cosigns
     # every TI's decisions as role C.
     PLR_GOVERNANCE_TAO_DID: ${PLR_GOVERNANCE_TAO_DID:-did:ebsi:zmQaJTYt1ftvnjrwxWpPDUX}
@@ -51,7 +59,7 @@ x-runtime: &runtime
     PLR_ORGANIZATION_REGISTRATION_RATE: ${PLR_ORGANIZATION_REGISTRATION_RATE:-10/hour}
     PLR_LEDGER_CHAIN_ID: ${PLR_LEDGER_CHAIN_ID:-1337}
     # Every transaction goes through the Ledger API, with a token; reads need none.
-    PLR_LEDGER_RPC_URL: ${PLR_LEDGER_RPC_URL:-http://ebsi-mock:8090/v1/ledger}
+    PLR_LEDGER_RPC_URL: ${PLR_LEDGER_RPC_URL:-http://ebsi-mock:8090/ledger/v4/blockchains/besu}
     PLR_KMS_ENDPOINT_URL: http://kms:4566
     AWS_REGION: eu-central-1
     AWS_ACCESS_KEY_ID: test

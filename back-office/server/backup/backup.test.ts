@@ -89,13 +89,13 @@ test('ciphertext and envelope bounds; declared and chunked oversized requests; n
   assert.equal((await api.call(h.id, 'PUT', 'a', { 'content-type': 'text/plain' })).status, 415);
 });
 
-test('versions preserve PostgreSQL bigint precision and maximum range', async (t) => {
+test('versions are exact up to the largest a wallet can count past, and refused beyond', async (t) => {
   const api = await backupApi();
   t.after(() => api.close());
   const h = backupHolder();
   // Sign exact JSON integer text, rather than rounding through JavaScript Number.
   const { sign } = await import('node:crypto');
-  for (const version of [9007199254740993n, 9223372036854775807n]) {
+  for (const version of [9007199254740991n, 9007199254740992n, 9223372036854775807n]) {
     const header = Buffer.from(
       JSON.stringify({ alg: 'ES256', typ: 'plr-wallet-backup+jwt', jwk: h.jwk }),
     ).toString('base64url');
@@ -118,6 +118,15 @@ test('versions preserve PostgreSQL bigint precision and maximum range', async (t
       headers: { 'content-type': 'application/json' },
       body,
     });
+    // Past 2^53 - 1 a wallet's next version (one higher) would round to the same number.
+    if (version > BigInt(Number.MAX_SAFE_INTEGER)) {
+      assert.equal(response.status, 400);
+      assert.equal(
+        (await response.json()).detail,
+        'The version is a positive integer of at most 9007199254740991',
+      );
+      continue;
+    }
     assert.equal(response.status, 200);
     assert.ok((await response.text()).includes(`"version":${version}`));
     assert.equal((await api.call(h.id, 'PUT', body)).status, 409);

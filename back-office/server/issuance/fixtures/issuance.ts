@@ -9,59 +9,54 @@ import { ebsiIssuerTrust } from '../ebsi-trust.ts';
 import { kmsCeremonyFixture } from '../../keys/fixtures/kms-ceremony.ts';
 import { kmsKeyCeremony } from '../../keys/kms-provider.ts';
 import { postgresOrganizationOnboarding } from '../../accreditation/onboarding.ts';
+import { developmentWallet } from '../../accreditation/development-wallet.ts';
 import { trustedSchemaRegistry } from '../../schemas/tsr.ts';
 import {
-  accreditationSchemaId,
-  credentialSchemaDocument,
   ledgerStatusEntrySchemaId,
-  synchronizeSchemas,
+  registerDevelopmentSchemas,
 } from '../../schemas/publication.ts';
+import { certificateSchemaDocument } from '../../schemas/fixtures/certificate-schema.ts';
 import { configuredEbsi } from '../../ebsi/runtime.ts';
+import { trustChainSchemas } from '../../accreditation/runtime.ts';
 import { testLedger } from '../../lifecycle/fixtures/ledger.ts';
 import { tsrCredentialValidation } from '../../verification/schema-validation.ts';
 import { hashPassword } from '../../identity/auth/passwords.ts';
 import type { SchemaField } from '../../schemas/types.ts';
 import type { LedgerRegistration } from '../types.ts';
+import { testEbsi } from '../../ebsi/fixtures/environment.ts';
 
 /** Existing form fields shared by isolated browser and server issuance checks. */
 export const issuanceFields: SchemaField[] = [
   {
     key: 'certificateNumber',
     kind: 'text',
-    section: 'certificate',
     required: true,
     default: '',
-    organization: false,
     label: { sk: 'Číslo osvedčenia', en: 'Certificate number' },
     hint: { sk: '', en: '' },
   },
   {
     key: 'holderName',
     kind: 'text',
-    section: 'holder',
     required: true,
     default: '',
-    organization: false,
     label: { sk: 'Meno držiteľa', en: 'Holder name' },
     hint: { sk: '', en: '' },
   },
   {
     key: 'trainingDays',
     kind: 'integer',
-    section: 'training',
     required: true,
     default: '3',
-    organization: false,
     label: { sk: 'Počet dní', en: 'Days' },
     hint: { sk: '', en: '' },
   },
   {
     key: 'certificationBody',
     kind: 'text',
-    section: 'certificate',
     required: true,
-    default: '',
-    organization: true,
+    // The schema's default: the registry document names the training issuer.
+    default: 'Stage 3 Training Issuer',
     label: { sk: 'Vydavateľ', en: 'Issuer' },
     hint: { sk: '', en: '' },
   },
@@ -108,8 +103,8 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
   const organizations = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()];
   const authorizationDid = 'did:ebsi:zAuth' + schema.replaceAll('-', '').replaceAll('0', '1');
   const accounts: number[] = [];
-  const tirUrl = base + '/v1/issuers-registry';
-  const schemas = trustedSchemaRegistry(base + '/v1/schemas-registry');
+  const tirUrl = testEbsi(base).PLR_TIR_URL;
+  const schemas = trustedSchemaRegistry(testEbsi(base).PLR_TSR_URL);
   const tsr = 'zPlr' + type + 'V1';
   const network = await testLedger();
   const kms = kmsCeremonyFixture();
@@ -117,9 +112,10 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
   const ebsi = configuredEbsi(
     database,
     {
-      PLR_LEDGER_RPC_URL: base + '/v1/ledger',
+      PLR_LEDGER_RPC_URL: testEbsi(base).PLR_LEDGER_RPC_URL,
       PLR_LEDGER_CHAIN_ID: String(network.chainId),
       PLR_EBSI_URL: base,
+      PLR_EBSI_API: testEbsi(base).PLR_EBSI_API,
       PLR_EBSI_MOCK_URL: base,
       AWS_REGION: 'eu-central-1',
     },
@@ -128,30 +124,71 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
   )!;
   // The test ledger mines at once; look for receipts often rather than every 4 s.
   ebsi.provider.pollingInterval = 200;
-  await mockFixture(base, '/__mock/support-office/schemas', {
-    schemaId: tsr,
-    schema: credentialSchemaDocument({
-      credential_type: type,
-      name: { sk: 'Test osvedčenie', en: 'Test certificate' },
-      pending_version: 1,
-      versions: [{ version: 1, fields: issuanceFields, tsr_id: tsr, registered_at: null }],
-    }),
-  });
-  await synchronizeSchemas(database, ebsi.supportOffice!);
+  // The Support Office registers the test's schema, as EBSI's does.
+  await registerDevelopmentSchemas(ebsi.supportOffice!, [
+    { id: tsr, document: certificateSchemaDocument(type, 'Test osvedčenie', issuanceFields) },
+  ]);
   const trust = ebsiIssuerTrust({
     tirUrl,
-    didRegistryUrl: base + '/v1/did-registry/identifiers',
+    didRegistryUrl: testEbsi(base).PLR_DIDR_URL,
     trustedRoots: ['did:ebsi:zSupport'],
   });
+  const publication = {
+    ebsi,
+    tirUrl,
+    trustChainSchemas: trustChainSchemas(schemas),
+  };
   const onboarding = postgresOrganizationOnboarding(database, {
     keys: kmsKeyCeremony(kms.client),
-    publication: {
-      ebsi,
-      tirUrl,
-      accreditationSchema: schemas.address(accreditationSchemaId),
-    },
+    publication,
     schemaAddress: schemas.address,
   });
+  // The TAO and the TIs bring their own DIDs; their wallets (development ones here) register them,
+  // list the back-office's keys and store the accreditations they are given.
+  const walletBase = Math.floor(Math.random() * 2 ** 29);
+  const wallets = new Map<string, ReturnType<typeof developmentWallet>>(
+    [1, 2, 3].map((index) => [
+      organizations[index],
+      developmentWallet(database, publication, walletBase + index),
+    ]),
+  );
+  /**
+   * A TI's first issuance: the TAO and then the TI each register their DID, get their keys and
+   * accreditation from the back-office, store it with their wallet and are checked in EBSI.
+   * @param id - TI organization UUID.
+   * @param actor - Issuing account.
+   * @returns Completion when the TI is accredited in EBSI.
+   * @throws Error when it is not; registry, KMS or database errors.
+   */
+  async function ensureIssuer(id: string, actor: number) {
+    const steps: [string, string][] = [
+      [organizations[1], organizations[0]],
+      [id, organizations[1]],
+    ];
+    for (const [organization, accreditor] of steps) {
+      const wallet = wallets.get(organization)!;
+      await onboarding.ensureAuthority(accreditor);
+      await wallet.register(accreditor);
+      await onboarding.onboard(organization, actor);
+      await wallet.complete(organization);
+      if (!(await onboarding.check(organization, actor)).accredited)
+        throw new Error('The organization is not accredited in EBSI.');
+    }
+  }
+  /**
+   * After what organizations may do changed: the back-office issues their accreditations again,
+   * and each stores its new one with its wallet, in the order given (a TAO before its TIs).
+   * @param ids - TAO or TI organization UUIDs.
+   * @returns Completion when each is accredited again.
+   * @throws Registry, KMS or database errors.
+   */
+  async function reaccredit(...ids: string[]) {
+    for (const id of ids) {
+      await onboarding.refresh(id);
+      await wallets.get(id)!.complete(id);
+      await onboarding.check(id);
+    }
+  }
   const state = {
     signCalls: 0,
     ledgerCalls: 0,
@@ -198,7 +235,7 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
     protection,
     schemaAddress: schemas.address,
     ensureAccredited: trust.ensureAccredited,
-    ensureIssuer: onboarding.onboard,
+    ensureIssuer,
     accreditationAddress: trust.accreditationAddress,
     ledgerStatusSchema: schemas.address(ledgerStatusEntrySchemaId),
     /**
@@ -246,7 +283,11 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
     },
     ledger: {
       chainId: 1337,
-      contract: '0x' + 'ab'.repeat(20),
+      /**
+       * The fixture's one registry, for every TI.
+       * @returns Its address.
+       */
+      contractFor: async () => '0x' + 'ab'.repeat(20),
       /**
        * Register or reconcile an exact synthetic ledger tuple.
        * @param record - Immutable identity, validity, commitment and standing.
@@ -309,18 +350,27 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
       "INSERT INTO accredited_organizations(id,name,kind) VALUES($1,'Stage 3 Root','rtao')",
       [organizations[0]],
     );
+    const taoAccount = (
+      await database.query(
+        'INSERT INTO operator_accounts(username,password_hash) VALUES($1,$2) RETURNING id',
+        [prefix + '.tao', hash],
+      )
+    ).rows[0].id;
+    accounts.push(taoAccount);
+    await database.query("INSERT INTO operator_roles VALUES($1,'plr_tao')", [taoAccount]);
     await database.query(
-      "INSERT INTO accredited_organizations(id,name,kind,parent_id) VALUES($1,'Stage 3 TAO','tao',$2)",
-      [organizations[1], organizations[0]],
+      "INSERT INTO accredited_organizations(id,name,kind,parent_id,account_id,did) VALUES($1,'Stage 3 TAO','tao',$2,$3,$4)",
+      [organizations[1], organizations[0], taoAccount, wallets.get(organizations[1])!.did],
     );
     for (let i = 0; i < 2; i++)
       await database.query(
-        "INSERT INTO accredited_organizations(id,name,kind,parent_id,account_id,accredited_until) VALUES($1,$2,'ti',$3,$4,now()+interval '1 year')",
+        "INSERT INTO accredited_organizations(id,name,kind,parent_id,account_id,accredited_until,did) VALUES($1,$2,'ti',$3,$4,now()+interval '1 year',$5)",
         [
           organizations[i + 2],
           i === 0 ? 'Stage 3 Training Issuer' : 'Other issuer',
           organizations[1],
           accounts[i],
+          wallets.get(organizations[i + 2])!.did,
         ],
       );
     await database.query(
@@ -349,6 +399,8 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
     ebsi,
     base,
     onboarding,
+    ensureIssuer,
+    reaccredit,
     kms,
     state,
     records,

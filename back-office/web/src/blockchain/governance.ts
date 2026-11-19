@@ -682,9 +682,11 @@ function refusalReasons() {
     DuplicateSigner: t('Táto adresa už je signatárom.'),
     InvalidRole: t('Neznáma rola.'),
     InvalidPolicy: t(
-      'Takéto pravidlo sa nedá splniť — povinných rolí je viac než prah, alebo rola nemá žiadny kľúč.',
+      'Takéto pravidlo sa nedá splniť — povinných rolí je viac než prah, rola nemá žiadny kľúč, alebo časový zámok nenechá v platnosti návrhu aspoň deň na podpisy a vykonanie.',
     ),
-    InvalidTtl: t('Platnosť návrhu je mimo rozsahu, ktorý kontrakt pripúšťa.'),
+    InvalidTtl: t(
+      'Platnosť návrhu je mimo rozsahu, ktorý kontrakt pripúšťa: aspoň o deň dlhšia než najdlhší časový zámok TI a najviac 365 dní.',
+    ),
     Unsatisfiable: t('Bez tohto kľúča by sa niektoré pravidlo už nedalo splniť.'),
     CannotVetoOwnRemoval: t(
       'Kľúč nemôže vetovať vlastné odobratie ani výmenu — inak by kompromitovaný kľúč zablokoval rotáciu (komponent 10.9).',

@@ -18,10 +18,10 @@ export type Texts = { sk: string; en: string }
 export type SchemeField = {
   key: string
   kind: 'text' | 'date' | 'integer'
-  section: 'holder' | 'training' | 'certificate'
   required: boolean
   default: string
-  organization: boolean
+  /** Filled with the organization's name and not edited; schemas from the registry set none. */
+  organization?: boolean
   label?: Texts
   hint?: Texts
 }

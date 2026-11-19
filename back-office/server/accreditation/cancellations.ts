@@ -61,7 +61,7 @@ export function postgresOrganizationCancellations(
         let result: GovernanceProgress;
         try {
           if (
-            record.onchain_contract !== governance.contract ||
+            record.onchain_contract !== (await governance.contractFor(record.issuer_did)) ||
             Number(record.onchain_chain_id) !== governance.chainId
           )
             throw new Error('The superseded case belongs to another deployment.');

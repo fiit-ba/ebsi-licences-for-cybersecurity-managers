@@ -20,9 +20,11 @@ import {
   readCertificateStatus,
   recordDiffers,
   statusKeyOfCredential,
+  trustRegistry,
+  UntrustedRegistry,
   TIMEOUT_MS as LEDGER_TIMEOUT_MS,
 } from '@infrastructure/ledger'
-import { certificates } from '@infrastructure/config/Ebsi'
+import { issuerTaoOf } from '@infrastructure/exchange/verify'
 
 const CLOCK_TOLERANCE_SECONDS = 5
 const STATUS_REFRESH_CONCURRENCY = 6
@@ -95,13 +97,20 @@ export async function checkCertificateStatus(
 ): Promise<CredentialStatusResult> {
   const ledger = ledgerEntryOf(vc)
   if (!ledger) return checkCredentialStatus(vc, signal, statusListCache)
-  if (!certificates.registry() || ledger.contract.toLowerCase() !== certificates.registry()) {
-    return { valid: false, state: 'unknown', error: 'The certificate names another certificate registry' }
+  // The registry must be the one of the TAO that accredited the certificate's TI.
+  try {
+    await trustRegistry(ledger.contract, await issuerTaoOf(vc), signal)
+  } catch (error) {
+    return {
+      valid: false,
+      state: 'unknown',
+      error: error instanceof UntrustedRegistry ? error.message : 'The certificate registry could not be checked',
+    }
   }
   const statusKey = statusKeyOfCredential(vc)
   if (!statusKey || !credential) return { valid: false, state: 'unknown', error: 'The certificate has no record key' }
   try {
-    const record = await readCertificateStatus(statusKey, signal)
+    const record = await readCertificateStatus(statusKey, signal, ledger.contract)
     if (record.standing === 'none') return { valid: false, state: 'unknown', error: 'Not recorded yet' }
     const differs = recordDiffers(record, vc, credential)
     if (differs.length) {

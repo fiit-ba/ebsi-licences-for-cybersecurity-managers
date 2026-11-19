@@ -94,6 +94,7 @@ test('a signed certificate remains verifiable after its key disappears from the 
   const ledger = {
     chainId: 1337,
     contract: '0x' + 'cd'.repeat(20),
+    contractFor: async () => '0x' + 'cd'.repeat(20),
     async ensureRegistered(record) {
       stored = record;
     },
@@ -115,7 +116,7 @@ test('a signed certificate remains verifiable after its key disappears from the 
       kid,
       sign: async (input) => sign('sha256', input, { key: privateKey, dsaEncoding: 'ieee-p1363' }),
     }),
-    schemaAddress: () => 'https://registry.example/schema',
+    schemaAddress: (id: string) => 'https://registry.example/schemas/' + id,
     ledgerStatusSchema: 'https://registry.example/status',
     accreditationAddress: () => 'https://registry.example/accreditation',
   });

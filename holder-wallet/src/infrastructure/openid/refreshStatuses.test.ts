@@ -13,7 +13,7 @@ jest.mock('@infrastructure/config/Ebsi', () => ({
     trustedSchemasRegistry: () => 'http://ebsi.test/v1/schemas-registry',
     ledger: () => 'http://ebsi.test/v1/ledger',
   },
-  certificates: { registry: () => '0x' + 'cc'.repeat(20), chainId: () => 1337 },
+  certificates: { registry: () => '0x' + 'cc'.repeat(20), factory: () => '', chainId: () => 1337 },
   supportOfficeDid: () => 'did:ebsi:zSupportOffice',
 }))
 jest.mock('@infrastructure/persistence/keychain', () => ({

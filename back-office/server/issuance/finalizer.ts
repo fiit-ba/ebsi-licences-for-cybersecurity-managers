@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { secretDigest } from './protection.ts';
 import type { FinalizerOptions, FinalizationInput } from './types.ts';
+import { ebsiSchemaIds } from '../schemas/ebsi-schemas.ts';
 
 const defaultLifetime = 5 * 365 * 24 * 60 * 60;
 const reserved = new Set(['id', 'certificateNumber', '_metadata', '_sd', '_sd_alg', '...']);
@@ -31,8 +32,7 @@ export function certificateFinalizer(options: FinalizerOptions) {
   } = options;
 
   const chainId = ledger.chainId;
-  const contract = ledger.contract.toLowerCase();
-  if (!Number.isSafeInteger(chainId) || chainId <= 0 || !/^0x[0-9a-f]{40}$/.test(contract)) {
+  if (!Number.isSafeInteger(chainId) || chainId <= 0) {
     throw new Error('A configured certificate registry is required.');
   }
 
@@ -50,6 +50,10 @@ export function certificateFinalizer(options: FinalizerOptions) {
   async function finalizeCertificate(input: FinalizationInput) {
     const { certificate, claims, subject, client = undefined } = input;
     const issuer = certificate.issuer_did;
+    // The certificate registry of the TI's TAO keeps the record.
+    const contract = (await ledger.contractFor(issuer)).toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(contract))
+      throw new Error('The TI has no certificate registry to record its certificates in.');
     const number = certificate.certificate_number;
     const id = certificate.credential_id;
     const schemaId = schemaAddress(certificate.tsr_id);
@@ -60,8 +64,9 @@ export function certificateFinalizer(options: FinalizerOptions) {
       });
     }
     const issuedAt = now();
-    const created = epoch(certificate.created_at);
+    // Validity is in whole seconds, as the JWT's nbf and exp are.
     const validFrom = certificate.valid_from ? epoch(certificate.valid_from) : epoch(issuedAt);
+    const start = iso(validFrom);
     const validUntil = certificate.valid_until
       ? epoch(certificate.valid_until)
       : epoch(issuedAt) + defaultLifetime;
@@ -89,13 +94,19 @@ export function certificateFinalizer(options: FinalizerOptions) {
       id,
       issuer,
       type: ['VerifiableCredential', 'VerifiableAttestation', certificate.credential_type],
-      issuanceDate: iso(created),
-      validFrom: iso(validFrom),
+      // EBSI's rules for a credential: `issued` is the signing instant (the JWT's iat), and
+      // `issuanceDate` is the same as `validFrom` (the JWT's nbf). `issued` keeps the
+      // milliseconds a verifier needs to find the issuer's key at that instant.
+      issued: issuedAt.toISOString(),
+      issuanceDate: start,
+      validFrom: start,
       expirationDate: iso(validUntil),
       credentialSubject: subjectClaims,
       credentialSchema: [
         { type: schemaType, id: schemaId },
         { type: schemaType, id: ledgerStatusSchema },
+        // Its termsOfUse is an IssuanceCertificate: EBSI's type extension for it.
+        { type: schemaType, id: schemaAddress(ebsiSchemaIds.issuanceCertificate) },
       ],
       termsOfUse: [
         {
@@ -127,7 +138,6 @@ export function certificateFinalizer(options: FinalizerOptions) {
     // A key published after registration must be resolvable at issuance.
     if (!Number.isFinite(+issuedAt) || validUntil <= epoch(issuedAt))
       throw new Error('Certificate validity ended before signing.');
-    vc.issuanceDate = issuedAt.toISOString();
     // Validate the exact timestamp and full subject that the signature covers,
     // before replacing private attributes with selective-disclosure digests.
     await options.validateCredential?.(

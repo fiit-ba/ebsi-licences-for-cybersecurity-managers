@@ -10,7 +10,8 @@ import {Hashes} from "../contracts/libraries/Hashes.sol";
 import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
 import {IEbsiIssuersRegistry} from "../contracts/interfaces/IEbsiRegistries.sol";
 import {GovernanceConfigFile} from "../scripts/GovernanceConfigFile.sol";
-import {StubDidRegistry, StubIssuersRegistry} from "./RegistryStubs.sol";
+import {StubIssuersRegistry} from "./RegistryStubs.sol";
+import {PILOT_DID_REGISTRY, PILOT_ISSUERS_REGISTRY} from "../scripts/PilotRegistries.sol";
 
 /**
  * The contract as the tests deploy it: the pilot's three roles, one key each,
@@ -91,13 +92,17 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     CertificateGovernance private nextProxy;
 
     function setUp() public virtual {
-        implementation = new CertificateGovernance();
+        // At the PILOT's addresses, as on anvil: the implementation is then the
+        // pilot's bytecode.
+        didRegistry = PILOT_DID_REGISTRY;
+        issuersRegistry = PILOT_ISSUERS_REGISTRY;
+        deployCodeTo("RegistryStubs.sol:StubDidRegistry", didRegistry);
+        deployCodeTo("RegistryStubs.sol:StubIssuersRegistry", issuersRegistry);
+        issuers = StubIssuersRegistry(issuersRegistry);
+        implementation = new CertificateGovernance(didRegistry, issuersRegistry);
         beacon = new UpgradeableBeacon(address(implementation), address(this));
         registryBeacon = new UpgradeableBeacon(address(new CertificateRegistry()), address(this));
         tao = makeAddr("tao");
-        didRegistry = address(new StubDidRegistry());
-        issuers = new StubIssuersRegistry();
-        issuersRegistry = address(issuers);
         _accredit(ROOT_DID, ROOT_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.RootTAO, ROOT_DID, bytes32(0));
         _accredit(taoDid, TAO_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TAO, ROOT_DID, ROOT_ATTRIBUTE);
         accreditTi(TI_DID);
@@ -187,9 +192,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         CertificateRegistry certificates = CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (tao))))
         );
-        bytes memory init = abi.encodeCall(
-            CertificateGovernance.initialize, (tao, taoDid, didRegistry, issuersRegistry, address(certificates))
-        );
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (tao, taoDid, address(certificates)));
         deployed = CertificateGovernance(address(new BeaconProxy(address(beacon), init)));
         vm.prank(tao);
         certificates.setGovernance(address(deployed));

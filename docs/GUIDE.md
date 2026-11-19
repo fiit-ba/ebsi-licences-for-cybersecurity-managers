@@ -138,13 +138,18 @@ The same `./bootstrap.sh` waits for migrations and healthy dependencies, then:
   `PLR_DEV_PASSWORD` (default **`Atest-2026!Demo`**).
 - Creates NBÚ (RootTAO/supervisor) → MIRRI (TAO/mirri) → STU FIIT (TI/alice), with
   one-year TI accreditation and delegated certificate schema.
-- Publishes `CybersecurityManagerCertificate` with all 15 form fields,
-  labels and defaults, plus the presentation/verification flow.
+- Registers `CybersecurityManagerCertificate` in the development Trusted Schemas
+  Registry as its Support Office (`zPlrCybersecurityManagerV1`, the same document as `schemas/cybersecurity-manager-certificate`, all 15 attributes
+  with their titles and defaults) and reads it back, as the back-office does with
+  every schema named in `PLR_TSR_SCHEMAS`; plus the presentation/verification flow.
 - Prepares KMS-wrapped data-encryption and stable PIN/commitment secrets without
   placing plaintext data keys in `.env`.
-- Creates/resumes purpose-separated registry, TAO and TI signing keys inside KMS
-  (each TI's own A and B governance keys among them), and publishes the DIDs, keys
-  and accreditations in the development registries through EBSI's Core API v1.
+- Publishes the RootTAO in the development registries through EBSI's Core API v1.
+  The TAO and the TI bring their own DIDs; bootstrap plays their wallets (development
+  keys, `back-office/server/accreditation/development-wallet.ts`): each registers its
+  DID, is appointed by it, lists the back-office's KMS keys (each TI's own A and B
+  governance keys among them) in its DID document, and stores the accreditation it
+  was issued in the Trusted Issuers Registry.
 - Hands the certificate registry and its governance to the TAO's KMS key, which sets
   each TI up on them with its A and B keys and the supervisory authority's DID as
   cosigner C, whose keys stay outside the installation.
@@ -163,13 +168,32 @@ weak-password checks are not bypassed. Only `supervisor` needs full staff/
 platform administration. Business authority, A/B memberships and human four-eyes
 checks remain distinct; C has no private key on the server.
 
+## Appoint another TAO or TI
+
+An organization brings its own DID. With its own wallet it registers the DID in the
+DID Registry first; the development registries do not create one for it.
+
+1. The RootTAO (for a TAO) or the TAO (for a TI) enters the organization's name and
+   DID in **Akreditácia**. A DID the DID Registry does not know is refused.
+2. The organization registers its account with the invitation. The back-office then
+   creates its KMS keys and issues its accreditation.
+3. Under **Akreditácia v EBSI** (a TAO in Akreditácia, a TI in Vydať) the
+   organization finds the keys to add to its DID document and its accreditation to
+   download. With its wallet it lists the keys, then stores the accreditation in the
+   Trusted Issuers Registry (an `issuers-registry:invite` token, then
+   `setAttributeData`).
+4. **Skontrolovať v EBSI** confirms both. For a TAO, the back-office then deploys its
+   own certificate registry and governance contract through EBSI's Proxy Factory (the
+   RootTAO deploys; the TAO's key owns them), and the TAO can appoint TIs. A TI is set
+   up on its TAO's governance contract and can then issue; its licences are recorded
+   in its TAO's registry.
+
 ## Repeat, restart and partial failure
 
 Run `./bootstrap.sh` again after a recoverable setup failure, or after a chain
 reset and redeployment: the development registries keep their state on the ledger,
 and bootstrap publishes the installation's identities on a new chain again. It reuses existing accounts, organizations, schema
-versions and KMS requests; it never resets passwords, extends the TI's accreditation
-or overwrites operator-edited schemas. It explicitly restores its named demo role
+versions and KMS requests; it never resets passwords or extends the TI's accreditation. It explicitly restores its named demo role
 groups while retaining other memberships. It refuses to reactivate disabled accounts,
 revive revoked organizations or adopt a different installation's initial administrator.
 Migrations are idempotent and run before API readiness. Existing development databases
@@ -242,6 +266,8 @@ host/deployment:
 BACKOFFICE_URL=http://<PLR_PUBLIC_HOST>:8000
 EBSI_URL=http://<PLR_PUBLIC_HOST>:8090
 CERTIFICATE_REGISTRY=0xCertificateRegistryAddress
+# EBSI's Proxy Factory: the Wallet recognises each TAO's registry by it.
+EBSI_PROXY_FACTORY=0xProxyFactoryAddress
 LEDGER_CHAIN_ID=1337
 EBSI_SUPPORT_OFFICE_DID=did:ebsi:zSupport
 ```

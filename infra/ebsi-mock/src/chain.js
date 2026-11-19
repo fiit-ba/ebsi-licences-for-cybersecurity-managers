@@ -11,7 +11,7 @@
  * Support Office (which accredits RootTAOs and grants access to contracts).
  */
 
-import {Contract, FetchRequest, JsonRpcProvider, Wallet, isError} from 'ethers';
+import {Contract, FetchRequest, JsonRpcProvider, Wallet, ZeroAddress, ZeroHash, getAddress, isError} from 'ethers';
 import {DID_REGISTRY_ABI, ISSUERS_REGISTRY_ABI, POLICIES_REGISTRY_ABI, SCHEMAS_REGISTRY_ABI, TIMESTAMP_ABI} from './abis.js';
 import {methodJwk, registryKey, secp256k1Jwk, thumbprint} from './keys.js';
 import {DEVELOPMENT_CHAINS} from './config.js';
@@ -277,5 +277,70 @@ export function connectChain(config) {
     }
   }
 
-  return {provider, admin, supportOffice, contracts, send, didDocument, keyOf, issuerAttributes, attribute, fund, ensureGenesis};
+  const factory = config.proxyFactory
+    ? new Contract(
+        config.proxyFactory,
+        [
+          'function getDeploymentInfo(address) view returns (tuple(bytes32 templateId, address deployer, uint256 deploymentTimestamp, bool isActive, string deployerDID, address owner))',
+          'function policiesRegistry() view returns (address)',
+          'function didRegistry() view returns (address)',
+          'function setPoliciesRegistry(address)',
+          'function setDidRegistry(address)',
+        ],
+        provider,
+      )
+    : undefined;
+
+  /**
+   * Point EBSI's Proxy Factory at the Policies Registry and the DID Registry, as EBSI's is: a
+   * deployer then needs the ProxyFactory:deployProxy policy and must control the DID it names.
+   * Idempotent.
+   * @returns {Promise<void>}
+   */
+  async function configureFactory() {
+    if (!factory) return;
+    if ((await factory.policiesRegistry()) === ZeroAddress)
+      await send(admin, (signer) => factory.connect(signer).setPoliciesRegistry(config.contracts.policiesRegistry));
+    if ((await factory.didRegistry()) === ZeroAddress)
+      await send(admin, (signer) => factory.connect(signer).setDidRegistry(config.contracts.didRegistry));
+  }
+
+  /**
+   * Whether a contract is a Trusted Contract: EBSI's Proxy Factory itself, or a contract it
+   * deployed from a registered template and that is still active.
+   * @param {string} address The contract.
+   * @returns {Promise<boolean>} Whether it is.
+   */
+  const deployed = new Set();
+  async function deployedByFactory(address) {
+    if (!factory) return false;
+    const target = getAddress(address);
+    if (target === getAddress(config.proxyFactory) || deployed.has(target)) return true;
+    try {
+      const info = await factory.getDeploymentInfo(target);
+      // Remembered once seen: the factory deactivates a deployment rarely, and its ledger is ours.
+      if (info.isActive === true && info.templateId !== ZeroHash) deployed.add(target);
+      return deployed.has(target);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Grant an address a policy in the Trusted Policies Registry, as EBSI's Support Office does.
+   * @param {string} policy The policy, e.g. ProxyFactory:deployProxy.
+   * @param {string} address The holder.
+   * @returns {Promise<void>}
+   */
+  async function grantPolicy(policy, address) {
+    try {
+      await contracts.policiesRegistry.checkPolicy(policy, admin.address);
+    } catch {
+      await send(admin, (signer) => contracts.policiesRegistry.connect(signer).insertPolicy(policy, policy));
+    }
+    if (!(await contracts.policiesRegistry.checkPolicy(policy, address).catch(() => false)))
+      await send(admin, (signer) => contracts.policiesRegistry.connect(signer).insertUserAttributes(address, [policy]));
+  }
+
+  return {provider, admin, supportOffice, contracts, send, didDocument, keyOf, issuerAttributes, attribute, fund, ensureGenesis, deployedByFactory, grantPolicy, configureFactory};
 }

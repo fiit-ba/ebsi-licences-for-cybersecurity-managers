@@ -42,13 +42,23 @@ export function postgresEmergencyDelivery(
     );
     for (const { id } of rows) {
       try {
+        // The emergency goes to the certificate registry of its TI's TAO.
+        const {
+          rows: [certificate],
+        } = await database.query<{ issuer_did: string }>(
+          `SELECT c.issuer_did FROM certificate_emergency_suspensions emergency
+           JOIN registered_certificates c ON c.id = emergency.certificate_id WHERE emergency.id = $1`,
+          [id],
+        );
+        if (!certificate) continue;
+        const contract = await ledger.contractFor(certificate.issuer_did);
         // Keep the deployment fixed even if RPC succeeds and the DB rolls back.
         await database.query(
           `
           UPDATE certificate_emergency_suspensions SET onchain_contract = $2, onchain_chain_id = $3
           WHERE id = $1 AND onchain_contract IS NULL AND applied_at IS NULL
         `,
-          [id, ledger.contract, ledger.chainId],
+          [id, contract, ledger.chainId],
         );
         await transaction(database, async (client) => {
           const {
@@ -86,7 +96,7 @@ export function postgresEmergencyDelivery(
           await client.query('SAVEPOINT emergency_delivery');
           try {
             if (
-              record.onchain_contract !== ledger.contract ||
+              record.onchain_contract !== contract ||
               Number(record.onchain_chain_id) !== ledger.chainId
             ) {
               throw new Error('The emergency belongs to a different governance deployment.');
@@ -135,7 +145,7 @@ export function postgresEmergencyDelivery(
               detail: {
                 emergency_id: id,
                 chain_id: ledger.chainId,
-                contract: ledger.contract,
+                contract,
                 reason_hash: '0x' + reason.toString('hex'),
               },
             });

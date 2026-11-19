@@ -25,6 +25,7 @@ import Table from '../../shared/ui/Table.tsx';
 import TextInput from '../../shared/ui/TextInput.tsx';
 import { PLACE } from '../../shared/places.ts';
 import { Revocation, RevokeRow } from './Revocation.tsx';
+import EbsiAccreditation from './EbsiAccreditation.tsx';
 import { formatDate, formatDateTime as when, t } from '../../shared/i18n/index.ts';
 import { inLang } from '../../shared/certificates/fields.ts';
 
@@ -37,7 +38,8 @@ import { inLang } from '../../shared/certificates/fields.ts';
  * on the sign-in page, a TAO here - and nobody registers without one.
  *
  * Selecting also says what the organization may attest (design decisions D17): the
- * RootTAO gives a TAO some of the certificate schemas it defined (Schémy), and
+ * RootTAO gives a TAO some of the certificate schemas taken from EBSI's Trusted
+ * Schemas Registry (Schémy), and
  * a TAO hands on some of its own to a TI. Either can change that later; a
  * schema taken from a TAO is taken from its TIs too.
  *
@@ -211,12 +213,7 @@ function Status(options) {
         <div className="small-muted mt-1">
           {t('účet')} <span className="mono">{row.account}</span>, {when(row.registered_at)}
         </div>
-        {/* A TI issues under its own DID (D27). */}
-        {row.did && (
-          <div className="small-muted mt-1" title={row.did}>
-            DID <span className="mono">{row.did}</span>
-          </div>
-        )}
+        <OrganizationDid row={row} />
         {row.kind === 'ti' && !row.is_issuer && (
           <div className="small-muted mt-1">
             {t('v EBSI zatiaľ nie je nastavená ako vydavateľ')}
@@ -236,7 +233,23 @@ function Status(options) {
           {t('pozvánka platí do')} {when(row.invitation_expires_at)}
         </div>
       )}
+      <OrganizationDid row={row} />
     </>
+  );
+}
+
+/**
+ * Render the organization's own DID, by which it was appointed.
+ * @param options - Component inputs: {row}.
+ * @returns The rendered React content, or nothing for an organization without one.
+ */
+function OrganizationDid(options) {
+  const { row } = options;
+  if (!row.did) return null;
+  return (
+    <div className="small-muted mt-1" title={row.did}>
+      DID <span className="mono">{row.did}</span>
+    </div>
   );
 }
 
@@ -274,6 +287,9 @@ function InvitationNotice(options) {
 export default function AccreditationTab() {
   const [chain, setChain] = useState(null);
   const [name, setName] = useState('');
+  // The organization's own DID, registered in the DID Registry with its own wallet.
+  const [did, setDid] = useState('');
+  const [ownEbsi, setOwnEbsi] = useState(false);
   const [contact, setContact] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -329,6 +345,7 @@ export default function AccreditationTab() {
         contact.trim(),
         chosen ?? [],
         chain.selects === 'ti' ? endOfDay(accreditedUntil) : null,
+        did.trim(),
       );
       setInvitations((current) => ({
         ...current,
@@ -344,14 +361,23 @@ export default function AccreditationTab() {
       setLifespan(null);
       setOpenPanel({ id: data.organization_id, type: 'invitation' });
       setName('');
+      setDid('');
       setContact('');
       setAccreditedUntil(dateIn(365));
       await load();
     } catch (e) {
       setError(
-        e.payload?.fields?.includes('contact_email')
-          ? t('Kontaktný e-mail nie je platný.')
-          : lifespanError(e),
+        e.reason === 'DidNotRegistered'
+          ? t(
+              'Register DID tento DID nepozná. Organizácia ho musí najprv zaregistrovať svojou peňaženkou.',
+            )
+          : e.reason === 'DidTaken'
+            ? t('Iná organizácia v registri už má tento DID.')
+            : e.payload?.fields?.includes('did')
+              ? t('DID nie je platný; má tvar did:ebsi:z….')
+              : e.payload?.fields?.includes('contact_email')
+                ? t('Kontaktný e-mail nie je platný.')
+                : lifespanError(e),
       );
     } finally {
       setBusy(false);
@@ -495,6 +521,20 @@ export default function AccreditationTab() {
           </p>
         )}
 
+        {chain?.organization.kind === 'tao' && (
+          <div className="mb-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-expanded={ownEbsi}
+              onClick={() => setOwnEbsi(!ownEbsi)}
+            >
+              {t('Vaša akreditácia v EBSI')}
+            </Button>
+            {ownEbsi && <EbsiAccreditation own />}
+          </div>
+        )}
+
         {error && <Notice tone="err">{error}</Notice>}
 
         {revokedNotice && (
@@ -518,6 +558,17 @@ export default function AccreditationTab() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   maxLength={200}
+                />
+              </Field>
+              <Field id="org-did" label={t('DID organizácie')}>
+                <TextInput
+                  id="org-did"
+                  className="mono"
+                  value={did}
+                  placeholder="did:ebsi:z…"
+                  onChange={(e) => setDid(e.target.value)}
+                  required
+                  maxLength={120}
                 />
               </Field>
               <Field id="org-contact" label={t('Kontaktný e-mail (voliteľné)')}>
@@ -668,6 +719,26 @@ export default function AccreditationTab() {
                                   {t('Nová pozvánka')}
                                 </Button>
                               )}
+                              {row.account && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  aria-expanded={
+                                    openPanel?.id === row.organization_id &&
+                                    openPanel.type === 'ebsi'
+                                  }
+                                  onClick={() =>
+                                    setOpenPanel(
+                                      openPanel?.id === row.organization_id &&
+                                        openPanel.type === 'ebsi'
+                                        ? null
+                                        : { id: row.organization_id, type: 'ebsi' },
+                                    )
+                                  }
+                                >
+                                  {t('EBSI')}
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -681,6 +752,13 @@ export default function AccreditationTab() {
                         </div>
                       </td>
                     </tr>
+                    {openPanel?.id === row.organization_id && openPanel.type === 'ebsi' && (
+                      <tr>
+                        <td colSpan={5}>
+                          <EbsiAccreditation organizationId={row.organization_id} />
+                        </td>
+                      </tr>
+                    )}
                     {!row.account &&
                       !row.revoked &&
                       invitations[row.organization_id] &&

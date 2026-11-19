@@ -52,6 +52,8 @@ export interface TestLedgerRecord {
   schemasRegistry: string;
   timestamp: string;
   policiesRegistry: string;
+  /** EBSI's Proxy Factory, which deployed the pair above and deploys every further TAO's. */
+  proxyFactory: string;
   taoDid: string;
   supervisorDid: string;
 }
@@ -213,6 +215,7 @@ export async function startTestLedger(
           schemasRegistry: ebsi.SchemasRegistry.contractAddress,
           timestamp: ebsi.Timestamp.contractAddress,
           policiesRegistry: ebsi.PolicyRegistry.contractAddress,
+          proxyFactory: ebsi.ProxyFactory.contractAddress,
           taoDid: deployed.CertificateGovernance.taoDid,
           supervisorDid: /COSIGNER_DID=(\S+)/.exec(seeded)?.[1] ?? '',
         };
@@ -270,6 +273,7 @@ export async function startTestEbsi(record: TestLedgerRecord) {
         MOCK_TIMESTAMP: record.timestamp,
         MOCK_POLICIES_REGISTRY: record.policiesRegistry,
         MOCK_INVOKE_CONTRACTS: [record.governance, record.registry].join(','),
+        MOCK_PROXY_FACTORY: record.proxyFactory,
         MOCK_SUPPORT_OFFICE_DID: 'did:ebsi:zSupport',
         // SeedEbsi.s.sol registered the supervisory authority already.
         MOCK_SUPERVISOR_DID: '',

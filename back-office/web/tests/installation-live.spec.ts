@@ -33,9 +33,10 @@ test('ordinary built console uses real authentication/API prefixes, direct route
   }
   const token = await page.evaluate(() => sessionStorage.getItem('plr.token'));
   const headers = { authorization: 'Bearer ' + token };
+  // Schemas come from the TSR: the back-office writes none, for anyone.
   expect(
     (await request.post('/api-backend/registry/schemas/', { headers, data: {} })).status(),
-  ).toBe(403);
+  ).toBe(404);
   expect(
     (await request.get('/api-backend/registry/certificate-scheme/', { headers })).status(),
   ).toBe(200);

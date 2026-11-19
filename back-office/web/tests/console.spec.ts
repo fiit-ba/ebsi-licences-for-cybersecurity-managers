@@ -114,7 +114,7 @@ test('sidebar groups account controls and copies the complete contract address',
   expect(await copy.boundingBox()).toEqual(copyBefore);
 });
 
-test('issuance preserves schema fields, organization defaults, validity and separate QR/PIN handoff', async ({
+test('issuance preserves schema fields, schema defaults, validity and separate QR/PIN handoff', async ({
   page,
 }) => {
   const state = await apiFixture(page);

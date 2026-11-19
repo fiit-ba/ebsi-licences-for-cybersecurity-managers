@@ -22,8 +22,15 @@
 // wallet is configured with: the holder hands over the certificate, and a
 // URL in it could lead anywhere.
 import { Validator } from 'jsonschema'
-import { certificates, ebsi, supportOfficeDid } from '@infrastructure/config/Ebsi'
-import { ledgerEntryOf, readCertificateStatus, recordDiffers, statusKeyOfCredential } from '@infrastructure/ledger'
+import { ebsi, issuersRegistryMarkers, supportOfficeDid } from '@infrastructure/config/Ebsi'
+import {
+  UntrustedRegistry,
+  ledgerEntryOf,
+  readCertificateStatus,
+  recordDiffers,
+  statusKeyOfCredential,
+  trustRegistry,
+} from '@infrastructure/ledger'
 import { reveal, split } from '@domain/credentials/sdJwt'
 import { fetchWithin } from '@infrastructure/network/http'
 import { PublicJwk, didKeyJwk, verifyEs256 } from './es256'
@@ -59,13 +66,19 @@ const getJson = (url: string) =>
     return response.json()
   })
 
-/** A registry URL the certificate names, moved onto the configured registry - or an error. */
-export const rebase = (url: string, base: string, marker: string): string => {
-  const at = String(url ?? '').indexOf(marker)
-  if (at === -1) throw new Error(`Not a ${marker} URL: ${url}`)
-  return `${base}/${String(url)
-    .slice(at + marker.length)
-    .replace(/^\/+/, '')}`
+/**
+ * A registry URL the certificate names, moved onto the configured registry - or an error. The
+ * markers say where the registry's paths start, in either shape of EBSI's APIs.
+ */
+export const rebase = (url: string, base: string, marker: string | string[]): string => {
+  for (const each of Array.isArray(marker) ? marker : [marker]) {
+    const at = String(url ?? '').indexOf(each)
+    if (at !== -1)
+      return `${base}/${String(url)
+        .slice(at + each.length)
+        .replace(/^\/+/, '')}`
+  }
+  throw new Error(`Not a ${String(marker)} URL: ${url}`)
 }
 
 const decodePayload = (jwt: string) =>
@@ -97,7 +110,7 @@ const CHAIN_ROLES: Record<string, string> = {
   VerifiableAuthorisationForTrustChain: 'RootTAO',
 }
 const ROOT_TYPE = 'VerifiableAuthorisationForTrustChain'
-const TIR_MARKER = '/v1/issuers-registry/'
+const TIR_MARKER = issuersRegistryMarkers
 
 type TirRecord = { did: string; attribute: { body: string; issuerType?: string } }
 
@@ -116,6 +129,25 @@ const attributesOf = async (did: string): Promise<TirRecord[]> => {
 
 const attributeAt = async (url: string): Promise<TirRecord> =>
   getJson(rebase(url, ebsi.trustedIssuersRegistry(), TIR_MARKER))
+
+const taoByAttribute = new Map<string, Promise<string | undefined>>()
+
+/**
+ * The TAO that accredited a certificate's TI, as the TI's accreditation in the Trusted Issuers
+ * Registry names it (its `tao`); asked once per accreditation.
+ */
+export const issuerTaoOf = (vc: any): Promise<string | undefined> => {
+  const term = asList(vc?.termsOfUse).find((entry: any) => entry?.id)
+  if (!term) return Promise.resolve(undefined)
+  const url = String(term.id)
+  let tao = taoByAttribute.get(url)
+  if (!tao) {
+    tao = attributeAt(url).then((record: any) => (record?.attribute?.tao ? String(record.attribute.tao) : undefined))
+    taoByAttribute.set(url, tao)
+    tao.catch(() => taoByAttribute.delete(url))
+  }
+  return tao
+}
 
 /** An accreditation's VC and issuer, once its signature verifies with its issuer's DIDR key. */
 const verifiedAccreditation = async (token: string, now: number) => {
@@ -210,12 +242,59 @@ export const walkTrustChain = async (
   return { ok: false, chain, reason: 'The chain does not end at a trusted root' }
 }
 
+/** The id a reference names in a Trusted Schemas Registry (EBSI's, the pilot's or development's). */
+const registrySchemaId = (reference: unknown): string | undefined =>
+  /^https?:\/\/[^#?]+\/schemas\/([A-Za-z0-9._-]{1,200})$/.exec(String(reference ?? ''))?.[1]
+
+/** A schema read by its id from the configured Trusted Schemas Registry. */
+const schemaById = (id: string) =>
+  getJson(`${ebsi.trustedSchemasRegistry()}/schemas/${encodeURIComponent(id)}`)
+
+/**
+ * What a presented credential must meet: a holder may withhold any attribute it was given
+ * selectively, so only the subject's id stays required (the issuer's schema says what it put in).
+ */
+const presented = (schema: any) => {
+  const copy = JSON.parse(JSON.stringify(schema ?? {}))
+  for (const part of [copy, ...(Array.isArray(copy.allOf) ? copy.allOf : [])]) {
+    const subject = part?.properties?.credentialSubject
+    if (subject && Array.isArray(subject.required))
+      subject.required = subject.required.filter((key: unknown) => key === 'id')
+  }
+  return copy
+}
+
 const validateSchemas = async (schemaIds: string[], credential: object): Promise<boolean> => {
   if (schemaIds.length === 0) return false
   const validator = new Validator()
-  for (const id of schemaIds) {
-    const schema = await getJson(rebase(id, ebsi.trustedSchemasRegistry(), '/v1/schemas-registry/'))
-    const { $schema: _draft, ...rules } = schema ?? {}
+  const added = new Set<string>()
+  // A schema extends EBSI's Verifiable Attestation by a $ref into a schemas registry: read it by
+  // its id from the configured one. Nothing else a schema refers to is fetched.
+  const addReferences = async (schema: any): Promise<void> => {
+    const references = new Set<string>()
+    const collect = (value: any) => {
+      if (Array.isArray(value)) value.forEach(collect)
+      else if (value && typeof value === 'object')
+        for (const [key, item] of Object.entries(value))
+          if (key === '$ref' && typeof item === 'string' && !item.startsWith('#')) references.add(item)
+          else collect(item)
+    }
+    collect(schema)
+    for (const reference of references) {
+      if (added.has(reference)) continue
+      const id = registrySchemaId(reference)
+      if (!id || added.size >= 10) throw new Error(`Schema reference not followed: ${reference}`)
+      const { $schema: _draft, ...rules } = presented(await schemaById(id))
+      validator.addSchema(rules, reference)
+      added.add(reference)
+      await addReferences(rules)
+    }
+  }
+  for (const reference of schemaIds) {
+    const id = registrySchemaId(reference)
+    if (!id) return false
+    const { $schema: _draft, ...rules } = presented(await schemaById(id))
+    await addReferences(rules)
     if (!validator.validate(credential, rules).valid) return false
   }
   return true
@@ -388,9 +467,20 @@ export const verifyPresentation = async (
   let standing: string | undefined
   const ledger = ledgerEntryOf(vc)
   const statusKey = statusKeyOfCredential(vc)
-  if (ledger && statusKey && ledger.contract.toLowerCase() === certificates.registry()) {
+  // The registry is trusted only as the one of the TAO that accredited the TI: EBSI's Proxy
+  // Factory deployed it and its governance, and that governance serves this TAO.
+  let trusted = false
+  if (ledger && statusKey) {
     try {
-      const record = await readCertificateStatus(statusKey)
+      await trustRegistry(ledger.contract, evidence.trust_chain?.[1]?.did)
+      trusted = true
+    } catch (error) {
+      if (error instanceof UntrustedRegistry) evidence.reason = error.message
+    }
+  }
+  if (ledger && statusKey && trusted) {
+    try {
+      const record = await readCertificateStatus(statusKey, undefined, ledger.contract)
       standing = record.standing
       evidence.ledger = {
         contract: ledger.contract.toLowerCase(),

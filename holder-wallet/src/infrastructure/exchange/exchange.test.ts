@@ -26,7 +26,9 @@ jest.mock('@infrastructure/config/Ebsi', () => ({
     trustedSchemasRegistry: () => 'http://ebsi.test/v1/schemas-registry',
     ledger: () => 'http://ebsi.test/v1/ledger',
   },
-  certificates: { registry: () => '0x' + 'cc'.repeat(20), chainId: () => 1337 },
+  issuersRegistryMarkers: ['/trusted-issuers-registry/v5/', '/v1/issuers-registry/'],
+  // No EBSI Proxy Factory here: the one configured registry is the trusted one.
+  certificates: { registry: () => '0x' + 'cc'.repeat(20), factory: () => '', chainId: () => 1337 },
   supportOfficeDid: () => 'did:ebsi:zSupportOffice',
 }))
 
@@ -206,13 +208,23 @@ const world = async ({
     .setIssuedAt(issued)
     .sign(ti.privateKey)
   const credential = `${signed}~${disclosures.map((d) => `${d}~`).join('')}`
+  // Like the registry's schemas, it extends EBSI's Verifiable Attestation by its pilot address,
+  // and requires what the issuer must put in, which a holder may still withhold.
   const schema = {
-    type: 'object',
-    properties: {
-      credentialSubject: { type: 'object', properties: { trainingDays: { type: 'integer' } }, required: ['id'] },
-    },
-    required: ['credentialSubject'],
+    allOf: [
+      { $ref: 'https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/0xbase' },
+      {
+        properties: {
+          credentialSubject: {
+            type: 'object',
+            properties: { trainingDays: { type: 'integer' } },
+            required: ['id', 'trainingDays'],
+          },
+        },
+      },
+    ],
   }
+  const base = { type: 'object', properties: { issuer: { type: 'string' } }, required: ['credentialSubject', 'issuer'] }
   const record = recordOf(standing, {
     hash: hashOf(signed),
     issuer: ti.did,
@@ -232,6 +244,7 @@ const world = async ({
       return json(found ? 200 : 404, found ?? {})
     }
     if (url === 'http://ebsi.test/v1/schemas-registry/schemas/zCert') return json(200, schema)
+    if (url === 'http://ebsi.test/v1/schemas-registry/schemas/0xbase') return json(200, base)
     if (url === 'http://ebsi.test/v1/ledger') {
       const call = JSON.parse(init.body)
       expect(call.params[0].to).toBe(CONTRACT)

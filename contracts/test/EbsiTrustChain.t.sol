@@ -17,10 +17,12 @@ import {DidRegistry} from "ebsi-mock/did-registry/DidRegistry.sol";
 import {IssuersRegistry} from "ebsi-mock/issuers-registry/IssuersRegistry.sol";
 import {IIssuersRegistry as TIR} from "ebsi-mock/issuers-registry/interfaces/IIssuersRegistry.sol";
 import {IDidDocument} from "ebsi-mock/did-registry/interfaces/IDidDocument.sol";
+import {PilotRegistries, PILOT_DID_REGISTRY, PILOT_ISSUERS_REGISTRY} from "../scripts/PilotRegistries.sol";
 
-/// The real EBSI mocks, wired as SetupEBSIInfrastructure.s.sol wires them: a
+/// The real EBSI mocks, wired as SetupEBSIInfrastructure.s.sol wires them on
+/// anvil, the DID and Trusted Issuers Registries at the PILOT's addresses: a
 /// RootTAO, two TAOs and a TI, each acting by the key that controls its DID.
-abstract contract EbsiFixture is Test {
+abstract contract EbsiFixture is Test, PilotRegistries {
     string internal constant ROOT = "did:ebsi:zRoot";
     string internal constant TAO = "did:ebsi:zTao";
     string internal constant OTHER_TAO = "did:ebsi:zOtherTao";
@@ -55,14 +57,19 @@ abstract contract EbsiFixture is Test {
             )
         );
         didr = DidRegistry(
-            address(new ERC1967Proxy(address(new DidRegistry()), abi.encodeCall(DidRegistry.initialize, (address(policies)))))
+            _proxyAtPilotAddress(
+                PILOT_DID_REGISTRY,
+                address(new DidRegistry()),
+                abi.encodeCall(DidRegistry.initialize, (address(policies))),
+                false
+            )
         );
         tir = IssuersRegistry(
-            address(
-                new ERC1967Proxy(
-                    address(new IssuersRegistry()),
-                    abi.encodeCall(IssuersRegistry.initialize, (address(policies), address(didr)))
-                )
+            _proxyAtPilotAddress(
+                PILOT_ISSUERS_REGISTRY,
+                address(new IssuersRegistry()),
+                abi.encodeCall(IssuersRegistry.initialize, (address(policies), address(didr))),
+                false
             )
         );
 
@@ -244,7 +251,7 @@ abstract contract GovernanceFixture is EbsiFixture {
         _addKey(tiKey, TI, "#key-2", secondKey);
         tiAttr = _accredit(taoKey, TI, TIR.IssuerType.TI, TAO, taoAttr);
         ti2Attr = _accredit(taoKey, TI2, TIR.IssuerType.TI, TAO, taoAttr);
-        beacon = new UpgradeableBeacon(address(new CertificateGovernance()), address(this));
+        beacon = new UpgradeableBeacon(address(new CertificateGovernance(address(didr), address(tir))), address(this));
         registryBeacon = new UpgradeableBeacon(address(new CertificateRegistry()), address(this));
         ID_HASH = Hashes.certificateIdHash("urn:uuid:1");
         KEY = Hashes.statusKey(TI, ID_HASH);
@@ -258,9 +265,7 @@ abstract contract GovernanceFixture is EbsiFixture {
         CertificateRegistry certificates = CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (owner))))
         );
-        bytes memory init = abi.encodeCall(
-            CertificateGovernance.initialize, (owner, TAO, address(didr), address(tir), address(certificates))
-        );
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (owner, TAO, address(certificates)));
         deployed = CertificateGovernance(address(new BeaconProxy(address(beacon), init)));
         vm.prank(owner);
         certificates.setGovernance(address(deployed));
@@ -628,9 +633,12 @@ contract IsolationTest is GovernanceFixture {
 }
 
 /// The registries are fixed: on EBSI their addresses never change, so the
-/// contract offers no way to repoint it, not even to the TAO.
+/// contract offers no way to repoint it, not even to the TAO. They are
+/// immutables of the implementation; only a new implementation changes them.
 contract FixedRegistriesTest is GovernanceFixture {
-    function test_TheRegistriesAreTheOnesItWasInitializedWith() public view {
+    function test_TheRegistriesAreTheOnesItsImplementationWasDeployedWith() public view {
+        assertEq(address(didr), PILOT_DID_REGISTRY);
+        assertEq(address(tir), PILOT_ISSUERS_REGISTRY);
         assertEq(governance.didRegistry(), address(didr));
         assertEq(governance.issuersRegistry(), address(tir));
         assertEq(governance.taoDid(), TAO);
@@ -647,12 +655,15 @@ contract FixedRegistriesTest is GovernanceFixture {
         assertEq(governance.issuersRegistry(), address(tir));
     }
 
-    function test_TheyCannotBeSetAgainThroughTheInitializer() public {
-        address newDidRegistry = address(new StubDidRegistry());
+    /// The initializer takes no registries (the implementation carries them),
+    /// and it runs only once: not even the TAO can rerun it for another TAO DID.
+    function test_TheInitializerCannotRunAgain() public {
         address certificateRegistry = governance.certificateRegistry();
         vm.prank(taoKey.addr);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        governance.initialize(taoKey.addr, TAO, newDidRegistry, address(tir), certificateRegistry);
+        governance.initialize(taoKey.addr, OTHER_TAO, certificateRegistry);
+        assertEq(governance.taoDid(), TAO);
         assertEq(governance.didRegistry(), address(didr));
+        assertEq(governance.issuersRegistry(), address(tir));
     }
 }

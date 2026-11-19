@@ -31,7 +31,7 @@ const useVerifyOfflineScreen = ({ route, navigation }: VerifyOfflineScreenProps)
     ;(async () => {
       const invitation = parseInvitation(String(route.params?.invitation ?? ''))
       if (!invitation) return setPhase({ kind: 'error', message: VerifyI18nKeys.OFFLINE_INVALID_QR })
-      if (!ebsi.isConfigured() || !certificates.registry()) {
+      if (!ebsi.isConfigured() || (!certificates.factory() && !certificates.registry())) {
         return setPhase({ kind: 'error', message: VerifyI18nKeys.OFFLINE_NOT_CONFIGURED })
       }
       try {

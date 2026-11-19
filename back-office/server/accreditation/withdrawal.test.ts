@@ -198,7 +198,7 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   let cancellations = 0;
   const governance: GovernanceActions = {
     chainId: 1337,
-    contract: '0x' + 'ab'.repeat(20),
+    contractFor: async () => '0x' + 'ab'.repeat(20),
     advance: async () => assert.fail('No new case may be advanced by cancellation'),
     withdraw: async (record) => {
       cancellations++;
@@ -246,7 +246,7 @@ test('organization withdrawal preserves independent revocations and retries TIR,
     database,
     {
       chainId: 1337,
-      contract: governance.contract,
+      contractFor: governance.contractFor,
       suspend: async (record) => {
         sent.push(record.reasonHash);
       },

@@ -39,3 +39,6 @@ export const applySchemaNames = (schemas: unknown): void => {
 export const schemaTypeName = (type: string): Bilingual | undefined => typeNames[type]
 
 export const schemaClaimLabel = (key: string): Bilingual | undefined => claimLabels[key]
+
+/** The claims the schemas name, in the order they list them. */
+export const schemaClaimOrder = (): string[] => Object.keys(claimLabels)

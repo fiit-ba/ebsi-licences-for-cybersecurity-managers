@@ -109,7 +109,9 @@ interface IGovernanceTypes {
     /// @param roles The role of each key, in the same order.
     /// @param cosigners The DIDs that sign from outside the TI.
     /// @param policies SUSPEND, REVOKE, REINSTATE and ADMIN.
-    /// @param proposalTtl How long a proposal may stay open (0: forever).
+    /// @param proposalTtl How long a proposal may stay open: at least
+    ///        MIN_SIGNING_WINDOW longer than the longest timelock, at most
+    ///        MAX_PROPOSAL_TTL.
     struct TiSetup {
         string did;
         bytes32 attributeId;

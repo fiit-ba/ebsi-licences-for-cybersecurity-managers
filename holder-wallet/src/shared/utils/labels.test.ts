@@ -1,4 +1,4 @@
-// Names for certificate types and claims the wallet was built without (D17).
+// Names for certificate types and claims: attributes by their schema only.
 
 jest.mock('@app/localization/Language', () => {
   let language = 'sk'
@@ -11,7 +11,7 @@ jest.mock('@app/localization/Language', () => {
 })
 
 import { applySchemaNames } from '@domain/credentials/schemaCatalog'
-import { claimLabel, credentialTypeName } from '@shared/utils/labels'
+import { claimLabel, credentialTypeName, inClaimOrder } from '@shared/utils/labels'
 
 const setLanguage = (language: string) => (require('@app/localization/Language') as any).__setLanguage(language)
 
@@ -48,10 +48,30 @@ describe('labels', () => {
     expect(claimLabel('practicalHours')).toBe('Practical hours')
   })
 
-  it('keeps the names the wallet has for what it knows', () => {
+  it('names attributes only as their schema does', () => {
+    expect(claimLabel('holderName')).toBe('holder Name')
     applySchemaNames(SCHEMAS)
+    expect(claimLabel('holderName')).toBe('Iný názov')
     expect(credentialTypeName('CybersecurityManagerCertificate')).toBe('Licencia manažéra kybernetickej bezpečnosti')
-    expect(claimLabel('holderName')).toBe('Meno a priezvisko')
+  })
+
+  it('names the fields every credential has itself', () => {
+    applySchemaNames(SCHEMAS)
+    expect(claimLabel('id')).toBe('Identifikátor držiteľa')
+    expect(claimLabel('expirationDate')).toBe('Platnosť do')
+  })
+
+  it('orders claims as their schema lists them, then the common fields', () => {
+    applySchemaNames(SCHEMAS)
+    expect(
+      inClaimOrder([
+        ['expirationDate', 1],
+        ['unknown', 2],
+        ['examDate', 3],
+        ['practicalHours', 4],
+        ['holderName', 5],
+      ]).map(([key]) => key),
+    ).toEqual(['practicalHours', 'holderName', 'examDate', 'expirationDate', 'unknown'])
   })
 
   it('falls back to Slovak when a schema has no English label', () => {

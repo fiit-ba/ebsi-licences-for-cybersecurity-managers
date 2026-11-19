@@ -13,6 +13,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {StubDidRegistry, StubIssuersRegistry} from "./RegistryStubs.sol";
 
 /// CertificateGovernance (component 10): construction.
 contract ConstructionTest is GovernanceTest {
@@ -142,6 +143,20 @@ contract ConstructionTest is GovernanceTest {
         deploy(keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilotPolicies(), 366 * DAY);
     }
 
+    /// The pilot's longest timelock is REVOKE's day, so a proposal lives at
+    /// least two: one more to be signed and executed in. 0 no longer means
+    /// forever.
+    function test_RevertWhen_ProposalLifetimeLeavesNoTimeAfterTheLongestTimelock() public {
+        uint64 shortest = DAY + governance.MIN_SIGNING_WINDOW();
+        uint64[3] memory tooShort = [uint64(0), 1, shortest - 1];
+        for (uint256 i = 0; i < tooShort.length; i++) {
+            vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
+            deploy(keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilotPolicies(), tooShort[i]);
+        }
+        CertificateGovernance deployed = deploy(keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilotPolicies(), shortest);
+        assertEq(deployed.getTi(TI_ID).proposalTtl, shortest);
+    }
+
     function _expectRefused(IGovernanceTypes.PolicyKind kind, IGovernanceTypes.Policy memory refused) private {
         vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
         deploy(pilotWith(kind, refused));
@@ -152,12 +167,12 @@ contract ConstructionTest is GovernanceTest {
 contract ProxyTest is GovernanceTest {
     function test_RevertWhen_TheImplementationIsInitialized() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        implementation.initialize(tao, taoDid, didRegistry, issuersRegistry, address(registry));
+        implementation.initialize(tao, taoDid, address(registry));
     }
 
     function test_RevertWhen_TheProxyIsInitializedASecondTime() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        governance.initialize(outsider, taoDid, didRegistry, issuersRegistry, address(registry));
+        governance.initialize(outsider, taoDid, address(registry));
     }
 
     function test_TheTaoOwnsTheContractNotItsDeployer() public view {
@@ -167,10 +182,7 @@ contract ProxyTest is GovernanceTest {
 
     function test_RevertWhen_TheTaoIsTheZeroAddress() public {
         _expectInitializationRefused(
-            abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, address(0)),
-            address(0),
-            taoDid,
-            issuersRegistry
+            abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, address(0)), address(0), taoDid
         );
     }
 
@@ -180,20 +192,41 @@ contract ProxyTest is GovernanceTest {
         assertEq(governance.issuersRegistry(), issuersRegistry);
     }
 
+    /// The registries are immutables: the implementation's code carries them,
+    /// and the proxy, running that code, answers the same.
+    function test_TheRegistriesComeWithTheImplementation() public view {
+        assertEq(implementation.didRegistry(), didRegistry);
+        assertEq(implementation.issuersRegistry(), issuersRegistry);
+    }
+
+    /// A new implementation with other registries is the one way to change
+    /// them: every proxy on the beacon follows it, and keeps its storage.
+    function test_ANewImplementationCarriesOtherRegistries() public {
+        address otherDidRegistry = address(new StubDidRegistry());
+        address otherIssuersRegistry = address(new StubIssuersRegistry());
+        beacon.upgradeTo(address(new CertificateGovernance(otherDidRegistry, otherIssuersRegistry)));
+
+        assertEq(governance.didRegistry(), otherDidRegistry);
+        assertEq(governance.issuersRegistry(), otherIssuersRegistry);
+        assertEq(governance.taoDid(), taoDid);
+    }
+
     function test_RevertWhen_NoTaoDid() public {
-        _expectInitializationRefused(abi.encodeWithSelector(IGovernanceTypes.InvalidTaoDid.selector), tao, "", issuersRegistry);
+        _expectInitializationRefused(abi.encodeWithSelector(IGovernanceTypes.InvalidTaoDid.selector), tao, "");
     }
 
-    function test_RevertWhen_ARegistryHasNoCode() public {
-        _expectInitializationRefused(abi.encodeWithSelector(IGovernanceTypes.InvalidRegistry.selector), tao, taoDid, outsider);
+    function test_RevertWhen_TheDidRegistryHasNoCode() public {
+        vm.expectRevert(IGovernanceTypes.InvalidRegistry.selector);
+        new CertificateGovernance(outsider, issuersRegistry);
     }
 
-    function _expectInitializationRefused(bytes memory error, address owner, string memory did, address issuers)
-        private
-    {
-        bytes memory init = abi.encodeCall(
-            CertificateGovernance.initialize, (owner, did, didRegistry, issuers, address(registry))
-        );
+    function test_RevertWhen_TheIssuersRegistryHasNoCode() public {
+        vm.expectRevert(IGovernanceTypes.InvalidRegistry.selector);
+        new CertificateGovernance(didRegistry, outsider);
+    }
+
+    function _expectInitializationRefused(bytes memory error, address owner, string memory did) private {
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (owner, did, address(registry)));
         vm.expectRevert(error);
         new BeaconProxy(address(beacon), init);
     }
@@ -468,6 +501,37 @@ contract ExpiryTest is GovernanceTest {
         governance.expireAdminProposal(id);
         assertAdminState(id, IGovernanceTypes.ProposalState.EXPIRED);
     }
+
+    /// Found by the invariant tests: the lifetime was read from the TI's
+    /// current TTL, so lengthening it revived a proposal nobody had marked
+    /// expired, and an old REVOKE could still be signed and executed.
+    function test_ATtlChangeDoesNotReviveAnExpiredProposal() public {
+        propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        skip(pilotTtl);
+        setTtl(A, B, governance.MAX_PROPOSAL_TTL());
+        assertState(1, IGovernanceTypes.ProposalState.EXPIRED);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        sign(1, B);
+    }
+
+    function test_ATtlChangeDoesNotReviveAnExpiredRuleChange() public {
+        vm.prank(A);
+        uint256 id = governance.proposeAddSigner(TI_ID, spare, ROLE_A);
+        skip(pilotTtl);
+        setTtl(A, B, governance.MAX_PROPOSAL_TTL());
+        assertAdminState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        signAdmin(id, B);
+    }
+
+    /// The lifetime is the one set when the proposal opened, either way.
+    function test_ATtlChangeDoesNotShortenAnOpenProposal() public {
+        propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        setTtl(A, B, 7 * DAY);
+        skip(8 * DAY);
+        assertState(1, IGovernanceTypes.ProposalState.PROPOSED);
+        sign(1, B);
+    }
 }
 
 /// A quorum lost and regained (component 10.4).
@@ -688,6 +752,27 @@ contract SelfAdministrationTest is GovernanceTest {
         assertEq(governance.getTi(TI_ID).proposalTtl, 7 * DAY);
     }
 
+    function test_RevertWhen_TheLifetimeWouldEndBeforeATimelockAndTheWindow() public {
+        uint64 shortest = DAY + governance.MIN_SIGNING_WINDOW(); // REVOKE's day, then the window
+        vm.startPrank(A);
+        vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
+        governance.proposeProposalTtl(TI_ID, 0);
+        vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
+        governance.proposeProposalTtl(TI_ID, shortest - 1);
+        vm.stopPrank();
+        setTtl(A, B, shortest);
+        assertEq(governance.getTi(TI_ID).proposalTtl, shortest);
+    }
+
+    function test_RevertWhen_ATimelockWouldLeaveNoTimeWithinTheLifetime() public {
+        uint64 longest = pilotTtl - governance.MIN_SIGNING_WINDOW();
+        vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
+        vm.prank(A);
+        governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE, 2, NONE, ALL, longest + 1);
+        setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, longest));
+        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).timelock, longest);
+    }
+
     function test_RevertWhen_TheCallerIsNotASigner() public {
         vm.expectRevert(IGovernanceTypes.NotASigner.selector);
         vm.prank(outsider);
@@ -700,6 +785,18 @@ contract SelfAdministrationTimelockTest is GovernanceTest {
     function setUp() public override {
         super.setUp();
         governance = deploy(pilotWith(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, DAY)));
+    }
+
+    /// Each change fits the rules it was proposed under, but not the two
+    /// together: the second is checked again when it would apply.
+    function test_RevertWhen_TwoApprovedChangesTogetherLeaveATimelockNoTime() public {
+        uint256 shorter = setTtl(A, B, 10 * DAY);
+        uint256 slower = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, 20 * DAY));
+        vm.warp(governance.getAdminProposal(slower).executableAt);
+        executeAdmin(shorter, A);
+        assertEq(governance.getTi(TI_ID).proposalTtl, 10 * DAY);
+        vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
+        executeAdmin(slower, A);
     }
 
     function test_WaitsOutTheDelayThenAppliesOnRequest() public {

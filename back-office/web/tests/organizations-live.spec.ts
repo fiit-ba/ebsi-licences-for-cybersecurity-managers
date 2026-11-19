@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import pg from 'pg';
+import { organizationSuiteDids } from '../../server/accreditation/fixtures/organization-wallets.ts';
 
 const password = 'Q7!Vx2#Bm9@Kp4$Zs8%Fj6&Wy3';
 const credentialType = 'OrganizationBrowserCredential';
@@ -35,6 +36,8 @@ test('RootTAO selects a TAO, its account registers, and the existing wallet API 
   await page
     .getByLabel('Názov organizácie', { exact: true })
     .fill('Browser Accreditation Authority');
+  // The TAO brings its own DID, which its wallet registered in the DID Registry.
+  await page.getByLabel('DID organizácie', { exact: true }).fill(organizationSuiteDids.tao);
   await page
     .getByLabel('Kontaktný e-mail (voliteľné)', { exact: true })
     .fill('tao.browser@example.test');
@@ -65,6 +68,7 @@ test('RootTAO selects a TAO, its account registers, and the existing wallet API 
     page.getByRole('checkbox', { name: 'Organizačné oprávnenie', exact: true }),
   ).toBeChecked();
   await page.getByLabel('Názov organizácie', { exact: true }).fill('Browser Training Issuer');
+  await page.getByLabel('DID organizácie', { exact: true }).fill(organizationSuiteDids.ti);
   await page
     .getByLabel('Akreditácia platí do', { exact: true })
     .fill(new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10));
@@ -112,8 +116,20 @@ test('RootTAO selects a TAO, its account registers, and the existing wallet API 
   const pendingIssuer = page.getByText('v EBSI zatiaľ nie je nastavená ako vydavateľ', {
     exact: true,
   });
-  if (process.env.BACK_OFFICE_TEST_EBSI_URL) await expect(pendingIssuer).toHaveCount(0);
-  else await expect(pendingIssuer).toBeVisible();
+  // The TI is an issuer only once it stored its accreditation in EBSI with its own wallet.
+  await expect(pendingIssuer).toBeVisible();
+  await expect(page.getByText(organizationSuiteDids.ti, { exact: true })).toBeVisible();
+  // Its TAO checks it in EBSI's registries: no accreditation stored, and none issued yet, as
+  // the TAO has not stored its own.
+  await page.getByRole('button', { name: 'EBSI', exact: true }).click();
+  if (process.env.BACK_OFFICE_TEST_EBSI_URL) {
+    await expect(page.getByText('čaká na zápis do TIR', { exact: true })).toBeVisible();
+    await expect(page.getByText('V DID dokumente', { exact: true })).toBeVisible();
+  } else
+    await expect(
+      page.getByText('Registre EBSI nie sú v tejto inštalácii nastavené.', { exact: true }),
+    ).toBeVisible();
+  await page.getByRole('button', { name: 'EBSI', exact: true }).click();
   await page.getByRole('button', { name: 'Akreditácia', exact: true }).click();
   await page.getByRole('button', { name: 'Ukončiť teraz', exact: true }).click();
   await page.getByRole('button', { name: 'Ukončiť akreditáciu', exact: true }).click();
@@ -178,41 +194,33 @@ test('RootTAO selects a TAO, its account registers, and the existing wallet API 
   expect(failures).toEqual([]);
 });
 
-test('RootTAO publishes and versions a schema through the real development TSR, then retires it with public wallet labels intact', async ({
+test('the Schémy tab lists the schemas read from the registry, and nobody defines one here', async ({
   page,
   request,
 }) => {
-  test.skip(
-    !process.env.BACK_OFFICE_TEST_EBSI_URL,
-    'Requires the explicit isolated development registry.',
-  );
   await signIn(page, 'browser.organization.root');
   await page.goto('/schemas');
-  await page.getByRole('button', { name: 'Nová schéma', exact: true }).click();
-  await page.locator('#sc-type').fill('BrowserPublishedCertificate');
-  await page.locator('#sc-name-sk').fill('Browser publikovaná schéma');
-  await page.getByRole('button', { name: 'Uložiť a zaregistrovať v TSR', exact: true }).click();
-  await expect(page.locator('.notice.ok')).toContainText('verzia 1');
-  let row = page
+  const row = page
     .getByRole('row')
-    .filter({ has: page.getByText('BrowserPublishedCertificate', { exact: true }) });
-  await row.getByRole('button', { name: 'Upraviť', exact: true }).click();
-  await page.locator('#sf-sk-0').fill('Nový názov držiteľa');
-  await page.getByRole('button', { name: 'Uložiť a zaregistrovať v TSR', exact: true }).click();
-  await expect(page.locator('.notice.ok')).toContainText('verzia 2');
-  row = page
-    .getByRole('row')
-    .filter({ has: page.getByText('BrowserPublishedCertificate', { exact: true }) });
-  await row.getByRole('button', { name: 'Vyradiť', exact: true }).click();
-  await page.getByRole('button', { name: 'Vyradiť schému', exact: true }).click();
-  await expect(row.getByText('vyradená', { exact: true })).toBeVisible();
-  const catalog = await (await request.get('/api-backend/registry/schema-names/')).json();
-  expect(
-    catalog.schemas.find(
-      (item: { credential_type: string; labels: Record<string, { sk: string }> }) =>
-        item.credential_type === 'BrowserPublishedCertificate',
-    ).labels.holderName.sk,
-  ).toBe('Nový názov držiteľa');
+    .filter({ has: page.getByText('OrganizationBrowserCredential', { exact: true }) });
+  await expect(row.getByText('v TSR', { exact: true })).toBeVisible();
+  await row.getByRole('button', { name: 'Atribúty', exact: true }).click();
+  await expect(page.getByText(/schemas\/organization-browser-fixture$/)).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'certificateNumber', exact: true })).toBeVisible();
+  for (const name of ['Nová schéma', 'Upraviť', 'Vyradiť'])
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+  const token = await page.evaluate(() => sessionStorage.getItem('plr.token'));
+  for (const path of [
+    '/registry/schemas/',
+    '/registry/schemas/confirm/',
+    '/registry/schemas/retire/',
+  ]) {
+    const refused = await request.post('/api-backend' + path, {
+      headers: { authorization: 'Bearer ' + token },
+      data: { credential_type: 'BrowserPublishedCertificate' },
+    });
+    expect(refused.status()).toBe(404);
+  }
 });
 
 test('a superuser with the RootTAO role but no registered organization cannot select an organization', async ({
@@ -227,7 +235,7 @@ test('a superuser with the RootTAO role but no registered organization cannot se
   const token = await page.evaluate(() => sessionStorage.getItem('plr.token'));
   const refused = await request.post('/api-backend/registry/trust-chain/select/', {
     headers: { authorization: 'Bearer ' + token },
-    data: { name: 'Forbidden' },
+    data: { name: 'Forbidden', did: organizationSuiteDids.tao },
   });
   expect(refused.status()).toBe(403);
   expect((await refused.json()).reason).toBe('NoOrganization');
