@@ -306,7 +306,7 @@ A license carries **three schemas** in `credentialSchema`: the license's own sch
 
 A license has a single `credentialStatus` entry: the chain and address of the registry (component 4) that belongs to the issuing TI's TAO; suspension and revocation are both recorded in the same record. The entry does not carry the record's key: the verifier computes it from the issuer's DID and the license identifier (component 4.1). The verifier accepts the registry named in the license only if it is the registry of the TAO that accredited the TI (component 4.5). `chainId` identifies the EBSI ledger.
 
-`[STATUS_ENTRY_SCHEMA]` is the schema of the `PlrLedgerStatusEntry` entry, a type extension that, like every EBSI schema, extends EBSI's Verifiable Attestation. `termsOfUse` points to the TI's accreditation in the TIR, where trust-chain verification starts. The license schema requires its mandatory attributes at issuance; on presentation, the verifier requires only those the holder shared, so a license with hidden attributes passes validation.
+`[STATUS_ENTRY_SCHEMA]` is the schema of the `PlrLedgerStatusEntry` entry, a type extension that also extends EBSI's Verifiable Attestation (EBSI's own type extensions do not), so it validates a complete credential. It requires exactly one `PlrLedgerStatusEntry` and lets other status entries sit beside it; the registry itself issues only that one. `termsOfUse` points to the TI's accreditation in the TIR, where trust-chain verification starts. The license schema requires its mandatory attributes at issuance; on presentation, the verifier requires only those the holder shared, so a license with hidden attributes passes validation.
 
 **Outgoing communication:**
 - → EBSI TIR and TSR: accreditation revalidation, reading schemas

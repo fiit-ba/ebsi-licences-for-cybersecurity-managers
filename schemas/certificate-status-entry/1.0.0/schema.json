@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Certificate Record on the Certificate Registry",
-  "description": "Type extension of the Slovak Professional License Registry for a licence's credentialStatus: its one entry names the certificate registry contract (chain and address) that keeps the licence's record, the only source of truth about its standing. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation, as every EBSI schema does.",
+  "description": "Type extension for credentialStatus in the Slovak Professional License Registry. Its PlrLedgerStatusEntry names the certificate registry contract (chain and address) that keeps the certificate's record. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation.",
   "type": "object",
   "allOf": [
     {
@@ -10,15 +10,14 @@
     {
       "properties": {
         "credentialStatus": {
+          "description": "One entry must be the PlrLedgerStatusEntry; other status entries may sit beside it.",
           "type": "array",
-          "minItems": 1,
-          "maxItems": 1,
-          "items": {
+          "contains": {
             "type": "object",
             "properties": {
               "id": {
                 "type": "string",
-                "minLength": 1
+                "format": "uri"
               },
               "type": {
                 "const": "PlrLedgerStatusEntry"
@@ -39,7 +38,8 @@
               "chainId",
               "contract"
             ]
-          }
+          },
+          "maxContains": 1
         }
       },
       "required": [
