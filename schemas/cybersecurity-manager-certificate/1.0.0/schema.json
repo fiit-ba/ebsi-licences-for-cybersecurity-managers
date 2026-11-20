@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Cybersecurity Manager Licence",
-  "description": "Schema of a cybersecurity manager licence in the Slovak Professional License Registry: the holder, the training they completed, and the training institution that issued it, accredited in EBSI's trust chain. The licence's standing (valid, suspended, revoked) is its record on the registry's certificate registry contract, named by its credentialStatus. Every attribute is selectively disclosable. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+  "title": "Cybersecurity Manager Certificate",
+  "description": "Certificate that a training institution issues to a cybersecurity manager after the training and a successful final test, under Decree of the National Security Authority No. 492/2022 Coll. Its status is the certificate's record on the certificate registry contract named in credentialStatus. VCDM 1.1; extends the EBSI Verifiable Attestation.",
   "type": "object",
   "allOf": [
     {
@@ -22,7 +22,8 @@
           "type": "object",
           "properties": {
             "id": {
-              "type": "string"
+              "type": "string",
+              "format": "uri"
             },
             "certificateTitle": {
               "type": "string",
@@ -34,7 +35,7 @@
               "type": "string",
               "minLength": 1,
               "title": "Full name with titles",
-              "description": "e.g. Ing. Janko Mrkvička, PhD."
+              "description": "e.g. Ing. Lubomir Potok, PhD."
             },
             "jobPosition": {
               "type": "string",
@@ -49,12 +50,12 @@
             },
             "trainingStart": {
               "type": "string",
-              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "format": "date",
               "title": "Training start date"
             },
             "trainingEnd": {
               "type": "string",
-              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "format": "date",
               "title": "Training end date"
             },
             "trainingDays": {
@@ -87,7 +88,7 @@
             },
             "issueDate": {
               "type": "string",
-              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "format": "date",
               "title": "Date of issue"
             },
             "certificationBody": {
@@ -99,7 +100,7 @@
               "type": "string",
               "minLength": 1,
               "title": "Signed by (name and position)",
-              "description": "e.g. prof. Ing. Ján Novák, PhD., dean"
+              "description": "e.g. prof. Ing. Lubomir Potok, PhD., dean"
             },
             "funding": {
               "type": "string",
