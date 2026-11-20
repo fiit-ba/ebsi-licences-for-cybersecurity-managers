@@ -269,6 +269,18 @@ contract ProxyTest is GovernanceTest {
 
 /// CertificateGovernance (component 10): proposing.
 contract ProposingTest is GovernanceTest {
+    /// When it was opened, as the back-office shows it.
+    function test_RecordsWhenAProposalAndARuleChangeWereOpened() public {
+        vm.warp(1_800_000_000);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        assertEq(governance.getProposal(id).proposedAt, 1_800_000_000, "proposal");
+
+        skip(HOUR);
+        vm.prank(A);
+        uint256 change = governance.proposeAddSigner(TI_ID, spare, ROLE_A);
+        assertEq(governance.getAdminProposal(change).proposedAt, 1_800_000_000 + HOUR, "rule change");
+    }
+
     function test_CountsTheProposersSignatureWithItsRole() public {
         vm.expectEmit(address(governance));
         emit IStatusProposals.ProposalCreated(1, TI_ID, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN, A);
@@ -292,6 +304,22 @@ contract ProposingTest is GovernanceTest {
     function test_LetsAReinstatementGoWithoutOne() public {
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, NO_REASON);
         assertEq(governance.getProposal(1).reasonHash, NO_REASON);
+    }
+
+    /// An action type past REINSTATE never reaches `proposeAction`: the ABI
+    /// decoder refuses an enum out of range, so it cannot borrow the ADMIN
+    /// policy (the PolicyKind with the same number).
+    function test_RevertWhen_TheActionTypeIsOutOfRange() public {
+        bytes4 selector = governance.proposeAction.selector;
+        vm.prank(A);
+        (bool ok, bytes memory returned) =
+            address(governance).call(abi.encodeWithSelector(selector, TI_ID, CERTIFICATE, uint8(3), REASON_GIVEN));
+        assertFalse(ok, "out of range");
+        assertEq(returned.length, 0, "refused by the decoder");
+
+        vm.prank(A);
+        (ok,) = address(governance).call(abi.encodeWithSelector(selector, TI_ID, CERTIFICATE, uint8(2), REASON_GIVEN));
+        assertTrue(ok, "REINSTATE, the last in range");
     }
 
     function test_RevertWhen_CallerIsNotASignerOrTheCertificateIsUnknown() public {
@@ -473,6 +501,20 @@ contract ExpiryTest is GovernanceTest {
         vm.prank(outsider);
         governance.expireProposal(1);
         assertEq(governance.openProposalFor(CERTIFICATE), 0);
+    }
+
+    function test_RevertWhen_AnExpiryIsRecordedTwice() public {
+        propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        vm.prank(A);
+        uint256 change = governance.proposeAddSigner(TI_ID, spare, ROLE_A);
+        skip(pilotTtl);
+        governance.expireProposal(1);
+        governance.expireAdminProposal(change);
+
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.expireProposal(1);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.expireAdminProposal(change);
     }
 
     function test_RevertWhen_TheProposalToExpireIsUnknownOrClosed() public {

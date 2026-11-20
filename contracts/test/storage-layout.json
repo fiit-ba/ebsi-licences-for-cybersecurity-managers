@@ -1,0 +1,533 @@
+{
+  "_notice": "The storage layout of each ERC-7201 namespace, as test/StorageLayouts.sol makes the compiler report it. Written by scripts/storage-layout.js; `--check` refuses a build whose layout an upgrade could not read.",
+  "namespaces": {
+    "tiAccreditation": "struct TiAccreditation.AccreditationStorage",
+    "tiConfiguration": "struct TiConfiguration.TiConfigurationStorage",
+    "statusProposals": "struct StatusProposals.StatusProposalsStorage",
+    "ruleChanges": "struct RuleChanges.RuleChangesStorage",
+    "certificateRegistry": "struct CertificateRegistry.CertificateRegistryStorage"
+  },
+  "types": {
+    "address": {
+      "bytes": 20,
+      "encoding": "inplace"
+    },
+    "address[]": {
+      "bytes": 32,
+      "encoding": "dynamic_array",
+      "base": "address"
+    },
+    "bool": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "bytes32": {
+      "bytes": 32,
+      "encoding": "inplace"
+    },
+    "enum IGovernanceTypes.ActionType": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "enum IGovernanceTypes.AdminAction": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "enum IGovernanceTypes.PolicyKind": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "enum IGovernanceTypes.ProposalState": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "enum IGovernanceTypes.Standing": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "mapping(address => bool)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "address",
+      "value": "bool"
+    },
+    "mapping(address => Role)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "address",
+      "value": "Role"
+    },
+    "mapping(bytes32 => mapping(address => bool))": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "bytes32",
+      "value": "mapping(address => bool)"
+    },
+    "mapping(bytes32 => mapping(address => Role))": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "bytes32",
+      "value": "mapping(address => Role)"
+    },
+    "mapping(bytes32 => struct IGovernanceTypes.Certificate)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "bytes32",
+      "value": "struct IGovernanceTypes.Certificate"
+    },
+    "mapping(bytes32 => struct TiConfiguration.TiConfig)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "bytes32",
+      "value": "struct TiConfiguration.TiConfig"
+    },
+    "mapping(bytes32 => uint256)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "bytes32",
+      "value": "uint256"
+    },
+    "mapping(uint256 => struct RuleChanges.AdminProposal)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "uint256",
+      "value": "struct RuleChanges.AdminProposal"
+    },
+    "mapping(uint256 => struct StatusProposals.Proposal)": {
+      "bytes": 32,
+      "encoding": "mapping",
+      "key": "uint256",
+      "value": "struct StatusProposals.Proposal"
+    },
+    "Role": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "RoleSet": {
+      "bytes": 1,
+      "encoding": "inplace"
+    },
+    "string": {
+      "bytes": 32,
+      "encoding": "bytes"
+    },
+    "struct Ballots.Ballot": {
+      "bytes": 160,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "tiId",
+          "slot": 0,
+          "offset": 0,
+          "type": "bytes32"
+        },
+        {
+          "name": "proposer",
+          "slot": 1,
+          "offset": 0,
+          "type": "address"
+        },
+        {
+          "name": "proposedAt",
+          "slot": 1,
+          "offset": 20,
+          "type": "uint64"
+        },
+        {
+          "name": "quorumReachedAt",
+          "slot": 2,
+          "offset": 0,
+          "type": "uint64"
+        },
+        {
+          "name": "state",
+          "slot": 2,
+          "offset": 8,
+          "type": "enum IGovernanceTypes.ProposalState"
+        },
+        {
+          "name": "expiresAt",
+          "slot": 2,
+          "offset": 9,
+          "type": "uint64"
+        },
+        {
+          "name": "signatures",
+          "slot": 3,
+          "offset": 0,
+          "type": "address[]"
+        },
+        {
+          "name": "signed",
+          "slot": 4,
+          "offset": 0,
+          "type": "mapping(address => bool)"
+        }
+      ]
+    },
+    "struct CertificateRegistry.CertificateRegistryStorage": {
+      "bytes": 64,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "governance",
+          "slot": 0,
+          "offset": 0,
+          "type": "address"
+        },
+        {
+          "name": "certificates",
+          "slot": 1,
+          "offset": 0,
+          "type": "mapping(bytes32 => struct IGovernanceTypes.Certificate)"
+        }
+      ]
+    },
+    "struct IGovernanceTypes.AdminChange": {
+      "bytes": 128,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "action",
+          "slot": 0,
+          "offset": 0,
+          "type": "enum IGovernanceTypes.AdminAction"
+        },
+        {
+          "name": "subject",
+          "slot": 0,
+          "offset": 1,
+          "type": "address"
+        },
+        {
+          "name": "replacement",
+          "slot": 1,
+          "offset": 0,
+          "type": "address"
+        },
+        {
+          "name": "role",
+          "slot": 1,
+          "offset": 20,
+          "type": "Role"
+        },
+        {
+          "name": "kind",
+          "slot": 1,
+          "offset": 21,
+          "type": "enum IGovernanceTypes.PolicyKind"
+        },
+        {
+          "name": "policy",
+          "slot": 2,
+          "offset": 0,
+          "type": "struct IGovernanceTypes.Policy"
+        },
+        {
+          "name": "ttl",
+          "slot": 3,
+          "offset": 0,
+          "type": "uint64"
+        }
+      ]
+    },
+    "struct IGovernanceTypes.Certificate": {
+      "bytes": 128,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "standing",
+          "slot": 0,
+          "offset": 0,
+          "type": "enum IGovernanceTypes.Standing"
+        },
+        {
+          "name": "validFrom",
+          "slot": 0,
+          "offset": 1,
+          "type": "uint64"
+        },
+        {
+          "name": "validUntil",
+          "slot": 0,
+          "offset": 9,
+          "type": "uint64"
+        },
+        {
+          "name": "registeredAt",
+          "slot": 0,
+          "offset": 17,
+          "type": "uint64"
+        },
+        {
+          "name": "changedAt",
+          "slot": 1,
+          "offset": 0,
+          "type": "uint64"
+        },
+        {
+          "name": "credentialHash",
+          "slot": 2,
+          "offset": 0,
+          "type": "bytes32"
+        },
+        {
+          "name": "issuerDid",
+          "slot": 3,
+          "offset": 0,
+          "type": "string"
+        }
+      ]
+    },
+    "struct IGovernanceTypes.Cosigner": {
+      "bytes": 64,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "did",
+          "slot": 0,
+          "offset": 0,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "slot": 1,
+          "offset": 0,
+          "type": "Role"
+        }
+      ]
+    },
+    "struct IGovernanceTypes.Cosigner[]": {
+      "bytes": 32,
+      "encoding": "dynamic_array",
+      "base": "struct IGovernanceTypes.Cosigner"
+    },
+    "struct IGovernanceTypes.Policy": {
+      "bytes": 32,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "threshold",
+          "slot": 0,
+          "offset": 0,
+          "type": "uint8"
+        },
+        {
+          "name": "requiredRoleMask",
+          "slot": 0,
+          "offset": 1,
+          "type": "RoleSet"
+        },
+        {
+          "name": "vetoRoleMask",
+          "slot": 0,
+          "offset": 2,
+          "type": "RoleSet"
+        },
+        {
+          "name": "timelock",
+          "slot": 0,
+          "offset": 3,
+          "type": "uint64"
+        }
+      ]
+    },
+    "struct IGovernanceTypes.Policy[4]": {
+      "bytes": 128,
+      "encoding": "inplace",
+      "base": "struct IGovernanceTypes.Policy"
+    },
+    "struct RuleChanges.AdminProposal": {
+      "bytes": 288,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "change",
+          "slot": 0,
+          "offset": 0,
+          "type": "struct IGovernanceTypes.AdminChange"
+        },
+        {
+          "name": "ballot",
+          "slot": 4,
+          "offset": 0,
+          "type": "struct Ballots.Ballot"
+        }
+      ]
+    },
+    "struct RuleChanges.RuleChangesStorage": {
+      "bytes": 64,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "adminProposalCount",
+          "slot": 0,
+          "offset": 0,
+          "type": "uint256"
+        },
+        {
+          "name": "adminProposals",
+          "slot": 1,
+          "offset": 0,
+          "type": "mapping(uint256 => struct RuleChanges.AdminProposal)"
+        }
+      ]
+    },
+    "struct StatusProposals.Proposal": {
+      "bytes": 256,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "statusKey",
+          "slot": 0,
+          "offset": 0,
+          "type": "bytes32"
+        },
+        {
+          "name": "actionType",
+          "slot": 1,
+          "offset": 0,
+          "type": "enum IGovernanceTypes.ActionType"
+        },
+        {
+          "name": "reasonHash",
+          "slot": 2,
+          "offset": 0,
+          "type": "bytes32"
+        },
+        {
+          "name": "ballot",
+          "slot": 3,
+          "offset": 0,
+          "type": "struct Ballots.Ballot"
+        }
+      ]
+    },
+    "struct StatusProposals.StatusProposalsStorage": {
+      "bytes": 128,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "certificateRegistry",
+          "slot": 0,
+          "offset": 0,
+          "type": "address"
+        },
+        {
+          "name": "proposalCount",
+          "slot": 1,
+          "offset": 0,
+          "type": "uint256"
+        },
+        {
+          "name": "proposals",
+          "slot": 2,
+          "offset": 0,
+          "type": "mapping(uint256 => struct StatusProposals.Proposal)"
+        },
+        {
+          "name": "openProposalFor",
+          "slot": 3,
+          "offset": 0,
+          "type": "mapping(bytes32 => uint256)"
+        }
+      ]
+    },
+    "struct TiAccreditation.AccreditationStorage": {
+      "bytes": 32,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "taoDid",
+          "slot": 0,
+          "offset": 0,
+          "type": "string"
+        }
+      ]
+    },
+    "struct TiConfiguration.TiConfig": {
+      "bytes": 288,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "did",
+          "slot": 0,
+          "offset": 0,
+          "type": "string"
+        },
+        {
+          "name": "attributeId",
+          "slot": 1,
+          "offset": 0,
+          "type": "bytes32"
+        },
+        {
+          "name": "signers",
+          "slot": 2,
+          "offset": 0,
+          "type": "address[]"
+        },
+        {
+          "name": "cosigners",
+          "slot": 3,
+          "offset": 0,
+          "type": "struct IGovernanceTypes.Cosigner[]"
+        },
+        {
+          "name": "policies",
+          "slot": 4,
+          "offset": 0,
+          "type": "struct IGovernanceTypes.Policy[4]"
+        },
+        {
+          "name": "proposalTtl",
+          "slot": 8,
+          "offset": 0,
+          "type": "uint64"
+        },
+        {
+          "name": "version",
+          "slot": 8,
+          "offset": 8,
+          "type": "uint64"
+        }
+      ]
+    },
+    "struct TiConfiguration.TiConfigurationStorage": {
+      "bytes": 96,
+      "encoding": "inplace",
+      "members": [
+        {
+          "name": "tis",
+          "slot": 0,
+          "offset": 0,
+          "type": "mapping(bytes32 => struct TiConfiguration.TiConfig)"
+        },
+        {
+          "name": "signerRole",
+          "slot": 1,
+          "offset": 0,
+          "type": "mapping(bytes32 => mapping(address => Role))"
+        },
+        {
+          "name": "retired",
+          "slot": 2,
+          "offset": 0,
+          "type": "mapping(bytes32 => mapping(address => bool))"
+        }
+      ]
+    },
+    "uint256": {
+      "bytes": 32,
+      "encoding": "inplace"
+    },
+    "uint64": {
+      "bytes": 8,
+      "encoding": "inplace"
+    },
+    "uint8": {
+      "bytes": 1,
+      "encoding": "inplace"
+    }
+  }
+}

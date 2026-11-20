@@ -41,6 +41,32 @@ compilation_restrictions = [
   { paths = "contracts/**", via_ir = true },
 ]
 
+# Fuzzing: test/fuzz/ (one property, random inputs) and test/invariant/
+# (random call sequences against a model). These numbers keep `forge test`
+# quick; `FOUNDRY_PROFILE=deep forge test --match-path "test/{fuzz,invariant}/*"`
+# runs them long.
+[fuzz]
+runs = 256
+
+[invariant]
+runs = 64
+depth = 128
+# A call the contract refuses is part of the exercise, not a failure.
+fail_on_revert = false
+
+[profile.deep.fuzz]
+runs = 10000
+
+[profile.deep.invariant]
+runs = 512
+depth = 256
+
+# test/fuzz/HashesFfi.t.sol checks the hashes against test/vectors/hash.py,
+# which needs ffi; the default profile does not allow it, and those tests skip:
+# `FOUNDRY_PROFILE=ffi forge test --match-path test/fuzz/HashesFfi.t.sol`.
+[profile.ffi]
+ffi = true
+
 # The contract alone, without the local code: CI builds it with
 # `FOUNDRY_PROFILE=prod forge build --skip test --skip script`, which fails if
 # anything under contracts/ imports ebsi-mock/.
