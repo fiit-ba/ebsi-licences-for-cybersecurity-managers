@@ -34,7 +34,7 @@ components only build, test or run it locally.
 
 | Component | Version | Licence | Use | Where | Notes |
 | --- | --- | --- | --- | --- | --- |
-| nginx | 1.27-alpine | BSD-2-Clause | production | back-office/web/Dockerfile | Base of the edge image that serves the staff console. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences. |
+| nginx | 1.30.7-alpine | BSD-2-Clause | production | back-office/web/Dockerfile | Base of the edge image that serves the staff console. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences. |
 | node | 24-alpine | MIT | production | back-office/Dockerfile | Base of the back-office image. MIT is Node.js; the Alpine Linux packages in the image keep their own licences. |
 
 ## npm packages (`back-office/package-lock.json`)

@@ -16,5 +16,5 @@ ENV VITE_GOVERNANCE_CONTRACT=$VITE_GOVERNANCE_CONTRACT \
     VITE_LEDGER_WALLET_RPC=$VITE_LEDGER_WALLET_RPC
 RUN npm run build:web
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30.7-alpine
 COPY --from=build /src/web/dist /srv/console
