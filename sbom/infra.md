@@ -29,7 +29,7 @@ components only build, test or run it locally.
 | --- | --- | --- | --- | --- | --- |
 | gresau/localstack-persist | 3.8.0 | Apache-2.0 | development | infra/docker-compose.yml | Local KMS for development. localstack-persist and LocalStack 3.8 are both Apache-2.0. |
 | hyperledger/besu | latest | Apache-2.0 | development | infra/besu/besu-qbft-network/docker-compose.yml | The local four-validator QBFT development ledger. |
-| nginx | 1.27-alpine | BSD-2-Clause | production | infra/docker-compose.prod.yml | The backend's TLS proxy. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences. |
+| nginx | 1.30.7-alpine | BSD-2-Clause | production | infra/docker-compose.prod.yml | The backend's TLS proxy. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences. |
 | node | 24-alpine | MIT | development | infra/ebsi-mock/Dockerfile | Base of the development EBSI service's image. MIT is Node.js; the Alpine Linux packages in the image keep their own licences. |
 | postgres | 17 | PostgreSQL | production | infra/docker-compose.yml, infra/docker-compose.prod.yml | PostgreSQL is under the PostgreSQL Licence; the Debian packages in the image keep their own licences. |
 | redis | 7 | LicenseRef-RSALv2 OR SSPL-1.0 | production | infra/docker-compose.yml, infra/docker-compose.prod.yml | The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause. |

@@ -123,15 +123,15 @@
         "category": "Container base images",
         "type": "container",
         "name": "nginx",
-        "version": "1.27-alpine",
+        "version": "1.30.7-alpine",
         "license": "BSD-2-Clause",
         "use": "production",
         "supplier": "Docker Official Images",
         "url": "https://hub.docker.com/_/nginx",
-        "purl": "pkg:docker/library/nginx@1.27-alpine",
+        "purl": "pkg:docker/library/nginx@1.30.7-alpine",
         "location": "back-office/web/Dockerfile",
         "note": "Base of the edge image that serves the staff console. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences.",
-        "evidence": { "file": "back-office/web/Dockerfile", "contains": "FROM nginx:1.27-alpine" }
+        "evidence": { "file": "back-office/web/Dockerfile", "contains": "FROM nginx:1.30.7-alpine" }
       }
     ],
     "contracts": [
@@ -391,15 +391,15 @@
         "category": "Container images",
         "type": "container",
         "name": "nginx",
-        "version": "1.27-alpine",
+        "version": "1.30.7-alpine",
         "license": "BSD-2-Clause",
         "use": "production",
         "supplier": "Docker Official Images",
         "url": "https://hub.docker.com/_/nginx",
-        "purl": "pkg:docker/library/nginx@1.27-alpine",
+        "purl": "pkg:docker/library/nginx@1.30.7-alpine",
         "location": "infra/docker-compose.prod.yml",
         "note": "The backend's TLS proxy. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences.",
-        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: nginx:1.27-alpine" }
+        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: nginx:1.30.7-alpine" }
       },
       {
         "category": "Container images",

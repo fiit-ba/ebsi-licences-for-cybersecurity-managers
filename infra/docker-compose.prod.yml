@@ -118,7 +118,7 @@ services:
 
   backend-mesh:
     <<: *hardening
-    image: nginx:1.27-alpine
+    image: nginx:1.30.7-alpine
     network_mode: service:backend
     volumes:
       - ./prod/nginx/backend-mesh.conf.template:/etc/nginx/templates/mesh.conf.template:ro

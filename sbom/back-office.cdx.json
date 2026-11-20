@@ -76,12 +76,12 @@
     },
     {
       "type": "container",
-      "bom-ref": "pkg:docker/library/nginx@1.27-alpine",
+      "bom-ref": "pkg:docker/library/nginx@1.30.7-alpine",
       "supplier": {
         "name": "Docker Official Images"
       },
       "name": "nginx",
-      "version": "1.27-alpine",
+      "version": "1.30.7-alpine",
       "scope": "required",
       "licenses": [
         {
@@ -90,7 +90,7 @@
           }
         }
       ],
-      "purl": "pkg:docker/library/nginx@1.27-alpine",
+      "purl": "pkg:docker/library/nginx@1.30.7-alpine",
       "externalReferences": [
         {
           "type": "website",
