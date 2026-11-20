@@ -746,6 +746,8 @@ One governance contract serves all the TIs of one TAO. The TAO sets up each TI (
 
 A role may hold several keys, such as a primary and a backup; a quorum counts roles, not keys.
 
+The supervisory authority's keys and the certification body's keys must stay apart: no key may be both a key of the TI's DID and a key of a cosigner's DID. Such a key signs only with the TI's role, while the contract still counts the cosigner's role as present when it checks that every policy can be met, so the TI could lose the quorum for its own rule changes, and only the TAO could restore it by replacing the cosigners. The contract does not refuse such a key; the operators of the TI and of the supervisory authority's DID keep the two apart (contracts/README.md, *A cosigner's keys must not be the TI's own keys*).
+
 **Checked against EBSI on every use.** The contract asks the TIR whether the TI is still accredited by the TAO that owns the contract (through the chain up to a RootTAO, at most 32 steps) when a record is made, when a proposal or a rule change is opened, and when it takes effect. A key holds its role only while the DID Registry lists it as a key of the TI's DID (or the cosigner's); a key no longer listed there has no role, and its earlier signatures stop counting. Revoking in EBSI is therefore enough.
 
 **Threshold:** set by the policy of the action (see *Policies are data* below); the default is 2 of 3 roles. The participation of the external signer (C) is what makes the component meaningful — without it, its value is no different from the application/database enforcement of separation of duties in component 1.
