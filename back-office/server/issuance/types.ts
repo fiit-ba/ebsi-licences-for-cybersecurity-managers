@@ -60,7 +60,7 @@ export interface FinalizationRecord {
   issuer_did: string;
   credential_id: string;
   credential_type: string;
-  certificate_number: string;
+  licence_number: string;
   created_at: Date;
   valid_from?: Date | null;
   valid_until?: Date | null;

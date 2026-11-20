@@ -8,6 +8,11 @@ import { actualBackupWallet } from '../server/backup/fixtures/wallet.ts';
 import { actualHolderWallet } from '../server/verification/fixtures/holder-wallet.ts';
 import { verificationHolder } from '../server/verification/fixtures/runtime.ts';
 import { developmentWalletDid } from '../server/accreditation/development-wallet.ts';
+import { registrySchema } from '../server/schemas/registry-schemas.ts';
+import { developmentSchemaDocument } from '../scripts/development-schema.ts';
+
+/** Every attribute of the certificate schema the development Support Office registers. */
+const schemaAttributes = registrySchema('development', developmentSchemaDocument).fields.length;
 
 if (process.env.ATEST_INSTALLATION_TEST !== 'isolated')
   throw new Error(
@@ -63,7 +68,7 @@ try {
   const root = await wallet.authenticateOrganization(username, password);
   assert.ok(root.access);
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
-  const type = 'CybersecurityManagerCertificate';
+  const type = 'CybersecurityManagerLicence';
 
   /**
    * Send a real installation API request and assert its expected status.
@@ -90,13 +95,13 @@ try {
 
   const fields = [
     {
-      key: 'certificateNumber',
+      key: 'licenceNumber',
       kind: 'text',
       required: true,
       default: '',
       organization: false,
       section: 'certificate',
-      label: { sk: 'Číslo osvedčenia', en: 'Certificate number' },
+      label: { sk: 'Číslo osvedčenia', en: 'Licence number' },
       hint: { sk: '', en: '' },
     },
   ];
@@ -119,7 +124,7 @@ try {
   if (seeded)
     assert.equal(
       schema.versions[0].fields.length,
-      15,
+      schemaAttributes,
       'Ordinary bootstrap must restore the complete certificate form.',
     );
   if (seeded) {
@@ -136,7 +141,7 @@ try {
       if (username === 'alice')
         assert.equal(
           (await wallet.fetchCertificateScheme(session.access)).schemas[0].fields.length,
-          15,
+          schemaAttributes,
         );
     }
   }
@@ -205,7 +210,7 @@ try {
       ti.access,
       'Installation holder',
       {
-        certificateNumber: 'INSTALL-' + suffix,
+        licenceNumber: 'INSTALL-' + suffix,
         ...(seeded
           ? {
               holderName: 'Installation Holder',
@@ -287,7 +292,7 @@ try {
   assert.ok(issued);
   const split = wallet.split(issued);
   assert.equal(
-    wallet.reveal(decodeJwt(split.jwt), split.disclosures).vc.credentialSubject.certificateNumber,
+    wallet.reveal(decodeJwt(split.jwt), split.disclosures).vc.credentialSubject.licenceNumber,
     'INSTALL-' + suffix,
   );
   await assert.rejects(
@@ -369,7 +374,7 @@ try {
       ti.access,
       {
         invitation: exchange.invitation,
-        fields: { mandatory: ['certificateNumber'], optional: [] },
+        fields: { mandatory: ['licenceNumber'], optional: [] },
       },
       201,
     );
@@ -420,7 +425,7 @@ try {
         taoName,
         type,
         credential: issued,
-        certificate_id: offer.certificate_id,
+        licence_id: offer.licence_id,
       }),
       { mode: 0o600 },
     );

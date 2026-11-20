@@ -54,7 +54,7 @@ export function postgresCredentialTokenExchange(
           rows: [offer],
         } = await client.query(
           `
-          SELECT certificate_id, pin_digest, failed_attempts
+          SELECT licence_id, pin_digest, failed_attempts
           FROM credential_offers WHERE code_digest = $1 AND consumed_at IS NULL
           FOR UPDATE
         `,
@@ -69,24 +69,24 @@ export function postgresCredentialTokenExchange(
         const { rowCount } = await client.query(
           `
           SELECT 1 FROM credential_offers o
-          JOIN registered_certificates c ON c.id = o.certificate_id
+          JOIN registered_licences c ON c.id = o.licence_id
           JOIN accredited_organizations ti ON ti.id = c.issuer_id
           JOIN accredited_organizations tao ON tao.id = ti.parent_id
           JOIN accredited_organizations root ON root.id = tao.parent_id
-          WHERE o.certificate_id = $1 AND o.expires_at > statement_timestamp()
+          WHERE o.licence_id = $1 AND o.expires_at > statement_timestamp()
             AND (c.valid_until IS NULL OR c.valid_until > statement_timestamp())
             AND NOT EXISTS (
               SELECT 1 FROM (VALUES (ti.revoked_at), (tao.revoked_at), (root.revoked_at)) AS chain(revoked_at)
               WHERE revoked_at <= statement_timestamp()
             )
         `,
-          [offer.certificate_id],
+          [offer.licence_id],
         );
         if (!rowCount) return failure('invalid_grant', 'The offer is unavailable.');
         const {
           rows: [reference],
-        } = await client.query('SELECT credential_id FROM registered_certificates WHERE id = $1', [
-          offer.certificate_id,
+        } = await client.query('SELECT credential_id FROM registered_licences WHERE id = $1', [
+          offer.licence_id,
         ]);
         if (offer.pin_digest.length && (pin == null || pin === ''))
           return failure('invalid_request', 'A transaction code (tx_code) is required.');
@@ -98,9 +98,9 @@ export function postgresCredentialTokenExchange(
           // Return the error after commit so a wrong PIN spends an attempt.
           await client.query(
             `
-            UPDATE credential_offers SET failed_attempts = failed_attempts + 1 WHERE certificate_id = $1
+            UPDATE credential_offers SET failed_attempts = failed_attempts + 1 WHERE licence_id = $1
           `,
-            [offer.certificate_id],
+            [offer.licence_id],
           );
           await appendAudit(client, {
             event: 'offer.refused',
@@ -132,18 +132,18 @@ export function postgresCredentialTokenExchange(
           Buffer.from(await key.sign(inputBytes)).toString('base64url');
         const { rowCount: created } = await client.query(
           `
-          INSERT INTO credential_tokens (token_digest, certificate_id, expires_at)
+          INSERT INTO credential_tokens (token_digest, licence_id, expires_at)
           VALUES ($1, $2, statement_timestamp() + $3 * interval '1 second')
-          ON CONFLICT (certificate_id) DO NOTHING
+          ON CONFLICT (licence_id) DO NOTHING
         `,
-          [secretDigest(token), offer.certificate_id, lifetimeSeconds],
+          [secretDigest(token), offer.licence_id, lifetimeSeconds],
         );
         if (!created) return failure('invalid_grant', 'The offer is unavailable.');
         await client.query(
           `
-          UPDATE credential_offers SET consumed_at = statement_timestamp() WHERE certificate_id = $1
+          UPDATE credential_offers SET consumed_at = statement_timestamp() WHERE licence_id = $1
         `,
-          [offer.certificate_id],
+          [offer.licence_id],
         );
         await appendAudit(client, {
           event: 'offer.token_issued',

@@ -28,7 +28,7 @@ export function postgresRejectionDelivery(
     let failure: unknown;
     const rows = (
       await database.query(
-        `SELECT id FROM certificate_status_proposals WHERE rejected_at IS NOT NULL
+        `SELECT id FROM licence_status_proposals WHERE rejected_at IS NOT NULL
       AND rejection_delivered_at IS NULL AND onchain_contract IS NOT NULL
       AND ($1::uuid IS NULL OR id=$1)
       AND ($1::uuid IS NOT NULL OR delivery_attempted_at IS NULL OR delivery_attempted_at<clock_timestamp()-interval '15 seconds')
@@ -39,25 +39,22 @@ export function postgresRejectionDelivery(
     for (const { id } of rows)
       await transaction(database, async (client) => {
         const target = (
-          await client.query(
-            'SELECT certificate_id FROM certificate_status_proposals WHERE id=$1',
-            [id],
-          )
+          await client.query('SELECT licence_id FROM licence_status_proposals WHERE id=$1', [id])
         ).rows[0];
         if (!target) return;
         if (
           !(
             await client.query(
-              'SELECT id FROM registered_certificates WHERE id=$1 FOR UPDATE SKIP LOCKED',
-              [target.certificate_id],
+              'SELECT id FROM registered_licences WHERE id=$1 FOR UPDATE SKIP LOCKED',
+              [target.licence_id],
             )
           ).rowCount
         )
           return;
         const record = (
           await client.query(
-            `SELECT p.*,c.credential_id,c.issuer_did,c.certificate_number,c.status_key,c.credential_hash
-        FROM certificate_status_proposals p JOIN registered_certificates c ON c.id=p.certificate_id
+            `SELECT p.*,c.credential_id,c.issuer_did,c.licence_number,c.status_key,c.credential_hash
+        FROM licence_status_proposals p JOIN registered_licences c ON c.id=p.licence_id
         WHERE p.id=$1 AND p.rejected_at IS NOT NULL AND p.rejection_delivered_at IS NULL
         AND ($2::boolean OR p.delivery_attempted_at IS NULL OR p.delivery_attempted_at<clock_timestamp()-interval '15 seconds') FOR UPDATE OF p`,
             [id, Boolean(proposalId)],
@@ -65,7 +62,7 @@ export function postgresRejectionDelivery(
         ).rows[0];
         if (!record) return;
         await client.query(
-          'UPDATE certificate_status_proposals SET delivery_attempted_at=clock_timestamp() WHERE id=$1',
+          'UPDATE licence_status_proposals SET delivery_attempted_at=clock_timestamp() WHERE id=$1',
           [id],
         );
         let result;
@@ -110,7 +107,7 @@ export function postgresRejectionDelivery(
           return;
         }
         await client.query(
-          `UPDATE certificate_status_proposals SET onchain_proposal_id=$2,onchain_state=$3,
+          `UPDATE licence_status_proposals SET onchain_proposal_id=$2,onchain_state=$3,
         rejection_delivered_at=CASE WHEN $3 IN ('executed','cancelled','expired') THEN clock_timestamp() END,
         delivery_uncertain=false WHERE id=$1`,
           [id, result.id, result.state],

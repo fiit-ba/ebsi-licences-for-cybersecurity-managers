@@ -168,15 +168,15 @@ export function registrySchemas(
   async function overview(client: Pick<PoolClient, 'query'>) {
     const { rows } = await client.query<SchemaOverviewRow>(`
       SELECT s.credential_type, s.name_sk, s.name_en, s.created_at, s.retired_at,
-        (SELECT count(*)::integer FROM organization_certificate_schemas g WHERE g.schema_id = s.id) AS organizations,
+        (SELECT count(*)::integer FROM organization_licence_schemas g WHERE g.schema_id = s.id) AS organizations,
         COALESCE((
           SELECT jsonb_agg(jsonb_build_object(
             'version', v.version, 'fields', v.fields, 'tsr_id', v.tsr_id, 'registered_at', v.registered_at
           ) ORDER BY v.version DESC)
-          FROM certificate_schema_versions v
+          FROM licence_schema_versions v
           WHERE v.schema_id = s.id AND v.registered_at IS NOT NULL
         ), '[]'::jsonb) AS versions
-      FROM certificate_schemas s
+      FROM licence_schemas s
       ORDER BY s.name_sk, s.credential_type
     `);
     return rows.map(({ name_sk, name_en, versions, ...schema }) => ({
@@ -222,7 +222,7 @@ export function registrySchemas(
           const {
             rows: [stored],
           } = await client.query(
-            `INSERT INTO certificate_schemas (credential_type, name_sk, name_en) VALUES ($1, $2, $2)
+            `INSERT INTO licence_schemas (credential_type, name_sk, name_en) VALUES ($1, $2, $2)
             ON CONFLICT (credential_type) DO UPDATE SET name_sk = EXCLUDED.name_sk,
               name_en = EXCLUDED.name_en, retired_at = NULL, retired_by = NULL
             RETURNING id`,
@@ -230,16 +230,16 @@ export function registrySchemas(
           );
           const fields = JSON.stringify(schema.fields);
           const known = await client.query(
-            'UPDATE certificate_schema_versions SET fields = $3::jsonb WHERE schema_id = $1 AND tsr_id = $2',
+            'UPDATE licence_schema_versions SET fields = $3::jsonb WHERE schema_id = $1 AND tsr_id = $2',
             [stored.id, schema.id, fields],
           );
           if (known.rowCount) continue;
           const {
             rows: [version],
           } = await client.query(
-            `INSERT INTO certificate_schema_versions (schema_id, version, fields, tsr_id, registered_at)
+            `INSERT INTO licence_schema_versions (schema_id, version, fields, tsr_id, registered_at)
             SELECT $1, COALESCE(max(version), 0) + 1, $3::jsonb, $2, statement_timestamp()
-            FROM certificate_schema_versions WHERE schema_id = $1
+            FROM licence_schema_versions WHERE schema_id = $1
             RETURNING version`,
             [stored.id, schema.id, fields],
           );
@@ -250,9 +250,9 @@ export function registrySchemas(
           added.push(schema.credential_type);
         }
         const { rows } = await client.query(
-          `UPDATE certificate_schemas s SET retired_at = statement_timestamp()
+          `UPDATE licence_schemas s SET retired_at = statement_timestamp()
           WHERE s.retired_at IS NULL AND NOT EXISTS (
-            SELECT 1 FROM certificate_schema_versions v WHERE v.schema_id = s.id AND v.tsr_id = ANY($1::text[])
+            SELECT 1 FROM licence_schema_versions v WHERE v.schema_id = s.id AND v.tsr_id = ANY($1::text[])
           ) RETURNING s.credential_type`,
           [options.ids],
         );

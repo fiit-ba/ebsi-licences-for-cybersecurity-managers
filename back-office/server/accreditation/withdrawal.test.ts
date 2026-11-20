@@ -19,21 +19,21 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   const certificates: string[] = [];
   const schema = (
     await database.query(
-      'INSERT INTO certificate_schemas(credential_type,name_sk) VALUES($1,$1) RETURNING id',
+      'INSERT INTO licence_schemas(credential_type,name_sk) VALUES($1,$1) RETURNING id',
       ['Withdrawal' + suffix.replaceAll('-', '')],
     )
   ).rows[0].id;
   context.after(async () => {
     try {
       await database.query(
-        'DELETE FROM certificate_status_proposals WHERE certificate_id=ANY($1::uuid[])',
+        'DELETE FROM licence_status_proposals WHERE licence_id=ANY($1::uuid[])',
         [certificates],
       );
       await database.query(
-        'DELETE FROM certificate_emergency_suspensions WHERE certificate_id=ANY($1::uuid[])',
+        'DELETE FROM licence_emergency_suspensions WHERE licence_id=ANY($1::uuid[])',
         [certificates],
       );
-      await database.query('DELETE FROM registered_certificates WHERE id=ANY($1::uuid[])', [
+      await database.query('DELETE FROM registered_licences WHERE id=ANY($1::uuid[])', [
         certificates,
       ]);
       await database.query(
@@ -47,8 +47,8 @@ test('organization withdrawal preserves independent revocations and retries TIR,
       await database.query('DELETE FROM accredited_organizations WHERE id=ANY($1::uuid[])', [
         organizations,
       ]);
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [schema]);
-      await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
       await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::integer[])', [accounts]);
     } finally {
       await database.end();
@@ -85,14 +85,14 @@ test('organization withdrawal preserves independent revocations and retries TIR,
     );
   const [, tao, ti] = organizations;
   await database.query(
-    "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','test',now())",
+    "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','test',now())",
     [schema],
   );
   for (let i = 0; i < 3; i++) {
     const id = randomUUID();
     certificates.push(id);
     await database.query(
-      `INSERT INTO registered_certificates(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,certificate_number,status_key,credential_hash,private_data,created_by)
+      `INSERT INTO registered_licences(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,licence_number,status_key,credential_hash,private_data,created_by)
       VALUES($1,$2,$3,$4,$5,1,$6,$7,$8,$9,$10)`,
       [
         id,
@@ -156,7 +156,7 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   );
   assert.equal(
     (
-      await database.query('SELECT closed_at FROM certificate_status_proposals WHERE id=$1', [
+      await database.query('SELECT closed_at FROM licence_status_proposals WHERE id=$1', [
         superseded.proposal_id,
       ])
     ).rows[0].closed_at instanceof Date,
@@ -182,12 +182,10 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   // was delivered. The certificate must receive a fresh protective request.
   const old = certificates[2];
   const original = (
-    await database.query('SELECT * FROM certificate_status_proposals WHERE certificate_id=$1', [
-      old,
-    ])
+    await database.query('SELECT * FROM licence_status_proposals WHERE licence_id=$1', [old])
   ).rows[0];
   await database.query(
-    "UPDATE certificate_status_proposals SET action='reinstate',closed_at=now(),onchain_contract=$2,onchain_chain_id=1337,onchain_proposal_id='7',delivery_uncertain=true WHERE id=$1",
+    "UPDATE licence_status_proposals SET action='reinstate',closed_at=now(),onchain_contract=$2,onchain_chain_id=1337,onchain_proposal_id='7',delivery_uncertain=true WHERE id=$1",
     [original.id, '0x' + 'ab'.repeat(20)],
   );
   await database.query(
@@ -236,7 +234,7 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   );
   const emergency = (
     await database.query(
-      'SELECT * FROM certificate_emergency_suspensions WHERE certificate_id=$1 AND applied_at IS NULL',
+      'SELECT * FROM licence_emergency_suspensions WHERE licence_id=$1 AND applied_at IS NULL',
       [old],
     )
   ).rows[0];
@@ -256,7 +254,7 @@ test('organization withdrawal preserves independent revocations and retries TIR,
   await Promise.all([deliver(), deliver()]);
   assert.deepEqual(sent, ['0x' + emergency.reason_hash.toString('hex')]);
   assert.equal(
-    (await database.query('SELECT local_standing FROM registered_certificates WHERE id=$1', [old]))
+    (await database.query('SELECT local_standing FROM registered_licences WHERE id=$1', [old]))
       .rows[0].local_standing,
     'suspended',
   );

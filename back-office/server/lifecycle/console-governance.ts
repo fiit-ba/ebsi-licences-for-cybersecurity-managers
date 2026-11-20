@@ -148,7 +148,7 @@ export function postgresConsoleGovernance(
     if (every.length === 1) return every[0];
     if (typeof input.proposal_id === 'string') {
       const { rows } = await database.query(
-        `SELECT DISTINCT onchain_contract FROM certificate_status_proposals
+        `SELECT DISTINCT onchain_contract FROM licence_status_proposals
          WHERE onchain_proposal_id=$1 AND onchain_contract IS NOT NULL`,
         [input.proposal_id],
       );
@@ -169,7 +169,7 @@ export function postgresConsoleGovernance(
   async function caseFor(client: Pick<PoolClient, 'query'>, id: string, adapter: ConsoleLedger) {
     return (
       await client.query(
-        `SELECT p.*,c.credential_id FROM certificate_status_proposals p JOIN registered_certificates c ON c.id=p.certificate_id
+        `SELECT p.*,c.credential_id FROM licence_status_proposals p JOIN registered_licences c ON c.id=p.licence_id
       WHERE p.onchain_proposal_id=$1 AND lower(p.onchain_contract)=lower($2) AND p.onchain_chain_id=$3`,
         [id, adapter.contract, adapter.chainId],
       )
@@ -206,7 +206,7 @@ export function postgresConsoleGovernance(
     const open = row && !row.applied_at && !row.closed_at && row.decision !== 'rejected';
     if (open)
       await database.query(
-        'UPDATE certificate_status_proposals SET delivery_attempted_at=NULL WHERE id=$1',
+        'UPDATE licence_status_proposals SET delivery_attempted_at=NULL WHERE id=$1',
         [row.id],
       );
     if (open)

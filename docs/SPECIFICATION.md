@@ -40,7 +40,7 @@ TAO     SNAS                              SNAS
           ▼
 TI      Certification bodies for persons  Certification bodies for persons
           │                               carry out the certification
-          │ CybersecurityManagerCertificate
+          │ CybersecurityManagerLicence
           ▼
 Holder  Cybersecurity manager
 ```
@@ -62,7 +62,7 @@ RTAO+TAO  NBÚ                             NBÚ — scheme and supervision
             ▼                                    (unchanged)
 TI        Certification bodies for persons
             │
-            │ CybersecurityManagerCertificate
+            │ CybersecurityManagerLicence
             ▼
 Holder    Cybersecurity manager
 ```
@@ -225,9 +225,9 @@ The back-office is the only place where a holder is linked to their license. On 
 - Cached revalidation of the TI's accreditation in the TIR (periodic; with a bounded grace period when the TIR is unavailable)
 - License schemas from the TSR by the identifiers in the configuration; the back-office loads them at startup and, at every issuance, validates the license against the current version together with the EBSI schema it extends
 - Putting into the credential a `credentialStatus` pointing to the registry of the issuing TI's TAO, the TI's accreditation (`termsOfUse`) and three schemas (see 2.2)
-- Selective disclosure: every attribute of `credentialSubject` except `id` and `certificateNumber` is signed as the digest of an SD-JWT disclosure
+- Selective disclosure: every attribute of `credentialSubject` except `id` and `licenceNumber` is signed as the digest of an SD-JWT disclosure
 - Signing the credential (ES256) with the issuing TI's key in the KMS, which the TI lists in its DID document as `assertionMethod`; each TI is an issuer in its own right, with its own `did:ebsi`
-- Dates according to EBSI's rules: `issued` is the signing instant (the JWT's `iat`), `issuanceDate` equals `validFrom` (`nbf`), `expirationDate` (`exp`) five years later by default
+- Dates according to EBSI's rules: `issued` is the signing instant (the JWT's `iat`), `issuanceDate` equals `validFrom` (`nbf`), `expirationDate` (`exp`) three years later by default, as NBÚ's certification scheme sets the validity of a certificate
 - OpenID4VCI 1.0: a pre-authorized code bound to one license, single-use, with an expiry, a 6-digit PIN (`tx_code`) and a limit of five attempts, after which the TI offers the license again; a nonce from the Nonce Endpoint and proof of the binding key (`proofs`)
 
 ### 2.1 License issuance sequence
@@ -267,7 +267,7 @@ sequenceDiagram
     BO->>BO: Validation against the schemas, SD-JWT disclosures
     BO->>KMS: Signature request with the TI's key
     KMS-->>BO: Signature (the private key never leaves the KMS)
-    BO-->>W: Signed CybersecurityManagerCertificate with disclosures
+    BO-->>W: Signed CybersecurityManagerLicence with disclosures
 
     BO->>CR: registerCertificate (asynchronous, the TI's role A key in the KMS, Ledger API)
     W-->>K: License stored in the wallet
@@ -627,7 +627,7 @@ Failing any condition means a result other than `VALID`. `STATUS_UNAVAILABLE` is
 
 **Registry interfaces:** REST for read operations, JSON-RPC for write operations (build an Ethereum transaction + `sendSignedTransaction`).
 
-**Note on schema registration:** the JSON schema for `CybersecurityManagerCertificate` cannot be registered self-service. The EBSI Support Office registers it on a submitted proposal; the proposal should come from a representative of the use case or domain, since EBSI registers only schemas recognised in their domain.
+**Note on schema registration:** the JSON schema for `CybersecurityManagerLicence` cannot be registered self-service. The EBSI Support Office registers it on a submitted proposal; the proposal should come from a representative of the use case or domain, since EBSI registers only schemas recognised in their domain.
 
 Documents required for registration:
 
@@ -636,7 +636,7 @@ Documents required for registration:
 3. **Confirmation from the domain's representatives that the schema is recognised in the domain** — in our case this means involving NBÚ as the owner of the certification scheme
 4. An example credential, which a representative adds to EBSI's JSON Schema repository by a pull request, named `EA-v3-{cluster name}-{name of the example}.json`
 
-**The registry's schemas.** Two schemas are to be registered: the license schema `CybersecurityManagerCertificate` (15 attributes with labels, hints, default values and which are required, in English; it extends EBSI's Verifiable Attestation for VCDM 1.1) and the schema of the `PlrLedgerStatusEntry` entry (`[STATUS_ENTRY_SCHEMA]` in section 2.2), which extends it too. Both use JSON Schema 2020-12 (`$schema` `https://json-schema.org/draft/2020-12/schema`), the only version the Schemas Registry accepts. The TSR forms a schema's identifier from its content without annotations, so fixing a label or a hint keeps the identifier; any other change is a new version with a new identifier.
+**The registry's schemas.** Two schemas are to be registered: the license schema `CybersecurityManagerLicence` (19 attributes with labels, hints, default values and which are required, in English, aligned with NBÚ's certification scheme and the ECSF role profile Chief Information Security Officer; it extends EBSI's Verifiable Attestation for VCDM 1.1) and the schema of the `PlrLedgerStatusEntry` entry (`[STATUS_ENTRY_SCHEMA]` in section 2.2), which extends it too. Both use JSON Schema 2020-12 (`$schema` `https://json-schema.org/draft/2020-12/schema`), the only version the Schemas Registry accepts. The TSR forms a schema's identifier from its content without annotations, so fixing a label or a hint keeps the identifier; any other change is a new version with a new identifier.
 
 **Schema management.** The back-office defines no schemas. It reads them from the TSR by the identifiers in the configuration; a new kind of license means registration with the Support Office and a configuration change. A type that no identifier names any more is no longer issued, but existing licenses of that type can still be verified. The console and the wallet name the attributes in the schema's words, in both interface languages.
 

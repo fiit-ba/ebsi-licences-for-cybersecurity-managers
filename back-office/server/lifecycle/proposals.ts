@@ -125,8 +125,8 @@ export function postgresStatusProposals(
       return transaction(database, async (client: PoolClient) => {
         await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
         const available = `
-          FROM certificate_status_proposals p
-          JOIN registered_certificates c ON c.id = p.certificate_id ${certificateOrganizations}
+          FROM licence_status_proposals p
+          JOIN registered_licences c ON c.id = p.licence_id ${certificateOrganizations}
           WHERE p.applied_at IS NULL AND p.closed_at IS NULL AND p.decision IS DISTINCT FROM 'rejected'
             AND ($2::uuid IS NULL OR p.id = $2)
             AND ((${statusManagerAccess}) OR EXISTS (
@@ -142,7 +142,7 @@ export function postgresStatusProposals(
         ]);
         const { rows: results } = await client.query(
           `
-          SELECT p.id AS proposal_id, c.credential_id, c.certificate_number AS reference,
+          SELECT p.id AS proposal_id, c.credential_id, c.licence_number AS reference,
             c.id AS claims_certificate_id,c.private_data AS claims_private_data,
             p.action, p.reason_code, p.reason_note, p.reason_salt, p.reason_hash,
             (SELECT username FROM operator_accounts WHERE id = p.proposed_by) AS proposed_by,
@@ -166,7 +166,7 @@ export function postgresStatusProposals(
               const { reason_salt, claims_certificate_id, claims_private_data, ...result } = row;
               const reference = options.protection
                 ? ((await options.protection.open(claims_certificate_id, claims_private_data))
-                    .claims.certificateNumber ?? '')
+                    .claims.licenceNumber ?? '')
                 : result.reference;
               return {
                 ...result,
@@ -203,21 +203,21 @@ export function postgresStatusProposals(
           rows: [target],
         } = await client.query(
           `
-          SELECT c.id, c.issuer_id, c.credential_id FROM certificate_status_proposals p
-          JOIN registered_certificates c ON c.id = p.certificate_id WHERE p.id = $1
+          SELECT c.id, c.issuer_id, c.credential_id FROM licence_status_proposals p
+          JOIN registered_licences c ON c.id = p.licence_id WHERE p.id = $1
         `,
           [id],
         );
         if (!target) throw lifecycleRefusal(404, { detail: 'Unknown proposal' });
         await lockStatusManager(client, actor, target.issuer_id);
-        await client.query('SELECT id FROM registered_certificates WHERE id = $1 FOR UPDATE', [
+        await client.query('SELECT id FROM registered_licences WHERE id = $1 FOR UPDATE', [
           target.id,
         ]);
         const {
           rows: [proposal],
         } = await client.query(
           `
-          SELECT * FROM certificate_status_proposals WHERE id = $1 FOR UPDATE
+          SELECT * FROM licence_status_proposals WHERE id = $1 FOR UPDATE
         `,
           [id],
         );
@@ -241,7 +241,7 @@ export function postgresStatusProposals(
         const storedWithdrawal = await storeReason('withdrawn', note, salt, options.protection);
         await client.query(
           `
-          UPDATE certificate_status_proposals SET withdrawal_requested_at = clock_timestamp(),
+          UPDATE licence_status_proposals SET withdrawal_requested_at = clock_timestamp(),
             withdrawn_by = $2, withdrawal_note = $3, withdrawal_salt = $4, withdrawal_hash = $5,
             closed_at = CASE WHEN $6 THEN clock_timestamp() END,
             withdrawal_completed_at = CASE WHEN $6 THEN clock_timestamp() END,
@@ -298,7 +298,7 @@ export function postgresStatusProposals(
         const {
           rows: [target],
         } = await client.query<{ issuer_id: string }>(
-          'SELECT issuer_id FROM registered_certificates WHERE credential_id = $1 OR registered_id = $1',
+          'SELECT issuer_id FROM registered_licences WHERE credential_id = $1 OR registered_id = $1',
           [credentialId],
         );
         if (!target) throw lifecycleRefusal(404, { detail: 'Unknown certificate' });
@@ -306,7 +306,7 @@ export function postgresStatusProposals(
         // Read pending emergencies after acquiring the certificate lock. A
         // single locking query could retain its pre-wait MVCC snapshot.
         await client.query(
-          'SELECT id FROM registered_certificates WHERE credential_id = $1 OR registered_id = $1 FOR UPDATE',
+          'SELECT id FROM registered_licences WHERE credential_id = $1 OR registered_id = $1 FOR UPDATE',
           [credentialId],
         );
         const {
@@ -316,8 +316,8 @@ export function postgresStatusProposals(
           SELECT c.id, c.credential_id, ${standing} AS state, ${statusManagerAccess} AS can_manage,
             COALESCE(LEAST(ti.revoked_at, tao.revoked_at, root.revoked_at) <= statement_timestamp(), false) AS issuer_revoked,
             token.redeemed_at IS NOT NULL AS collected
-          FROM registered_certificates c ${certificateOrganizations}
-          LEFT JOIN credential_tokens token ON token.certificate_id = c.id
+          FROM registered_licences c ${certificateOrganizations}
+          LEFT JOIN credential_tokens token ON token.licence_id = c.id
           WHERE (c.credential_id = $2 OR c.registered_id = $2)
         `,
           [actor, credentialId],
@@ -345,8 +345,8 @@ export function postgresStatusProposals(
           rows: [proposal],
         } = await client.query(
           `
-          INSERT INTO certificate_status_proposals
-            (certificate_id, action, initial_standing, reason_code, reason_note, reason_salt, reason_hash, proposed_by, requires_governance)
+          INSERT INTO licence_status_proposals
+            (licence_id, action, initial_standing, reason_code, reason_note, reason_salt, reason_hash, proposed_by, requires_governance)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING RETURNING id
         `,
           [
@@ -422,10 +422,10 @@ export function postgresStatusProposals(
       return transaction(database, async (client: PoolClient) => {
         const {
           rows: [target],
-        } = await client.query<{ certificate_id: string; issuer_id: string }>(
+        } = await client.query<{ licence_id: string; issuer_id: string }>(
           `
-          SELECT c.id AS certificate_id, c.issuer_id FROM certificate_status_proposals p
-          JOIN registered_certificates c ON c.id = p.certificate_id WHERE p.id = $1
+          SELECT c.id AS licence_id, c.issuer_id FROM licence_status_proposals p
+          JOIN registered_licences c ON c.id = p.licence_id WHERE p.id = $1
         `,
           [proposalId],
         );
@@ -433,17 +433,17 @@ export function postgresStatusProposals(
         if (signerApproval && decision === 'approved') {
           await authorizeGovernance(client, actor, 'B', ['B']);
         } else await lockStatusManager(client, actor, target.issuer_id);
-        await client.query('SELECT id FROM registered_certificates WHERE id = $1 FOR UPDATE', [
-          target.certificate_id,
+        await client.query('SELECT id FROM registered_licences WHERE id = $1 FOR UPDATE', [
+          target.licence_id,
         ]);
         const {
           rows: [proposal],
         } = await client.query(
           `
           SELECT p.*, c.credential_id, (SELECT username FROM operator_accounts WHERE id=p.proposed_by) AS proposed_name, ${standing} AS state, ${statusManagerAccess} AS can_manage,
-            EXISTS(SELECT 1 FROM credential_tokens t WHERE t.certificate_id=c.id AND t.redeemed_at IS NOT NULL) AS collected
-          FROM certificate_status_proposals p
-          JOIN registered_certificates c ON c.id = p.certificate_id ${certificateOrganizations}
+            EXISTS(SELECT 1 FROM credential_tokens t WHERE t.licence_id=c.id AND t.redeemed_at IS NOT NULL) AS collected
+          FROM licence_status_proposals p
+          JOIN registered_licences c ON c.id = p.licence_id ${certificateOrganizations}
           WHERE p.id = $2 FOR UPDATE OF p
         `,
           [actor, proposalId],
@@ -468,7 +468,7 @@ export function postgresStatusProposals(
             );
           if (governed && !proposal.requires_governance)
             await client.query(
-              'UPDATE certificate_status_proposals SET requires_governance=true WHERE id=$1',
+              'UPDATE licence_status_proposals SET requires_governance=true WHERE id=$1',
               [proposalId],
             );
           if (proposal.proposed_by === actor)
@@ -486,13 +486,13 @@ export function postgresStatusProposals(
         }
         if (decision === 'rejected') {
           await client.query(
-            'UPDATE certificate_status_proposals SET rejected_at=clock_timestamp(),rejected_by=$2,closed_at=clock_timestamp(),delivery_attempted_at=NULL WHERE id=$1',
+            'UPDATE licence_status_proposals SET rejected_at=clock_timestamp(),rejected_by=$2,closed_at=clock_timestamp(),delivery_attempted_at=NULL WHERE id=$1',
             [proposalId, actor],
           );
         }
         await client.query(
           `
-          UPDATE certificate_status_proposals SET decision = CASE WHEN decision='approved' AND $2='rejected' THEN decision ELSE $2 END, decided_by = CASE WHEN decision='approved' AND $2='rejected' THEN decided_by ELSE $3 END,
+          UPDATE licence_status_proposals SET decision = CASE WHEN decision='approved' AND $2='rejected' THEN decision ELSE $2 END, decided_by = CASE WHEN decision='approved' AND $2='rejected' THEN decided_by ELSE $3 END,
             decided_at = CASE WHEN decision='approved' AND $2='rejected' THEN decided_at ELSE statement_timestamp() END,
             delivery_attempted_at = NULL,
             applied_at = CASE WHEN $4 THEN statement_timestamp() ELSE applied_at END
@@ -509,10 +509,10 @@ export function postgresStatusProposals(
               : 'active';
         if (localApplication)
           await client.query(
-            `UPDATE registered_certificates SET local_standing = $2,
+            `UPDATE registered_licences SET local_standing = $2,
             ledger_standing = NULL, ledger_observed_at = NULL,
             ledger_observation_invalidated_at = clock_timestamp() WHERE id = $1`,
-            [target.certificate_id, nextStanding],
+            [target.licence_id, nextStanding],
           );
         await appendAudit(client, {
           event: decision === 'approved' ? 'status.change_approved' : 'status.change_rejected',
@@ -533,7 +533,7 @@ export function postgresStatusProposals(
           });
         if (localApplication && options.protection) {
           const applied = (
-            await client.query('SELECT applied_at FROM certificate_status_proposals WHERE id=$1', [
+            await client.query('SELECT applied_at FROM licence_status_proposals WHERE id=$1', [
               proposalId,
             ])
           ).rows[0];
@@ -542,11 +542,11 @@ export function postgresStatusProposals(
           ).rows[0];
           await anchorDecision(client, options.protection, {
             kind: 'status_change',
-            certificate: proposal.certificate_id,
+            certificate: proposal.licence_id,
             credentialId: proposal.credential_id,
             proposal: proposalId,
             decision: {
-              certificate: proposal.certificate_id,
+              certificate: proposal.licence_id,
               credential_id: proposal.credential_id,
               proposal: proposalId,
               action: proposal.action,

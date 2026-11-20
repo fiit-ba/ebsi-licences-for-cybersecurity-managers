@@ -71,7 +71,7 @@ test('governance HTTP, actual contract and durable signature evidence', async (c
       localId = proposal.body.proposal_id;
       await f.deliver();
       const record = (
-        await database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [localId])
+        await database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [localId])
       ).rows[0];
       onchain = record.onchain_proposal_id;
       assert.ok(onchain);
@@ -131,7 +131,7 @@ test('governance HTTP, actual contract and durable signature evidence', async (c
       await f.retry();
       await f.deliver();
       const pending = (
-        await database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [localId])
+        await database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [localId])
       ).rows[0];
       assert.equal(pending.applied_at, null);
       assert.equal((await contract.getProposal(onchain)).signatures.length, 2);
@@ -147,7 +147,7 @@ test('governance HTTP, actual contract and durable signature evidence', async (c
       await f.deliver();
       assert.ok(
         (
-          await database.query('SELECT applied_at FROM certificate_status_proposals WHERE id=$1', [
+          await database.query('SELECT applied_at FROM licence_status_proposals WHERE id=$1', [
             localId,
           ])
         ).rows[0].applied_at,
@@ -410,7 +410,7 @@ test('rejection preserves an earlier independent approval and retries the exact 
   await proposals.decide(f.accounts.mixed, opened.proposal_id, 'approved');
   await proposals.decide(f.accounts.proposer, opened.proposal_id, 'rejected');
   let row = (
-    await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+    await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
       opened.proposal_id,
     ])
   ).rows[0];
@@ -437,7 +437,7 @@ test('rejection preserves an earlier independent approval and retries the exact 
   );
   await Promise.all([worker(), worker()]);
   row = (
-    await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+    await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
       opened.proposal_id,
     ])
   ).rows[0];
@@ -446,7 +446,7 @@ test('rejection preserves an earlier independent approval and retries the exact 
   assert.equal(row.applied_at, null);
   assert.equal(
     (
-      await f.database.query('SELECT local_standing FROM registered_certificates WHERE id=$1', [
+      await f.database.query('SELECT local_standing FROM registered_licences WHERE id=$1', [
         f.certificate,
       ])
     ).rows[0].local_standing,
@@ -491,7 +491,7 @@ test('actual configured quorum, removed signer keys, external execution and expi
   await proposals.decide(f.accounts.mixed, opened.proposal_id, 'approved');
   await f.deliver();
   let row = (
-    await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+    await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
       opened.proposal_id,
     ])
   ).rows[0];
@@ -527,7 +527,7 @@ test('actual configured quorum, removed signer keys, external execution and expi
   await f.retry();
   await f.deliver();
   row = (
-    await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+    await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
       opened.proposal_id,
     ])
   ).rows[0];
@@ -540,7 +540,7 @@ test('actual configured quorum, removed signer keys, external execution and expi
   await f.deliver();
   assert.ok(
     (
-      await f.database.query('SELECT applied_at FROM certificate_status_proposals WHERE id=$1', [
+      await f.database.query('SELECT applied_at FROM licence_status_proposals WHERE id=$1', [
         opened.proposal_id,
       ])
     ).rows[0].applied_at,
@@ -551,17 +551,16 @@ test('actual configured quorum, removed signer keys, external execution and expi
   });
   await f.deliver();
   const pending = (
-    await f.database.query(
-      'SELECT onchain_proposal_id FROM certificate_status_proposals WHERE id=$1',
-      [next.proposal_id],
-    )
+    await f.database.query('SELECT onchain_proposal_id FROM licence_status_proposals WHERE id=$1', [
+      next.proposal_id,
+    ])
   ).rows[0];
   await f.network.increaseTime(Number((await f.contract.getTi(tiId)).proposalTtl) + 1);
   await f.retry();
   await f.deliver();
   const expired = (
     await f.database.query(
-      'SELECT onchain_state,closed_at,applied_at FROM certificate_status_proposals WHERE id=$1',
+      'SELECT onchain_state,closed_at,applied_at FROM licence_status_proposals WHERE id=$1',
       [next.proposal_id],
     )
   ).rows[0];

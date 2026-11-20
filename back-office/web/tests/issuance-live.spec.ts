@@ -7,7 +7,7 @@ const password = 'Q7!Vx2#Bm9@Kp4$Zs8%Fj6&Wy3';
 /** One-time handoff returned by the unchanged issuance clients. */
 interface Offer {
   credential_id: string;
-  certificate_id: string;
+  licence_id: string;
   offer_uri: string;
   pin: string;
   qr?: string;
@@ -78,7 +78,7 @@ async function walletIssue(page: Page, token: string, number: string): Promise<O
     {
       holder_reference: 'wallet-file',
       credential_type: scheme.body.schemas[0].credential_type,
-      claims: { certificateNumber: number, holderName: 'Wallet Holder' },
+      claims: { licenceNumber: number, holderName: 'Wallet Holder' },
       qr: true,
     },
     token,
@@ -263,7 +263,7 @@ test('Back Office form creates an offer; holder collects with metadata, PIN and 
     Buffer.from(credential.body.credentials[0].credential.split('.')[1], 'base64url').toString(),
   );
   expect(payload.jti).not.toBe(handoff.credential_id);
-  expect(payload.vc.credentialSubject.certificateNumber).toBe('BROWSER-FORM-1');
+  expect(payload.vc.credentialSubject.licenceNumber).toBe('BROWSER-FORM-1');
   expect(payload.sub).toMatch(/^did:key:z/);
   expect(payload.vc.credentialStatus[0].type).toBe('PlrLedgerStatusEntry');
   expect((await collect(page, session)).status).toBe(401);
@@ -276,8 +276,8 @@ test('organization Wallet creation, invalid PIN/proof, expiry and replacement of
   const handoff = await walletIssue(page, token, 'WALLET-ISSUE-1');
   const wrong = await exchange(page, handoff, handoff.pin === '000000' ? '111111' : '000000');
   expect(wrong.result.body.error).toBe('invalid_grant');
-  await change('UPDATE credential_offers SET expires_at=now() WHERE certificate_id=$1', [
-    handoff.certificate_id,
+  await change('UPDATE credential_offers SET expires_at=now() WHERE licence_id=$1', [
+    handoff.licence_id,
   ]);
   const oldReference = new URL(handoff.offer_uri).searchParams.get('credential_offer_uri')!;
   expect((await json(page, oldReference)).status).toBe(404);
@@ -368,7 +368,7 @@ test('issuer role, expired accreditation and foreign ownership refuse browser co
     page,
     '/api-backend/registry/issue/',
     'POST',
-    { holder_reference: 'ref', claims: { certificateNumber: 'ENDED', holderName: 'Holder' } },
+    { holder_reference: 'ref', claims: { licenceNumber: 'ENDED', holderName: 'Holder' } },
     token,
   );
   expect(ended.status).toBe(403);

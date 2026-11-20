@@ -120,7 +120,7 @@ test('only an enrolled JWT can use legacy status, and a ledger entry disables th
   const mixed = await sign({
     vc: {
       ...vc,
-      credentialSubject: { id: holder, certificateNumber: 'legacy-1' },
+      credentialSubject: { id: holder, licenceNumber: 'legacy-1' },
       type: ['VerifiableCredential', 'VerifiableAttestation', 'ProfessionalLicense'],
       credentialStatus: [{ type: 'PlrLedgerStatusEntry' }, entry],
     },

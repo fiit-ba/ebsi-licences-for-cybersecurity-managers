@@ -46,16 +46,16 @@ try {
     ).rows[0].id;
     const schema = (
       await database.query(
-        "INSERT INTO certificate_schemas(credential_type,name_sk) VALUES ('TransitionCertificate','Transition') RETURNING id",
+        "INSERT INTO licence_schemas(credential_type,name_sk) VALUES ('TransitionCertificate','Transition') RETURNING id",
       )
     ).rows[0].id;
     await database.query(
-      "INSERT INTO certificate_schema_versions(schema_id,version,fields) VALUES ($1,1,'[]')",
+      "INSERT INTO licence_schema_versions(schema_id,version,fields) VALUES ($1,1,'[]')",
       [schema],
     );
     await database.query(
       // Not collected yet (its offer is open): no record key or credential hash.
-      `INSERT INTO registered_certificates(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,certificate_number,private_data,created_by)
+      `INSERT INTO registered_licences(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,licence_number,private_data,created_by)
       VALUES ($1,$2,$3,$4,$5,1,'TRANSITION',$6,$7)`,
       [
         id,
@@ -64,7 +64,7 @@ try {
         did,
         schema,
         old.seal(id, {
-          claims: { certificateNumber: 'TRANSITION' },
+          claims: { licenceNumber: 'TRANSITION' },
           holder_reference: 'synthetic',
         }),
         actor,
@@ -72,12 +72,12 @@ try {
     );
     const offer = old.newOffer();
     await database.query(
-      'INSERT INTO credential_offers(certificate_id,code_digest,pin_digest,expires_at) VALUES ($1,$2,$3,$4)',
+      'INSERT INTO credential_offers(licence_id,code_digest,pin_digest,expires_at) VALUES ($1,$2,$3,$4)',
       [id, offer.codeDigest, offer.pinDigest, offer.expiresAt],
     );
     const reason = await storeReason('other', 'private transition note', Buffer.alloc(32, 17), old);
     await database.query(
-      `INSERT INTO certificate_status_proposals(id,certificate_id,action,initial_standing,reason_code,reason_note,reason_salt,reason_hash,proposed_by)
+      `INSERT INTO licence_status_proposals(id,licence_id,action,initial_standing,reason_code,reason_note,reason_salt,reason_hash,proposed_by)
       VALUES ($1,$2,'suspend','active',$3,$4,$5,$6,$7)`,
       [
         reasonId,
@@ -116,9 +116,9 @@ try {
       JSON.stringify(
         (
           await database.query(`SELECT jsonb_build_object(
-      'certificates',(SELECT jsonb_agg(c) FROM registered_certificates c),
+      'certificates',(SELECT jsonb_agg(c) FROM registered_licences c),
       'offers',(SELECT jsonb_agg(o) FROM credential_offers o),
-      'reasons',(SELECT jsonb_agg(p) FROM certificate_status_proposals p),
+      'reasons',(SELECT jsonb_agg(p) FROM licence_status_proposals p),
       'presentations',(SELECT jsonb_agg(p) FROM presentation_results p),
       'decisions',(SELECT jsonb_agg(d) FROM decision_anchors d)) AS state`)
         ).rows,
@@ -156,13 +156,10 @@ try {
       (
         await fields.open(
           id,
-          (
-            await database.query('SELECT private_data FROM registered_certificates WHERE id=$1', [
-              id,
-            ])
-          ).rows[0].private_data,
+          (await database.query('SELECT private_data FROM registered_licences WHERE id=$1', [id]))
+            .rows[0].private_data,
         )
-      ).claims.certificateNumber,
+      ).claims.licenceNumber,
       'TRANSITION',
     );
     // The stable secret's derivations survive the transition.
@@ -172,16 +169,13 @@ try {
       await fields.matchesPin(
         offerProof.code,
         offerProof.pin,
-        (
-          await database.query('SELECT pin_digest FROM credential_offers WHERE certificate_id=$1', [
-            id,
-          ])
-        ).rows[0].pin_digest,
+        (await database.query('SELECT pin_digest FROM credential_offers WHERE licence_id=$1', [id]))
+          .rows[0].pin_digest,
       ),
       true,
     );
     const row = (
-      await database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [reasonId])
+      await database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [reasonId])
     ).rows[0];
     assert.equal((await openReason(row, fields)).note, 'private transition note');
     const current = await fields.seal(id, { new: true });
@@ -227,9 +221,9 @@ try {
     );
   } else if (phase === 'read') {
     const row = (
-      await database.query('SELECT private_data FROM registered_certificates WHERE id=$1', [id])
+      await database.query('SELECT private_data FROM registered_licences WHERE id=$1', [id])
     ).rows[0];
-    assert.equal((await fields.open(id, row.private_data)).claims.certificateNumber, 'TRANSITION');
+    assert.equal((await fields.open(id, row.private_data)).claims.licenceNumber, 'TRANSITION');
     assert.deepEqual(
       await fields.open(
         'presentation:' + 'U'.repeat(43),
@@ -252,7 +246,7 @@ try {
     const cold = configuredFieldProtection(limited);
     try {
       await occupied.query('BEGIN');
-      assert.equal((await cold.open(id, row.private_data)).claims.certificateNumber, 'TRANSITION');
+      assert.equal((await cold.open(id, row.private_data)).claims.licenceNumber, 'TRANSITION');
       await occupied.query('ROLLBACK');
     } finally {
       cold.close();

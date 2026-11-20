@@ -81,7 +81,7 @@ export function postgresAudit(database: Pool, protection?: Protection) {
             organization_id, detail, payload, encode(previous_hash, 'hex') AS previous_hash,
             encode(entry_hash, 'hex') AS entry_hash
           FROM audit_entries WHERE ($1::text IS NULL OR credential_id = $1 OR credential_id IN (
-            SELECT unnest(ARRAY[c.credential_id,c.registered_id]) FROM registered_certificates c
+            SELECT unnest(ARRAY[c.credential_id,c.registered_id]) FROM registered_licences c
             WHERE c.credential_id=$1 OR c.registered_id=$1))
             AND ($2::bigint IS NULL OR id < $2) ORDER BY audit_entries.id DESC LIMIT $3
         `,
@@ -99,7 +99,7 @@ export function postgresAudit(database: Pool, protection?: Protection) {
 
     /**
      * Disclose what a certificate's record key is computed from, only after recording the
-     * disclosure: an auditor checks `computeStatusKey(issuer_did, certificate_id)` against a
+     * disclosure: an auditor checks `computeStatusKey(issuer_did, licence_id)` against a
      * proposal's `statusKey` without the certification body's systems.
      *
      * @param actor - Auditor account ID.
@@ -126,7 +126,7 @@ export function postgresAudit(database: Pool, protection?: Protection) {
           rows: [certificate],
         } = await client.query(
           `
-          SELECT id, credential_id, issuer_did, certificate_number, status_key FROM registered_certificates WHERE credential_id = $1 OR registered_id = $1 FOR SHARE
+          SELECT id, credential_id, issuer_did, licence_number, status_key FROM registered_licences WHERE credential_id = $1 OR registered_id = $1 FOR SHARE
         `,
           [id],
         );
@@ -138,8 +138,8 @@ export function postgresAudit(database: Pool, protection?: Protection) {
         });
         return {
           issuer_did: certificate.issuer_did,
-          certificate_id: certificate.status_key ? certificate.credential_id : null,
-          certificate_number: certificate.certificate_number,
+          licence_id: certificate.status_key ? certificate.credential_id : null,
+          licence_number: certificate.licence_number,
           status_key: certificate.status_key ? '0x' + certificate.status_key.toString('hex') : null,
         };
       });
@@ -179,8 +179,8 @@ export function postgresAudit(database: Pool, protection?: Protection) {
         await authorizeAuditor(client, actor, true);
         const { rows } = await client.query(
           `
-          SELECT p.*, c.credential_id FROM ${emergency ? 'certificate_emergency_suspensions' : 'certificate_status_proposals'} p
-          JOIN registered_certificates c ON c.id = p.certificate_id
+          SELECT p.*, c.credential_id FROM ${emergency ? 'licence_emergency_suspensions' : 'licence_status_proposals'} p
+          JOIN registered_licences c ON c.id = p.licence_id
           WHERE ${localId === undefined ? 'p.onchain_proposal_id = $1::numeric' : 'p.id = $1::uuid'}
           LIMIT 2
         `,
@@ -188,7 +188,7 @@ export function postgresAudit(database: Pool, protection?: Protection) {
         );
         if (!rows.length && kind === 'decision' && localId) {
           const fallback = await client.query(
-            'SELECT p.*,c.credential_id FROM certificate_emergency_suspensions p JOIN registered_certificates c ON c.id=p.certificate_id WHERE p.id=$1',
+            'SELECT p.*,c.credential_id FROM licence_emergency_suspensions p JOIN registered_licences c ON c.id=p.licence_id WHERE p.id=$1',
             [localId],
           );
           if (fallback.rows.length) {

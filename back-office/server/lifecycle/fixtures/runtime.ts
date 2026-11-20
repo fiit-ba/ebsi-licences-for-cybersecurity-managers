@@ -112,15 +112,15 @@ export async function lifecycleFixture(
     [organizations[2], organizations[1], accounts.proposer, did, ti.attributeId],
   );
   await database.query(
-    "INSERT INTO certificate_schemas(id,credential_type,name_sk) VALUES($1,$2,'Lifecycle')",
+    "INSERT INTO licence_schemas(id,credential_type,name_sk) VALUES($1,$2,'Lifecycle')",
     [schema, 'Lifecycle' + schema.replaceAll('-', '')],
   );
   await database.query(
-    "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','fixture',now())",
+    "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','fixture',now())",
     [schema],
   );
   await database.query(
-    `INSERT INTO registered_certificates(id,credential_id,registered_id,issuer_id,issuer_did,schema_id,schema_version,certificate_number,status_key,credential_hash,private_data,created_by,ledger_registered_at)
+    `INSERT INTO registered_licences(id,credential_id,registered_id,issuer_id,issuer_did,schema_id,schema_version,licence_number,status_key,credential_hash,private_data,created_by,ledger_registered_at)
     VALUES($1,$2,$3,$4,$5,$6,1,'STAGE5',$7,$8,$9,$10,now())`,
     [
       certificate,
@@ -133,13 +133,13 @@ export async function lifecycleFixture(
       credentialHash,
       protection.seal(certificate, {
         holder_reference: 'private-stage5-holder',
-        claims: { certificateNumber: 'STAGE5', certificationBody: 'Lifecycle TI' },
+        claims: { licenceNumber: 'STAGE5', certificationBody: 'Lifecycle TI' },
       }),
       accounts.proposer,
     ],
   );
   await database.query(
-    "INSERT INTO credential_tokens(token_digest,certificate_id,nonce,expires_at,redeemed_at) VALUES($1,$2,'stage5',now(),now())",
+    "INSERT INTO credential_tokens(token_digest,licence_id,nonce,expires_at,redeemed_at) VALUES($1,$2,'stage5',now(),now())",
     [Buffer.from(randomUUID().replaceAll('-', '').repeat(2), 'hex'), certificate],
   );
   // Recorded by the TI's key, as collection records it.
@@ -209,7 +209,7 @@ export async function lifecycleFixture(
      */
     async retry() {
       await database.query(
-        'UPDATE certificate_status_proposals SET delivery_attempted_at=NULL WHERE certificate_id=$1',
+        'UPDATE licence_status_proposals SET delivery_attempted_at=NULL WHERE licence_id=$1',
         [certificate],
       );
     },
@@ -220,25 +220,22 @@ export async function lifecycleFixture(
      */
     async close() {
       try {
-        await database.query(
-          'DELETE FROM certificate_emergency_suspensions WHERE certificate_id=$1',
-          [certificate],
-        );
-        await database.query(
-          'DELETE FROM organization_case_cancellations WHERE proposal_id IN (SELECT id FROM certificate_status_proposals WHERE certificate_id=$1)',
-          [certificate],
-        );
-        await database.query('DELETE FROM certificate_status_proposals WHERE certificate_id=$1', [
+        await database.query('DELETE FROM licence_emergency_suspensions WHERE licence_id=$1', [
           certificate,
         ]);
-        await database.query('DELETE FROM registered_certificates WHERE id=$1', [certificate]);
+        await database.query(
+          'DELETE FROM organization_case_cancellations WHERE proposal_id IN (SELECT id FROM licence_status_proposals WHERE licence_id=$1)',
+          [certificate],
+        );
+        await database.query('DELETE FROM licence_status_proposals WHERE licence_id=$1', [
+          certificate,
+        ]);
+        await database.query('DELETE FROM registered_licences WHERE id=$1', [certificate]);
         await database.query('DELETE FROM accredited_organizations WHERE id=ANY($1::uuid[])', [
           organizations,
         ]);
-        await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [
-          schema,
-        ]);
-        await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+        await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+        await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
         await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::int[])', [
           Object.values(accounts),
         ]);

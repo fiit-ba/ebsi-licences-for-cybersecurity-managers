@@ -25,7 +25,7 @@ const ItemCredential = ({ credential, onPress, isChecked, selectionMode, disable
   const { validFrom, issuer, expirationDate } = credential
   const { type, credentialSubject } = credential?.credential?.payload.vc
   // The certificate number, so two certificates of one type can be told apart.
-  const number = (credentialSubject as any)?.certificateNumber
+  const number = (credentialSubject as any)?.licenceNumber
   const formattedExpDate = expirationDate ? getTimeFormat(expirationDate) : t(requestPresentationModalI18nKeys.NEVER)
   const credentialName = filterCredentialType(type).join(', ')
   const interactionDisabled = !!disabled || !!selectionLocked

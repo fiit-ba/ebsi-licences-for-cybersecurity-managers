@@ -141,8 +141,8 @@ export function postgresSignatureEvidence(database: Pool, ledger: ConsoleLedger)
               ? undefined
               : (
                   await client.query(
-                    `SELECT p.id,c.credential_id FROM certificate_status_proposals p
-            JOIN registered_certificates c ON c.id=p.certificate_id WHERE p.onchain_chain_id=$1 AND lower(p.onchain_contract)=lower($2)
+                    `SELECT p.id,c.credential_id FROM licence_status_proposals p
+            JOIN registered_licences c ON c.id=p.licence_id WHERE p.onchain_chain_id=$1 AND lower(p.onchain_contract)=lower($2)
             AND (p.onchain_proposal_id=$3 OR ($4::bytea IS NOT NULL AND p.reason_hash=$4))`,
                     [
                       ledger.chainId,

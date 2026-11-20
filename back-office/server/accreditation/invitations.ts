@@ -173,10 +173,10 @@ async function allowedSchemas(client: PoolClient, parent: OrganizationRow, schem
   const { rows: allowed } = await client.query(
     `
     SELECT s.id, s.credential_type
-    FROM certificate_schemas s
+    FROM licence_schemas s
     WHERE s.retired_at IS NULL AND s.credential_type = ANY($1::text[])
       AND ($2 OR EXISTS (
-        SELECT 1 FROM organization_certificate_schemas g
+        SELECT 1 FROM organization_licence_schemas g
         WHERE g.organization_id = $3 AND g.schema_id = s.id
       ))
     FOR SHARE OF s
@@ -408,7 +408,7 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         );
         await client.query(
           `
-          INSERT INTO organization_certificate_schemas
+          INSERT INTO organization_licence_schemas
           SELECT $1, unnest($2::uuid[])
         `,
           [organization.id, allowed.map((schema) => schema.id)],
@@ -584,7 +584,7 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         const ids = allowed.map((schema) => schema.id);
         const { rows: removed } = await client.query(
           `
-          DELETE FROM organization_certificate_schemas
+          DELETE FROM organization_licence_schemas
           WHERE organization_id = $1 AND NOT (schema_id = ANY($2::uuid[]))
           RETURNING schema_id
         `,
@@ -592,7 +592,7 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         );
         await client.query(
           `
-          INSERT INTO organization_certificate_schemas SELECT $1, unnest($2::uuid[])
+          INSERT INTO organization_licence_schemas SELECT $1, unnest($2::uuid[])
           ON CONFLICT DO NOTHING
         `,
           [child.id, ids],
@@ -600,7 +600,7 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
         if (child.kind === 'tao' && removed.length) {
           const { rows } = await client.query(
             `
-            DELETE FROM organization_certificate_schemas g USING accredited_organizations ti
+            DELETE FROM organization_licence_schemas g USING accredited_organizations ti
             WHERE g.organization_id = ti.id AND ti.parent_id = $1 AND g.schema_id = ANY($2::uuid[])
             RETURNING g.organization_id, g.schema_id
           `,
@@ -725,7 +725,7 @@ export function postgresInvitations(database: Pool, options: InvitationOptions =
           options.protection,
         );
         await client.query(
-          'UPDATE accreditation_withdrawals SET certificates_completed_at=clock_timestamp() WHERE revoked_organization_id=$1',
+          'UPDATE accreditation_withdrawals SET licences_completed_at=clock_timestamp() WHERE revoked_organization_id=$1',
           [child.id],
         );
         return {

@@ -114,25 +114,24 @@ test('accreditors delegate only their schemas and invitations are consumed once'
         'DELETE FROM accreditation_events WHERE organization_id = ANY($1::uuid[])',
         [organizations],
       );
-      for (const table of ['certificate_status_proposals', 'certificate_emergency_suspensions'])
+      for (const table of ['licence_status_proposals', 'licence_emergency_suspensions'])
         await database.query(
-          `DELETE FROM ${table} WHERE certificate_id IN (SELECT id FROM registered_certificates WHERE issuer_id=ANY($1::uuid[]))`,
+          `DELETE FROM ${table} WHERE licence_id IN (SELECT id FROM registered_licences WHERE issuer_id=ANY($1::uuid[]))`,
           [organizations],
         );
-      await database.query(
-        'DELETE FROM registered_certificates WHERE issuer_id = ANY($1::uuid[])',
-        [organizations],
-      );
+      await database.query('DELETE FROM registered_licences WHERE issuer_id = ANY($1::uuid[])', [
+        organizations,
+      ]);
       await database.query('DELETE FROM accredited_organizations WHERE id = ANY($1::uuid[])', [
         organizations,
       ]);
       await database.query(`
-        DELETE FROM certificate_schema_versions WHERE schema_id IN (
-          SELECT id FROM certificate_schemas WHERE credential_type IN ('InvitationTest', 'InvitationDraft')
+        DELETE FROM licence_schema_versions WHERE schema_id IN (
+          SELECT id FROM licence_schemas WHERE credential_type IN ('InvitationTest', 'InvitationDraft')
         )
       `);
       await database.query(
-        "DELETE FROM certificate_schemas WHERE credential_type IN ('InvitationTest', 'InvitationDraft')",
+        "DELETE FROM licence_schemas WHERE credential_type IN ('InvitationTest', 'InvitationDraft')",
       );
       await database.query(
         "DELETE FROM operator_accounts WHERE username IN ('test-root', 'test-tao', 'test-ti', 'test-other-tao')",
@@ -147,7 +146,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   });
   await database.query("INSERT INTO operator_roles VALUES ($1, 'plr_rtao')", [account.id]);
   await database.query(
-    "INSERT INTO certificate_schemas (credential_type, name_sk) VALUES ('InvitationTest', 'Test')",
+    "INSERT INTO licence_schemas (credential_type, name_sk) VALUES ('InvitationTest', 'Test')",
   );
 
   const tokens = operatorTokens('test-only-secret-for-the-invitation-suite');
@@ -370,12 +369,12 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal((await regrant.json()).reason, 'SchemaNotYours');
 
   await database.query(`
-    INSERT INTO certificate_schemas (credential_type, name_sk) VALUES ('InvitationDraft', 'Draft')
+    INSERT INTO licence_schemas (credential_type, name_sk) VALUES ('InvitationDraft', 'Draft')
   `);
   await database.query(`
-    INSERT INTO certificate_schema_versions (schema_id, version, fields, tsr_id, registered_at)
+    INSERT INTO licence_schema_versions (schema_id, version, fields, tsr_id, registered_at)
     SELECT s.id, v.number, v.fields::jsonb, v.tsr, CASE WHEN v.tsr IS NOT NULL THEN now() END
-    FROM certificate_schemas s CROSS JOIN (VALUES
+    FROM licence_schemas s CROSS JOIN (VALUES
       (1, '[{"key":"old"}]', 'test-v1'),
       (2, '[{"key":"current","kind":"integer","required":true},{"key":"body","kind":"text"}]', 'test-v2'),
       (3, '[{"key":"draft"}]', NULL)
@@ -384,9 +383,9 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   `);
   await database.query(
     `
-    INSERT INTO organization_certificate_schemas
+    INSERT INTO organization_licence_schemas
     SELECT organization.id, schema.id
-    FROM accredited_organizations organization CROSS JOIN certificate_schemas schema
+    FROM accredited_organizations organization CROSS JOIN licence_schemas schema
     WHERE organization.id = ANY($1::uuid[]) AND schema.credential_type IN ('InvitationTest', 'InvitationDraft')
   `,
     [[selected.organization_id, child.organization_id]],
@@ -436,7 +435,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   const request = {
     holder_reference: 'case-42',
     credential_type: 'InvitationTest',
-    claims: { certificateNumber: 'Číslo-42', current: '7', body: 'Untrusted input' },
+    claims: { licenceNumber: 'Číslo-42', current: '7', body: 'Untrusted input' },
   };
   await assert.rejects(
     registration.register(tiAccount.id, { ...request, claims: { current: 'bad' } }),
@@ -470,17 +469,17 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     rows: [stored],
   } = await database.query(
     `
-    SELECT c.private_data, o.code_digest, o.pin_digest FROM registered_certificates c
-    JOIN credential_offers o ON o.certificate_id = c.id WHERE c.id = $1
+    SELECT c.private_data, o.code_digest, o.pin_digest FROM registered_licences c
+    JOIN credential_offers o ON o.licence_id = c.id WHERE c.id = $1
   `,
-    [registered.certificate_id],
+    [registered.licence_id],
   );
   assert.equal(stored.private_data.includes(Buffer.from('case-42')), false);
   assert.notEqual(stored.code_digest.toString(), code);
   assert.notEqual(stored.pin_digest.toString(), registered.pin);
-  assert.deepEqual(protection.open(registered.certificate_id, stored.private_data), {
+  assert.deepEqual(protection.open(registered.licence_id, stored.private_data), {
     holder_reference: 'case-42',
-    claims: { certificateNumber: 'Číslo-42', current: 7, body: 'Untrusted input' },
+    claims: { licenceNumber: 'Číslo-42', current: 7, body: 'Untrusted input' },
   });
   assert.deepEqual((await scheme(access)).schemas, []);
   const tokenExchange = postgresCredentialTokenExchange(database, protection, {
@@ -501,10 +500,9 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal((await grant(code, wrongPin(registered.pin))).body.error, 'invalid_grant');
   const {
     rows: [afterWrongPin],
-  } = await database.query(
-    'SELECT failed_attempts FROM credential_offers WHERE certificate_id = $1',
-    [registered.certificate_id],
-  );
+  } = await database.query('SELECT failed_attempts FROM credential_offers WHERE licence_id = $1', [
+    registered.licence_id,
+  ]);
   assert.equal(afterWrongPin.failed_attempts, 1);
   const exchanges = await Promise.all([grant(code, registered.pin), grant(code, registered.pin)]);
   assert.deepEqual(exchanges.map((result) => result.status).sort(), [200, 400]);
@@ -514,8 +512,8 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal((issued as Record<string, unknown>).c_nonce, undefined);
   const {
     rows: [tokenRow],
-  } = await database.query('SELECT token_digest FROM credential_tokens WHERE certificate_id = $1', [
-    registered.certificate_id,
+  } = await database.query('SELECT token_digest FROM credential_tokens WHERE licence_id = $1', [
+    registered.licence_id,
   ]);
   assert.deepEqual(tokenRow.token_digest, secretDigest(issued.access_token));
   const nonces = postgresCredentialNonces(database);
@@ -531,7 +529,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     audience: issuerOrigin,
     nonces,
     finalize: async ({ certificate, claims, subject }) => {
-      assert.equal(certificate.id, registered.certificate_id);
+      assert.equal(certificate.id, registered.licence_id);
       assert.equal(subject, expectedHolder);
       assert.equal(claims.current, 7);
       if (++finalizationAttempts === 1) throw new Error('Simulated signer failure');
@@ -587,10 +585,9 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     200,
     'An uncollected failed attempt may be reoffered immediately.',
   );
-  await database.query(
-    'UPDATE credential_tokens SET expires_at = now() WHERE certificate_id = $1',
-    [registered.certificate_id],
-  );
+  await database.query('UPDATE credential_tokens SET expires_at = now() WHERE licence_id = $1', [
+    registered.licence_id,
+  ]);
   assert.equal((await redeem(proof)).status, 401);
 
   const recoveryResponse = await post(
@@ -637,15 +634,15 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal(finalizationAttempts, 2);
   const {
     rows: [redeemed],
-  } = await database.query('SELECT redeemed_at FROM credential_tokens WHERE certificate_id = $1', [
-    registered.certificate_id,
+  } = await database.query('SELECT redeemed_at FROM credential_tokens WHERE licence_id = $1', [
+    registered.licence_id,
   ]);
   assert.ok(redeemed.redeemed_at);
 
   async function additionalOffer(number) {
     const offer = await registration.register(tiAccount.id, {
       ...request,
-      claims: { ...request.claims, certificateNumber: number },
+      claims: { ...request.claims, licenceNumber: number },
     });
     const url = new URL(new URL(offer.offer_uri).searchParams.get('credential_offer_uri'));
     return { code: url.pathname.split('/').at(-1), pin: offer.pin, id: offer.credential_id };
@@ -669,7 +666,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     {
       ...request,
       qr: true,
-      claims: { ...request.claims, certificateNumber: 'http-issuance' },
+      claims: { ...request.claims, licenceNumber: 'http-issuance' },
     },
     tiToken,
   );
@@ -726,8 +723,8 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     algorithms: ['ES256'],
   });
   assert.equal(
-    (payload.vc as { credentialSubject: { certificateNumber: string } }).credentialSubject
-      .certificateNumber,
+    (payload.vc as { credentialSubject: { licenceNumber: string } }).credentialSubject
+      .licenceNumber,
     'http-issuance',
   );
   assert.equal(ledgerRecords.length, 0, 'Collection must not wait for the ledger worker.');
@@ -774,7 +771,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   });
   await database.query(
     `
-    UPDATE registered_certificates SET ledger_observed_at = now() - interval '10 minutes'
+    UPDATE registered_licences SET ledger_observed_at = now() - interval '10 minutes'
     WHERE credential_id = $1 OR registered_id = $1
   `,
     [httpOffer.credential_id],
@@ -1025,11 +1022,11 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal((await collected.json()).reason, 'OfferAlreadyRedeemed');
 
   await database.query(
-    "UPDATE certificate_schemas SET retired_at = now() WHERE credential_type = 'InvitationTest'",
+    "UPDATE licence_schemas SET retired_at = now() WHERE credential_type = 'InvitationTest'",
   );
   assert.deepEqual((await scheme(tiToken)).schemas, []);
   await database.query(
-    "UPDATE certificate_schemas SET retired_at = NULL WHERE credential_type = 'InvitationTest'",
+    "UPDATE licence_schemas SET retired_at = NULL WHERE credential_type = 'InvitationTest'",
   );
   assert.equal((await post(lifespan, { ...tiId, end_now: true }, access)).status, 200);
   const afterEnd = await scheme(tiToken);
@@ -1096,7 +1093,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
   assert.equal(revokedTao.accredited[0].invitation_expires_at, null);
   const { rows: withdrawals } = await database.query(
     `
-    SELECT affected_organization_id, tir_completed_at, certificates_completed_at
+    SELECT affected_organization_id, tir_completed_at, licences_completed_at
     FROM accreditation_withdrawals WHERE revoked_organization_id = $1
   `,
     [selected.organization_id],
@@ -1105,7 +1102,7 @@ test('accreditors delegate only their schemas and invitations are consumed once'
     new Set(withdrawals.map((row) => row.affected_organization_id)),
     new Set([selected.organization_id, child.organization_id, pending.organization_id]),
   );
-  assert.ok(withdrawals.every((row) => !row.tir_completed_at && row.certificates_completed_at));
+  assert.ok(withdrawals.every((row) => !row.tir_completed_at && row.licences_completed_at));
   assert.ok(acceptedRevocation.suspended > 0);
   assert.ok(acceptedRevocation.revocations_proposed > 0);
 });

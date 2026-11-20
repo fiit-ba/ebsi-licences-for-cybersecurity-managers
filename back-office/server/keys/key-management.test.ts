@@ -233,14 +233,14 @@ test('key ceremonies separate material, persist uncertain creation and rotate on
     });
     for (const [index, schema] of schemaIds.entries()) {
       await database.query(
-        'INSERT INTO certificate_schemas (id,credential_type,name_sk) VALUES ($1,$2,$3)',
+        'INSERT INTO licence_schemas (id,credential_type,name_sk) VALUES ($1,$2,$3)',
         [schema, 'KeySchema' + index + schema.replace(/-/g, ''), 'Key schema'],
       );
       await database.query(
-        "INSERT INTO certificate_schema_versions (schema_id,version,fields,tsr_id,registered_at) VALUES ($1,1,'[]',$2,now())",
+        "INSERT INTO licence_schema_versions (schema_id,version,fields,tsr_id,registered_at) VALUES ($1,1,'[]',$2,now())",
         [schema, 'key-schema-' + index],
       );
-      await database.query('INSERT INTO organization_certificate_schemas VALUES ($1,$3),($2,$3)', [
+      await database.query('INSERT INTO organization_licence_schemas VALUES ($1,$3),($2,$3)', [
         organizations[1],
         organizations[2],
         schema,
@@ -317,11 +317,10 @@ test('key ceremonies separate material, persist uncertain creation and rotate on
     await database.query('DELETE FROM accredited_organizations WHERE id=ANY($1::uuid[])', [
       organizations,
     ]);
-    await database.query(
-      'DELETE FROM certificate_schema_versions WHERE schema_id=ANY($1::uuid[])',
-      [schemaIds],
-    );
-    await database.query('DELETE FROM certificate_schemas WHERE id=ANY($1::uuid[])', [schemaIds]);
+    await database.query('DELETE FROM licence_schema_versions WHERE schema_id=ANY($1::uuid[])', [
+      schemaIds,
+    ]);
+    await database.query('DELETE FROM licence_schemas WHERE id=ANY($1::uuid[])', [schemaIds]);
     await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::integer[])', [accounts]);
     await database.end();
   }

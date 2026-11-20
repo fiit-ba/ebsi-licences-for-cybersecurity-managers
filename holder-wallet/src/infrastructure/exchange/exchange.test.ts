@@ -35,11 +35,12 @@ jest.mock('@infrastructure/config/Ebsi', () => ({
 const CONTRACT = '0x' + 'cc'.repeat(20)
 const TIR = 'http://anywhere.example/v1/issuers-registry'
 const SCHEMA = 'http://anywhere.example/v1/schemas-registry/schemas/zCert'
-const TYPES = ['VerifiableCredential', 'VerifiableAttestation', 'CybersecurityManagerCertificate']
+const TYPES = ['VerifiableCredential', 'VerifiableAttestation', 'CybersecurityManagerLicence']
 const ATTRIBUTES: Record<string, unknown> = {
-  certificateTitle: 'Manažér kybernetickej bezpečnosti',
   holderName: 'Ján Novák',
-  certificateNumber: 'SK-CSM-1',
+  role: 'Cybersecurity Manager',
+  ecsfRoleProfile: 'Chief Information Security Officer (CISO)',
+  licenceNumber: 'SK-CSM-1',
   certificationBody: 'STU FIIT',
   trainingDays: 5,
 }
@@ -180,7 +181,7 @@ const world = async ({
   // disclosures after it (D36).
   const held = Object.fromEntries(Object.entries(ATTRIBUTES).filter(([name]) => !omit.includes(name)))
   const disclosures = Object.entries(held)
-    .filter(([name]) => name !== 'certificateNumber')
+    .filter(([name]) => name !== 'licenceNumber')
     .map(([name, value]) => disclosureOf(name, value))
   const vc = {
     '@context': ['https://www.w3.org/2018/credentials/v1'],
@@ -192,7 +193,7 @@ const world = async ({
     expirationDate: iso(exp),
     credentialSubject: {
       id: wallet.did,
-      ...('certificateNumber' in held ? { certificateNumber: held.certificateNumber } : {}),
+      ...('licenceNumber' in held ? { licenceNumber: held.licenceNumber } : {}),
       _sd: disclosures.map(digestOf).sort(),
     },
     credentialSchema: [{ id: SCHEMA, type: 'FullJsonSchemaValidator2021' }],
@@ -287,7 +288,7 @@ describe("the holder's exchange", () => {
 
     const verifier = newEphemeralKey()
     const request = buildRequest(
-      ['CybersecurityManagerCertificate'],
+      ['CybersecurityManagerLicence'],
       DEFAULT_FIELDS,
       'c'.repeat(32),
       'urn:plr:verifier:x',
@@ -336,7 +337,7 @@ describe("the holder's exchange", () => {
     let now = 0
     const exchange = new HolderExchange('http://h:1', {}, 1000, () => now, 10000)
     const request = buildRequest(
-      ['CybersecurityManagerCertificate'],
+      ['CybersecurityManagerLicence'],
       DEFAULT_FIELDS,
       'c'.repeat(32),
       'urn:plr:verifier:v',
@@ -391,7 +392,7 @@ describe("the holder's exchange", () => {
 describe('verifying without the server', () => {
   const ask = async (w: World, signer = w.wallet, chosen: string[] = []) => {
     const request = buildRequest(
-      ['CybersecurityManagerCertificate'],
+      ['CybersecurityManagerLicence'],
       DEFAULT_FIELDS,
       'c'.repeat(32),
       'urn:plr:verifier:v',
@@ -591,7 +592,7 @@ describe("the holder's own view of a certificate", () => {
     id: 'urn:uuid:1',
     issuer: 'did:ebsi:zTi',
     validFrom: iso(FROM),
-    credentialSubject: { id: 'did:key:z', certificateNumber: 'SK-CSM-1' },
+    credentialSubject: { id: 'did:key:z', licenceNumber: 'SK-CSM-1' },
     credentialStatus: [{ id: 'x', type: 'PlrLedgerStatusEntry', chainId: 1337, contract }],
   })
   // The credential whose hash the record keeps; any JWT will do for the holder's own view.
@@ -643,7 +644,7 @@ describe("the verifier's request over HTTP", () => {
       return { status: answerOf.status, ok: answerOf.status < 400, json: async () => answerOf.body }
     })
     jest.useFakeTimers()
-    const asked = askForPresentation(exchange.invitation, ['CybersecurityManagerCertificate'], DEFAULT_FIELDS)
+    const asked = askForPresentation(exchange.invitation, ['CybersecurityManagerLicence'], DEFAULT_FIELDS)
     const outcome = expect(asked).rejects.toBeInstanceOf(ExchangeDeclined)
     await jest.advanceTimersByTimeAsync(1500)
     await outcome

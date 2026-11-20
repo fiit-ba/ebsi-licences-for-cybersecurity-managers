@@ -605,10 +605,10 @@ export function CredentialEvidence(options) {
               {standingText(credential.ledger.standing)}
             </Badge>
           </dd>
-          {credential.ledger.certificate_number && (
+          {credential.ledger.licence_number && (
             <>
               <dt>{t('Číslo certifikátu')}</dt>
-              <dd>{credential.ledger.certificate_number}</dd>
+              <dd>{credential.ledger.licence_number}</dd>
             </>
           )}
           <dt>{t('Kontrakt')}</dt>

@@ -619,10 +619,10 @@ export function postgresKeyManagement(
         const schemas = (
           await client.query<{ credential_type: string; tsr_id: string }>(
             `
-          SELECT s.credential_type,published.tsr_id FROM certificate_schemas s
-          JOIN organization_certificate_schemas own_grant ON own_grant.schema_id=s.id AND own_grant.organization_id=$1
-          JOIN organization_certificate_schemas parent_grant ON parent_grant.schema_id=s.id AND parent_grant.organization_id=$2
-          JOIN LATERAL (SELECT tsr_id FROM certificate_schema_versions WHERE schema_id=s.id AND registered_at IS NOT NULL ORDER BY version DESC LIMIT 1) published ON true
+          SELECT s.credential_type,published.tsr_id FROM licence_schemas s
+          JOIN organization_licence_schemas own_grant ON own_grant.schema_id=s.id AND own_grant.organization_id=$1
+          JOIN organization_licence_schemas parent_grant ON parent_grant.schema_id=s.id AND parent_grant.organization_id=$2
+          JOIN LATERAL (SELECT tsr_id FROM licence_schema_versions WHERE schema_id=s.id AND registered_at IS NOT NULL ORDER BY version DESC LIMIT 1) published ON true
           WHERE s.retired_at IS NULL ORDER BY s.credential_type FOR SHARE OF s
         `,
             [owner.id, owner.parent_id],

@@ -15,12 +15,12 @@ export async function accreditationCoverage(
 ) {
   const { rows } = await database.query<{ tsr_id: string; credential_type: string }>(
     `
-    SELECT v.tsr_id, s.credential_type FROM certificate_schema_versions v
-    JOIN certificate_schemas s ON s.id=v.schema_id
+    SELECT v.tsr_id, s.credential_type FROM licence_schema_versions v
+    JOIN licence_schemas s ON s.id=v.schema_id
     WHERE v.registered_at IS NOT NULL AND ($1::uuid IS NULL OR EXISTS (
-      SELECT 1 FROM organization_certificate_schemas g WHERE g.organization_id=$1 AND g.schema_id=s.id
+      SELECT 1 FROM organization_licence_schemas g WHERE g.organization_id=$1 AND g.schema_id=s.id
     ) OR EXISTS (
-      SELECT 1 FROM registered_certificates c WHERE c.issuer_id=$1 AND c.schema_id=s.id
+      SELECT 1 FROM registered_licences c WHERE c.issuer_id=$1 AND c.schema_id=s.id
     )) ORDER BY s.credential_type,v.version
   `,
     [organization ?? null],

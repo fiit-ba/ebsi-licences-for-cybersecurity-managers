@@ -402,7 +402,7 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
       });
       assert.equal((await service.verifyCredential(wrongSchema.token)).state, 'UNTRUSTED_ISSUER');
       const schemaMismatch = await fixture.credential(
-        { credentialSubject: { id: fixture.holder.did, certificateNumber: 'WRONG' } },
+        { credentialSubject: { id: fixture.holder.did, licenceNumber: 'WRONG' } },
         false,
       );
       assert.equal(
@@ -459,15 +459,15 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
           [ti, tao, fixture.did],
         );
         await database.query(
-          "INSERT INTO certificate_schemas(id,credential_type,name_sk,retired_at) VALUES($1,$2,'Historical schema',now())",
+          "INSERT INTO licence_schemas(id,credential_type,name_sk,retired_at) VALUES($1,$2,'Historical schema',now())",
           [schema, 'Verification' + schema.replaceAll('-', '')],
         );
         await database.query(
-          "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]',$2,now())",
+          "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]',$2,now())",
           [schema, fixture.schemaUrl.split('/').at(-1)],
         );
         await database.query(
-          `INSERT INTO registered_certificates(id,credential_id,issuer_id,issuer_did,issuer_accredited_until,schema_id,schema_version,certificate_number,status_key,credential_hash,private_data,created_at,created_by)
+          `INSERT INTO registered_licences(id,credential_id,issuer_id,issuer_did,issuer_accredited_until,schema_id,schema_version,licence_number,status_key,credential_hash,private_data,created_at,created_by)
         VALUES($1,$2,$3,$4,now()-interval '5 days',$5,1,$6,$7,$8,$9,now()-interval '10 days',$10)`,
           [
             certificate,
@@ -475,7 +475,7 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
             ti,
             fixture.did,
             schema,
-            credential.vc.credentialSubject.certificateNumber,
+            credential.vc.credentialSubject.licenceNumber,
             Buffer.from(credential.key.slice(2), 'hex'),
             Buffer.from(credential.record.credentialHash.slice(2), 'hex'),
             Buffer.alloc(32),
@@ -487,12 +487,12 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
         assert.equal(historical.certification_body!.accredited_at_issuance, true);
         assert.equal(historical.certification_body!.in_force_now, false);
         await database.query(
-          "UPDATE registered_certificates SET issuer_accredited_until=created_at-interval '1 second' WHERE id=$1",
+          "UPDATE registered_licences SET issuer_accredited_until=created_at-interval '1 second' WHERE id=$1",
           [certificate],
         );
         assert.equal((await service.verifyCredential(credential.token)).state, 'UNTRUSTED_ISSUER');
         await database.query(
-          "UPDATE registered_certificates SET issuer_accredited_until=created_at+interval '5 days' WHERE id=$1",
+          "UPDATE registered_licences SET issuer_accredited_until=created_at+interval '5 days' WHERE id=$1",
           [certificate],
         );
         await database.query(
@@ -503,11 +503,9 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
         assert.equal(revoked.state, 'REVOKED');
         assert.equal(revoked.certification_body!.revoked_organization, 'Verification TAO');
       } finally {
-        await database.query('DELETE FROM registered_certificates WHERE id=$1', [certificate]);
-        await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [
-          schema,
-        ]);
-        await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+        await database.query('DELETE FROM registered_licences WHERE id=$1', [certificate]);
+        await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+        await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
         for (const id of [ti, tao, root])
           await database.query('DELETE FROM accredited_organizations WHERE id=$1', [id]);
       }

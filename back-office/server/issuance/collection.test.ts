@@ -20,6 +20,17 @@ import type { AddressInfo } from 'node:net';
 import { postgresAudit } from '../audit/service.ts';
 import { postgresCertificateList } from '../lifecycle/certificates.ts';
 
+/**
+ * The default end of a licence's validity: three calendar years after it (NBÚ scheme, 5.1).
+ * @param milliseconds - An instant.
+ * @returns The same instant three years later.
+ */
+function threeYearsAfter(milliseconds: number) {
+  const date = new Date(milliseconds);
+  date.setUTCFullYear(date.getUTCFullYear() + 3);
+  return +date;
+}
+
 test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and KMS signing adapter', async (context) => {
   const origin = 'https://stage-three.example';
   const fixture = await issuanceFixture(origin);
@@ -41,7 +52,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
     issuer.registration.register(accounts[0], {
       holder_reference: 'file-42',
       credential_type: type,
-      claims: { certificateNumber: 'NUMBER-' + ++counter, holderName: '  Ada  ' },
+      claims: { licenceNumber: 'NUMBER-' + ++counter, holderName: '  Ada  ' },
       ...extra,
     });
   const code = (offer: { offer_uri: string }) =>
@@ -139,10 +150,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         'Collection returns the credential before asynchronous ledger registration.',
       );
       await issuer.deliverRegistrations();
-      assert.equal(
-        (payload.vc as any).credentialSubject.certificateNumber,
-        offer.certificate_number,
-      );
+      assert.equal((payload.vc as any).credentialSubject.licenceNumber, offer.licence_number);
       const values = Object.fromEntries(
         disclosures
           .filter(Boolean)
@@ -155,8 +163,8 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       });
       const stored = (
         await database.query(
-          'SELECT c.* FROM registered_certificates c JOIN credential_tokens t ON t.certificate_id=c.id WHERE c.id=$1',
-          [offer.certificate_id],
+          'SELECT c.* FROM registered_licences c JOIN credential_tokens t ON t.licence_id=c.id WHERE c.id=$1',
+          [offer.licence_id],
         )
       ).rows[0];
       assert.equal(
@@ -181,18 +189,18 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
           accounts[2],
           new URLSearchParams({ credential_id: reference }),
         );
-        assert.ok(journal.results.some((entry) => entry.event === 'certificate.registered'));
-        assert.ok(journal.results.some((entry) => entry.event === 'certificate.issued'));
+        assert.ok(journal.results.some((entry) => entry.event === 'licence.registered'));
+        assert.ok(journal.results.some((entry) => entry.event === 'licence.issued'));
       }
       assert.equal(payload.nbf, Math.floor(+stored.valid_from / 1000));
       assert.equal(payload.exp, Math.floor(+stored.valid_until / 1000));
-      assert.equal((payload.exp as number) - (payload.nbf as number), 157680000);
+      assert.equal((payload.exp as number) * 1000, threeYearsAfter((payload.nbf as number) * 1000));
       assert.equal(stored.private_data.includes(Buffer.from(did)), false);
       assert.equal(records.get(recordKey(offer, collected))?.validUntil, payload.exp);
       assert.ok(stored.ledger_registered_at);
       await database.query(
-        "UPDATE registered_certificates SET ledger_standing=NULL,ledger_observed_at=NULL,local_standing='suspended' WHERE id=$1",
-        [offer.certificate_id],
+        "UPDATE registered_licences SET ledger_standing=NULL,ledger_observed_at=NULL,local_standing='suspended' WHERE id=$1",
+        [offer.licence_id],
       );
       assert.equal(
         await issuer.deliverRegistrations(),
@@ -204,7 +212,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         (
           await database.query(
             'SELECT 1 FROM audit_entries a JOIN audit_anchors q ON q.entry_id=a.id WHERE a.credential_id=$1 AND a.event=$2',
-            [offer.credential_id, 'certificate.registered'],
+            [offer.credential_id, 'licence.registered'],
           )
         ).rowCount,
       );
@@ -232,10 +240,9 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       const outcomes = await Promise.all([exchange(fresh), exchange(fresh)]);
       assert.deepEqual(outcomes.map((item) => item.status).sort(), [200, 400]);
       const expired = await register();
-      await database.query(
-        'UPDATE credential_offers SET expires_at=now() WHERE certificate_id=$1',
-        [expired.certificate_id],
-      );
+      await database.query('UPDATE credential_offers SET expires_at=now() WHERE licence_id=$1', [
+        expired.licence_id,
+      ]);
       assert.equal(await issuer.registration.offer(code(expired)), undefined);
       assert.equal((await exchange(expired)).status, 400);
     },
@@ -286,8 +293,8 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       );
       assert.equal(state.ledgerCalls, calls);
       const grantState = (
-        await database.query('SELECT redeemed_at FROM credential_tokens WHERE certificate_id=$1', [
-          offer.certificate_id,
+        await database.query('SELECT redeemed_at FROM credential_tokens WHERE licence_id=$1', [
+          offer.licence_id,
         ])
       ).rows[0];
       assert.equal(grantState.redeemed_at, null);
@@ -307,10 +314,9 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         issuer.redemption.redeem(grant.access_token, input),
         /Signing response lost/,
       );
-      await database.query(
-        'UPDATE credential_tokens SET expires_at=now() WHERE certificate_id=$1',
-        [offer.certificate_id],
-      );
+      await database.query('UPDATE credential_tokens SET expires_at=now() WHERE licence_id=$1', [
+        offer.licence_id,
+      ]);
       const replacement = await issuer.registration.reoffer(accounts[0], {
         credential_id: offer.credential_id,
       });
@@ -347,10 +353,9 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         state[field] = false;
         assert.equal(
           (
-            await database.query(
-              'SELECT redeemed_at FROM credential_tokens WHERE certificate_id=$1',
-              [offer.certificate_id],
-            )
+            await database.query('SELECT redeemed_at FROM credential_tokens WHERE licence_id=$1', [
+              offer.licence_id,
+            ])
           ).rows[0].redeemed_at,
           null,
         );
@@ -360,8 +365,8 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       await issuer.deliverRegistrations();
       assert.equal(
         (
-          await database.query('SELECT ledger_standing FROM registered_certificates WHERE id=$1', [
-            offer.certificate_id,
+          await database.query('SELECT ledger_standing FROM registered_licences WHERE id=$1', [
+            offer.licence_id,
           ])
         ).rows[0].ledger_standing,
         'unknown',
@@ -370,8 +375,8 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       await issuer.deliverRegistrations();
       assert.equal(
         (
-          await database.query('SELECT ledger_standing FROM registered_certificates WHERE id=$1', [
-            offer.certificate_id,
+          await database.query('SELECT ledger_standing FROM registered_licences WHERE id=$1', [
+            offer.licence_id,
           ])
         ).rows[0].ledger_standing,
         'active',
@@ -438,14 +443,13 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       const result = await issuer.redemption.redeem(grant.access_token, await request(grant));
       assert.equal(result.status, 200);
       const row = (
-        await database.query(
-          'SELECT valid_from,valid_until FROM registered_certificates WHERE id=$1',
-          [offer.certificate_id],
-        )
+        await database.query('SELECT valid_from,valid_until FROM registered_licences WHERE id=$1', [
+          offer.licence_id,
+        ])
       ).rows[0];
       assert.equal(+row.valid_from, +validFrom);
-      assert.ok(+row.valid_until >= before - 1000 + 157680000000);
-      assert.ok(+row.valid_until <= Date.now() + 157680000000);
+      assert.ok(+row.valid_until >= threeYearsAfter(before - 1000));
+      assert.ok(+row.valid_until <= threeYearsAfter(Date.now()));
       const until = new Date(Date.now() + 365 * 86400000);
       const explicit = await register({
         valid_from: validFrom.toISOString(),
@@ -458,17 +462,16 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         200,
       );
       const stored = (
-        await database.query(
-          'SELECT valid_from,valid_until FROM registered_certificates WHERE id=$1',
-          [explicit.certificate_id],
-        )
+        await database.query('SELECT valid_from,valid_until FROM registered_licences WHERE id=$1', [
+          explicit.licence_id,
+        ])
       ).rows[0];
       assert.equal(+stored.valid_from, +validFrom);
       assert.equal(+stored.valid_until, +until);
       const expired = await register();
       const expiredGrant = (await exchange(expired)).body;
-      await database.query('UPDATE registered_certificates SET valid_until=now() WHERE id=$1', [
-        expired.certificate_id,
+      await database.query('UPDATE registered_licences SET valid_until=now() WHERE id=$1', [
+        expired.licence_id,
       ]);
       assert.equal(
         (await issuer.redemption.redeem(expiredGrant.access_token, await request(expiredGrant)))
@@ -498,13 +501,13 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
       await assert.rejects(
         issuer.registration.register(accounts[2], {
           holder_reference: 'ref',
-          claims: { certificateNumber: 'x' },
+          claims: { licenceNumber: 'x' },
         }),
         (error) => (error as any).body.reason === 'NotATI',
       );
       const duplicate = {
         holder_reference: 'ref',
-        claims: { certificateNumber: 'RACE-NUMBER', holderName: 'Ada' },
+        claims: { licenceNumber: 'RACE-NUMBER', holderName: 'Ada' },
       };
       const race = await Promise.allSettled([register(duplicate), register(duplicate)]);
       assert.equal(race.filter((item) => item.status === 'fulfilled').length, 1);
@@ -529,7 +532,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         [organizations[2]],
       );
       const priorOffer = await register();
-      await database.query('UPDATE certificate_schemas SET retired_at=now() WHERE id=$1', [
+      await database.query('UPDATE licence_schemas SET retired_at=now() WHERE id=$1', [
         fixture.schema,
       ]);
       await assert.rejects(
@@ -545,7 +548,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         (await issuer.redemption.redeem(priorGrant.access_token, await request(priorGrant))).status,
         200,
       );
-      await database.query('UPDATE certificate_schemas SET retired_at=NULL WHERE id=$1', [
+      await database.query('UPDATE licence_schemas SET retired_at=NULL WHERE id=$1', [
         fixture.schema,
       ]);
     },
@@ -661,7 +664,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         });
         const offer = await registration.register(accounts[0], {
           holder_reference: 'ref',
-          claims: { certificateNumber: 'CONFIG-' + ++counter, holderName: 'Ada' },
+          claims: { licenceNumber: 'CONFIG-' + ++counter, holderName: 'Ada' },
         });
         const resolved = await registration.offer(code(offer));
         // OpenID4VCI 1.0: a transaction code is asked for when the offer has a PIN.
@@ -705,7 +708,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         true,
       );
       await database.query(
-        'INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) SELECT schema_id,2,fields,$2,clock_timestamp() FROM certificate_schema_versions WHERE schema_id=$1 AND version=1',
+        'INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) SELECT schema_id,2,fields,$2,clock_timestamp() FROM licence_schema_versions WHERE schema_id=$1 AND version=1',
         [fixture.schema, next],
       );
       await fixture.reaccredit(organizations[1], organizations[2]);
@@ -718,7 +721,7 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
         assert.equal(payload.vc.credentialSchema[0].id, fixture.schemas.address(next));
       } finally {
         await database.query(
-          'DELETE FROM certificate_schema_versions WHERE schema_id=$1 AND version=2',
+          'DELETE FROM licence_schema_versions WHERE schema_id=$1 AND version=2',
           [fixture.schema],
         );
         await fixture.reaccredit(organizations[1], organizations[2]);
@@ -730,22 +733,21 @@ test('certificate issuance and collection with real PostgreSQL, DID/TIR/TSR and 
     'an unconfirmed draft cannot replace the published schema chosen for issuance',
     async () => {
       await database.query(
-        "INSERT INTO certificate_schema_versions(schema_id,version,fields) VALUES($1,2,'[]')",
+        "INSERT INTO licence_schema_versions(schema_id,version,fields) VALUES($1,2,'[]')",
         [fixture.schema],
       );
       const offer = await register();
       assert.equal(
         (
-          await database.query('SELECT schema_version FROM registered_certificates WHERE id=$1', [
-            offer.certificate_id,
+          await database.query('SELECT schema_version FROM registered_licences WHERE id=$1', [
+            offer.licence_id,
           ])
         ).rows[0].schema_version,
         1,
       );
-      await database.query(
-        'DELETE FROM certificate_schema_versions WHERE schema_id=$1 AND version=2',
-        [fixture.schema],
-      );
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1 AND version=2', [
+        fixture.schema,
+      ]);
     },
   );
 

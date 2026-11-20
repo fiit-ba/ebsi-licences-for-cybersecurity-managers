@@ -23,8 +23,8 @@ export async function issuerOfCase(database: Pool, proposalId: string) {
   const {
     rows: [row],
   } = await database.query<{ issuer_did: string }>(
-    `SELECT c.issuer_did FROM certificate_status_proposals p
-     JOIN registered_certificates c ON c.id=p.certificate_id WHERE p.id=$1`,
+    `SELECT c.issuer_did FROM licence_status_proposals p
+     JOIN registered_licences c ON c.id=p.licence_id WHERE p.id=$1`,
     [proposalId],
   );
   if (!row) throw new Error('The case names no certificate.');
@@ -70,7 +70,7 @@ export function postgresGovernanceDelivery(
     // and its certificate so overlapping workers cannot submit it twice.
     const { rows } = await database.query<{ id: string }>(
       `
-      SELECT id FROM certificate_status_proposals
+      SELECT id FROM licence_status_proposals
       WHERE requires_governance AND decision IS DISTINCT FROM 'rejected' AND applied_at IS NULL AND closed_at IS NULL
         AND ($1::uuid IS NULL OR id=$1)
         AND ($1::uuid IS NOT NULL OR delivery_attempted_at IS NULL OR delivery_attempted_at < clock_timestamp() - interval '15 seconds')
@@ -87,7 +87,7 @@ export function postgresGovernanceDelivery(
         // to a newly configured contract on the next process start.
         await database.query(
           `
-          UPDATE certificate_status_proposals SET onchain_contract = COALESCE(onchain_contract, $2),
+          UPDATE licence_status_proposals SET onchain_contract = COALESCE(onchain_contract, $2),
             onchain_chain_id = COALESCE(onchain_chain_id, $3), delivery_uncertain = true
           WHERE id = $1 AND decision IS DISTINCT FROM 'rejected'
             AND requires_governance AND applied_at IS NULL AND closed_at IS NULL
@@ -97,26 +97,26 @@ export function postgresGovernanceDelivery(
         await transaction(database, async (client: PoolClient) => {
           const {
             rows: [target],
-          } = await client.query<{ certificate_id: string; issuer_id: string }>(
+          } = await client.query<{ licence_id: string; issuer_id: string }>(
             `
-            SELECT p.certificate_id, c.issuer_id FROM certificate_status_proposals p
-            JOIN registered_certificates c ON c.id = p.certificate_id WHERE p.id = $1
+            SELECT p.licence_id, c.issuer_id FROM licence_status_proposals p
+            JOIN registered_licences c ON c.id = p.licence_id WHERE p.id = $1
           `,
             [id],
           );
           if (!target) return;
           const { revoked } = await lockIssuerChain(client, target.issuer_id);
           const { rowCount: locked } = await client.query(
-            'SELECT id FROM registered_certificates WHERE id = $1 FOR UPDATE SKIP LOCKED',
-            [target.certificate_id],
+            'SELECT id FROM registered_licences WHERE id = $1 FOR UPDATE SKIP LOCKED',
+            [target.licence_id],
           );
           if (!locked) return;
           const {
             rows: [record],
           } = await client.query(
             `
-            SELECT p.*, c.issuer_did, c.certificate_number, c.credential_id, c.status_key, c.credential_hash, c.local_standing AS registry_state
-            FROM certificate_status_proposals p JOIN registered_certificates c ON c.id = p.certificate_id
+            SELECT p.*, c.issuer_did, c.licence_number, c.credential_id, c.status_key, c.credential_hash, c.local_standing AS registry_state
+            FROM licence_status_proposals p JOIN registered_licences c ON c.id = p.licence_id
             WHERE p.id = $1 AND p.requires_governance AND p.decision IS DISTINCT FROM 'rejected' AND p.applied_at IS NULL AND p.closed_at IS NULL
               AND ($2::boolean OR p.delivery_attempted_at IS NULL OR p.delivery_attempted_at < clock_timestamp() - interval '15 seconds')
             FOR UPDATE OF p
@@ -196,7 +196,7 @@ export function postgresGovernanceDelivery(
               statusActions(record.registry_state).includes(record.action);
             await client.query(
               `
-              UPDATE certificate_status_proposals SET onchain_proposal_id = $2, onchain_contract = $3,
+              UPDATE licence_status_proposals SET onchain_proposal_id = $2, onchain_contract = $3,
                 onchain_chain_id = $4, onchain_state = $5, delivery_attempted_at = clock_timestamp(), delivery_failed = false,
                 delivery_uncertain = false,
                 applied_at = CASE WHEN $5 = 'executed' AND $6::boolean THEN clock_timestamp() END,
@@ -212,11 +212,11 @@ export function postgresGovernanceDelivery(
               // Invalidate the observation and let the ledger reader refresh it.
               await client.query(
                 `
-                UPDATE registered_certificates SET local_standing = $2, ledger_standing = NULL, ledger_observed_at = NULL,
+                UPDATE registered_licences SET local_standing = $2, ledger_standing = NULL, ledger_observed_at = NULL,
                   ledger_observation_invalidated_at = clock_timestamp() WHERE id = $1
               `,
                 [
-                  record.certificate_id,
+                  record.licence_id,
                   record.action === 'suspend'
                     ? 'suspended'
                     : record.action === 'revoke'
@@ -226,8 +226,8 @@ export function postgresGovernanceDelivery(
               );
               if (record.action === 'reinstate' || record.action === 'revoke')
                 await client.query(
-                  'UPDATE certificate_emergency_suspensions SET applied_at=clock_timestamp() WHERE certificate_id=$1 AND applied_at IS NULL',
-                  [record.certificate_id],
+                  'UPDATE licence_emergency_suspensions SET applied_at=clock_timestamp() WHERE licence_id=$1 AND applied_at IS NULL',
+                  [record.licence_id],
                 );
             }
             if (result.state === 'executed' && canApply) {
@@ -238,18 +238,17 @@ export function postgresGovernanceDelivery(
                 )
               ).rows;
               const applied = (
-                await client.query(
-                  'SELECT applied_at FROM certificate_status_proposals WHERE id=$1',
-                  [id],
-                )
+                await client.query('SELECT applied_at FROM licence_status_proposals WHERE id=$1', [
+                  id,
+                ])
               ).rows[0];
               await anchorDecision(client, protection, {
                 kind: 'status_change',
-                certificate: record.certificate_id,
+                certificate: record.licence_id,
                 credentialId: record.credential_id,
                 proposal: id,
                 decision: {
-                  certificate: record.certificate_id,
+                  certificate: record.licence_id,
                   credential_id: record.credential_id,
                   proposal: id,
                   action: record.action,
@@ -312,7 +311,7 @@ export function postgresGovernanceDelivery(
             await client.query('ROLLBACK TO SAVEPOINT delivery');
             await client.query(
               `
-              UPDATE certificate_status_proposals SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
+              UPDATE licence_status_proposals SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
               WHERE id = $1
             `,
               [id],
@@ -330,7 +329,7 @@ export function postgresGovernanceDelivery(
         failure = error;
         await database.query(
           `
-          UPDATE certificate_status_proposals SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
+          UPDATE licence_status_proposals SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
           WHERE id = $1 AND applied_at IS NULL AND closed_at IS NULL
         `,
           [id],

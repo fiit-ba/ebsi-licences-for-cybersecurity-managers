@@ -43,7 +43,7 @@ export function postgresAnchorList(database: Pool, ledger?: TimestampLedger) {
         SELECT anchor.*, e.event, e.occurred_at, e.entry_hash, e.previous_hash, e.payload
         FROM audit_anchors anchor JOIN audit_entries e ON e.id = anchor.entry_id
         WHERE (e.credential_id = $1 OR e.credential_id IN (
-          SELECT unnest(ARRAY[c.credential_id,c.registered_id]) FROM registered_certificates c
+          SELECT unnest(ARRAY[c.credential_id,c.registered_id]) FROM registered_licences c
           WHERE c.credential_id=$1 OR c.registered_id=$1)) AND ($2::bigint IS NULL OR anchor.entry_id < $2)
         ORDER BY anchor.entry_id DESC LIMIT 101
       `,

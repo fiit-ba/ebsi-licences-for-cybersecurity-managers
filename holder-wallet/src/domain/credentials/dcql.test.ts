@@ -7,7 +7,7 @@ import { answers, assignQueries, claimOptions, DcqlCredentialQuery } from './dcq
 
 const disclosure = (name: string, value: unknown) => base64url.encode(JSON.stringify([`salt-${name}`, name, value]))
 const b64 = (value: object) => base64url.encode(JSON.stringify(value))
-const TYPE = 'CybersecurityManagerCertificate'
+const TYPE = 'CybersecurityManagerLicence'
 
 const certificate = (attributes: Record<string, unknown>, types = ['VerifiableCredential', TYPE]) => {
   const disclosures = Object.entries(attributes).map(([name, value]) => disclosure(name, value))
@@ -16,14 +16,14 @@ const certificate = (attributes: Record<string, unknown>, types = ['VerifiableCr
     vc: {
       type: types,
       issuer: 'did:ebsi:zTi',
-      credentialSubject: { id: 'did:key:z', certificateNumber: 'SK-1', _sd: disclosures.map(digestOf).sort() },
+      credentialSubject: { id: 'did:key:z', licenceNumber: 'SK-1', _sd: disclosures.map(digestOf).sort() },
     },
   }
   return `${b64({ alg: 'ES256' })}.${b64(payload)}.c2ln~${disclosures.join('~')}~`
 }
 
 const claim = (name: string) => ({ id: name, path: ['credentialSubject', name] })
-const MANDATORY = ['certificateTitle', 'holderName', 'certificateNumber', 'certificationBody']
+const MANDATORY = ['licenceTitle', 'holderName', 'licenceNumber', 'certificationBody']
 const ALL = [...MANDATORY, 'jobPosition', 'funding']
 const QUERY: DcqlCredentialQuery = {
   id: 'certificate',
@@ -32,7 +32,7 @@ const QUERY: DcqlCredentialQuery = {
   claims: ALL.map(claim),
   claim_sets: [ALL, MANDATORY],
 }
-const FULL = { certificateTitle: 'Manažér KB', holderName: 'Ján Novák', certificationBody: 'STU FIIT' }
+const FULL = { licenceTitle: 'Manažér KB', holderName: 'Ján Novák', certificationBody: 'STU FIIT' }
 
 describe('a DCQL query, against a certificate', () => {
   it('offers every claim set the certificate satisfies, the verifier’s preferred first', () => {
@@ -40,8 +40,8 @@ describe('a DCQL query, against a certificate', () => {
     const options = claimOptions(QUERY, token)
     expect(options.map((option) => option.ids)).toEqual([ALL, MANDATORY])
     // The number is signed in clear: there is nothing to disclose for it.
-    expect(options[0].names).toEqual(['certificateTitle', 'holderName', 'certificationBody', 'jobPosition', 'funding'])
-    expect(options[1].names).toEqual(['certificateTitle', 'holderName', 'certificationBody'])
+    expect(options[0].names).toEqual(['licenceTitle', 'holderName', 'certificationBody', 'jobPosition', 'funding'])
+    expect(options[1].names).toEqual(['licenceTitle', 'holderName', 'certificationBody'])
   })
 
   it('offers only the sets whose every claim the certificate has', () => {
@@ -61,7 +61,7 @@ describe('a DCQL query, against a certificate', () => {
     const token = certificate({ ...FULL, jobPosition: 'CISO' })
     const { claim_sets: _sets, ...withoutSets } = QUERY
     expect(claimOptions({ ...withoutSets, claims: MANDATORY.map(claim) }, token)).toEqual([
-      { ids: MANDATORY, names: ['certificateTitle', 'holderName', 'certificationBody'] },
+      { ids: MANDATORY, names: ['licenceTitle', 'holderName', 'certificationBody'] },
     ])
     expect(claimOptions({ id: 'q', format: 'jwt_vc_json' }, token)).toEqual([{ ids: [], names: [] }])
   })

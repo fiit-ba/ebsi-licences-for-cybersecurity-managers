@@ -103,11 +103,11 @@ async function chooseSchema(
   const { rows } = await client.query(
     `
     SELECT s.id, s.credential_type, published.version, published.fields, published.tsr_id
-    FROM certificate_schemas s
-    JOIN organization_certificate_schemas g ON g.schema_id = s.id AND g.organization_id = $1
-    JOIN organization_certificate_schemas p ON p.schema_id = s.id AND p.organization_id = $2
+    FROM licence_schemas s
+    JOIN organization_licence_schemas g ON g.schema_id = s.id AND g.organization_id = $1
+    JOIN organization_licence_schemas p ON p.schema_id = s.id AND p.organization_id = $2
     JOIN LATERAL (
-      SELECT version, fields, tsr_id FROM certificate_schema_versions
+      SELECT version, fields, tsr_id FROM licence_schema_versions
       WHERE schema_id = s.id AND registered_at IS NOT NULL ORDER BY version DESC LIMIT 1
     ) published ON true
     WHERE s.retired_at IS NULL
@@ -220,7 +220,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
         const issuer = await lockedIssuer(client, accountId);
         const schema = await chooseSchema(client, issuer, input);
         const claims = normalizeClaims(input.claims, schema.fields);
-        const suppliedNumber = claims.certificateNumber || claims.registrationNumber;
+        const suppliedNumber = claims.licenceNumber || claims.registrationNumber;
         const number =
           typeof suppliedNumber === 'string' || Number.isSafeInteger(suppliedNumber)
             ? trimIdentityField(String(suppliedNumber))
@@ -231,7 +231,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
             'CertificateNumberRequired',
             'The certificate needs its number.',
             {
-              missing: ['certificateNumber'],
+              missing: ['licenceNumber'],
               invalid: [],
             },
           );
@@ -247,9 +247,9 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
         const offer = await protection.newOffer();
         const { rowCount } = await client.query(
           `
-          INSERT INTO registered_certificates (
+          INSERT INTO registered_licences (
             id, credential_id, issuer_id, issuer_did, issuer_accredited_until, schema_id, schema_version,
-            certificate_number, private_data, valid_from, valid_until, created_by
+            licence_number, private_data, valid_from, valid_until, created_by
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
           ON CONFLICT DO NOTHING
         `,
@@ -275,19 +275,19 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
             'The TI already registered this certificate number.',
             {
               missing: [],
-              invalid: ['certificateNumber'],
+              invalid: ['licenceNumber'],
             },
           );
         }
         await client.query(
           `
-          INSERT INTO credential_offers (certificate_id, code_digest, pin_digest, expires_at, pin_length)
+          INSERT INTO credential_offers (licence_id, code_digest, pin_digest, expires_at, pin_length)
           VALUES ($1, $2, $3, $4, $5)
         `,
           [id, offer.codeDigest, offer.pinDigest, offer.expiresAt, offer.pin?.length ?? null],
         );
         await appendAudit(client, {
-          event: 'certificate.registered',
+          event: 'licence.registered',
           actor: accountId,
           credentialId,
           organizationId: issuer.id,
@@ -297,7 +297,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
           },
         });
         await appendAudit(client, {
-          event: 'certificate.issued',
+          event: 'licence.issued',
           actor: accountId,
           credentialId,
           organizationId: issuer.id,
@@ -327,10 +327,10 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
           },
         });
         return {
-          certificate_id: id,
+          licence_id: id,
           ...(await describeOffer(credentialId, offer, input.qr)),
           issuer_did: issuer.did,
-          certificate_number: number,
+          licence_number: number,
         };
       });
     },
@@ -358,7 +358,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
         } = await client.query(
           `
           SELECT c.id, c.issuer_id, c.issuer_did, c.valid_until
-          FROM registered_certificates c JOIN credential_offers o ON o.certificate_id = c.id
+          FROM registered_licences c JOIN credential_offers o ON o.licence_id = c.id
           WHERE (c.credential_id = $1 OR c.registered_id = $1)
           FOR UPDATE OF o
         `,
@@ -370,7 +370,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
           rows: [token],
         } = await client.query(
           `
-          SELECT redeemed_at FROM credential_tokens WHERE certificate_id = $1 FOR UPDATE
+          SELECT redeemed_at FROM credential_tokens WHERE licence_id = $1 FOR UPDATE
         `,
           [certificate.id],
         );
@@ -391,7 +391,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
         const offer = await protection.newOffer();
         // A replacement offer invalidates the previous uncollected grant.
         if (token) {
-          await client.query('DELETE FROM credential_tokens WHERE certificate_id = $1', [
+          await client.query('DELETE FROM credential_tokens WHERE licence_id = $1', [
             certificate.id,
           ]);
         }
@@ -399,7 +399,7 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
           `
           UPDATE credential_offers
           SET code_digest = $2, pin_digest = $3, expires_at = $4, failed_attempts = 0, consumed_at = NULL, pin_length = $5
-          WHERE certificate_id = $1
+          WHERE licence_id = $1
         `,
           [
             certificate.id,
@@ -433,8 +433,8 @@ export function postgresCertificateRegistration(database: Pool, options: Registr
       } = await database.query(
         `
         SELECT s.credential_type, octet_length(o.pin_digest)>0 AS pin_required, o.pin_length FROM credential_offers o
-        JOIN registered_certificates c ON c.id = o.certificate_id
-        JOIN certificate_schemas s ON s.id = c.schema_id
+        JOIN registered_licences c ON c.id = o.licence_id
+        JOIN licence_schemas s ON s.id = c.schema_id
         JOIN accredited_organizations ti ON ti.id = c.issuer_id
         JOIN accredited_organizations tao ON tao.id = ti.parent_id
         JOIN accredited_organizations root ON root.id = tao.parent_id

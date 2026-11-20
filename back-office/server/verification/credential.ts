@@ -199,8 +199,7 @@ export function credentialVerifier(options: CredentialVerifierOptions): VerifyCr
       !statuses.some((entry) => entry?.type === 'PlrLedgerStatusEntry') &&
       legacy.includes(secretDigest(jwt).toString('hex')),
     );
-    const number =
-      subject?.certificateNumber ?? (isLegacy ? subject?.registrationNumber : undefined);
+    const number = subject?.licenceNumber ?? (isLegacy ? subject?.registrationNumber : undefined);
     requireCredential(
       vc?.issuer === issuer &&
         typeof vc.id === 'string' &&

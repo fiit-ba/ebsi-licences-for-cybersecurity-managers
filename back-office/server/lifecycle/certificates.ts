@@ -28,8 +28,8 @@ function bounded(input: string | null, fallback: number, lower: number, upper: n
 }
 
 const scoped = `
-  FROM registered_certificates c ${certificateOrganizations}
-  LEFT JOIN credential_tokens token ON token.certificate_id = c.id
+  FROM registered_licences c ${certificateOrganizations}
+  LEFT JOIN credential_tokens token ON token.licence_id = c.id
   WHERE (${certificateReaderAccess})
 `;
 
@@ -121,7 +121,7 @@ export function postgresCertificateList(
       for (let cursor = term ? 0 : offset; ; cursor += pageSize) {
         const { rows } = await client.query(
           `
-          SELECT c.id, c.credential_id, c.registered_id, c.certificate_number, c.created_at, c.valid_until, c.private_data,
+          SELECT c.id, c.credential_id, c.registered_id, c.licence_number, c.created_at, c.valid_until, c.private_data,
             ti.name AS certification_body, token.redeemed_at IS NOT NULL AS collected,
             COALESCE(c.valid_until <= transaction_timestamp(), false) AS expired, ${displayedStates} AS state,
             (${statusManagerAccess}) AS can_manage,
@@ -133,10 +133,10 @@ export function postgresCertificateList(
                 AND (LEAST(ti.revoked_at, tao.revoked_at, root.revoked_at) IS NULL
                   OR LEAST(ti.revoked_at, tao.revoked_at, root.revoked_at) > statement_timestamp())
                 AND token.redeemed_at IS NULL AND (c.valid_until IS NULL OR c.valid_until > statement_timestamp())
-                AND EXISTS (SELECT 1 FROM credential_offers offer WHERE offer.certificate_id = c.id)
+                AND EXISTS (SELECT 1 FROM credential_offers offer WHERE offer.licence_id = c.id)
             ) AS can_reoffer,
             EXISTS (
-              SELECT 1 FROM certificate_status_proposals p WHERE p.certificate_id = c.id
+              SELECT 1 FROM licence_status_proposals p WHERE p.licence_id = c.id
                 AND p.applied_at IS NULL AND p.closed_at IS NULL AND p.decision IS DISTINCT FROM 'rejected'
             ) AS has_open_proposal
           ${scoped}
@@ -155,7 +155,7 @@ export function postgresCertificateList(
             continue;
           }
           const reference = String(
-            data.claims.certificateNumber || data.claims.registrationNumber || '',
+            data.claims.licenceNumber || data.claims.registrationNumber || '',
           );
           if (term) {
             const searchable = [

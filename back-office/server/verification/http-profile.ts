@@ -3,7 +3,7 @@ import type { postgresPresentationSessions } from './sessions.ts';
 import { parseVpToken } from './dcql.ts';
 
 const defaultScope = 'plr-verify-cybersecurity-manager';
-const defaultType = 'CybersecurityManagerCertificate';
+const defaultType = 'CybersecurityManagerLicence';
 
 /**
  * Create the compatible wallet request and direct-post presentation profile.

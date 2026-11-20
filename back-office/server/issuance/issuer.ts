@@ -49,8 +49,8 @@ export function createIssuer(database: Pool, options: IssuerOptions) {
         credential_type: string;
         name_sk: string | null;
         name_en: string | null;
-      }>(`SELECT s.credential_type,s.name_sk,s.name_en FROM certificate_schemas s
-        WHERE EXISTS(SELECT 1 FROM certificate_schema_versions v WHERE v.schema_id=s.id AND v.registered_at IS NOT NULL)
+      }>(`SELECT s.credential_type,s.name_sk,s.name_en FROM licence_schemas s
+        WHERE EXISTS(SELECT 1 FROM licence_schema_versions v WHERE v.schema_id=s.id AND v.registered_at IS NOT NULL)
         ORDER BY s.credential_type COLLATE "C"`);
       return {
         credential_issuer: origin,

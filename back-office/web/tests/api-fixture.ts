@@ -21,9 +21,9 @@ export const credentialId = 'urn:uuid:11111111-1111-4111-8111-111111111111';
 export const proposalId = '22222222-2222-4222-8222-222222222222';
 export const fields = [
   {
-    key: 'certificateNumber',
+    key: 'licenceNumber',
     kind: 'text',
-    label: { sk: 'Číslo osvedčenia', en: 'Certificate number' },
+    label: { sk: 'Číslo osvedčenia', en: 'Licence number' },
     hint: {},
     required: true,
     default: '',
@@ -99,7 +99,7 @@ export async function apiFixture(
         'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fregistry.example%2Foffer%2Fone',
       pin: '928417',
       offer_expires_at: '2030-12-01T00:00:00Z',
-      certificate_number: 'AT-2026-0142',
+      licence_number: 'AT-2026-0142',
     },
   };
   await page.addInitScript(

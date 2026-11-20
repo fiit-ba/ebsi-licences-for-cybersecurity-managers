@@ -1,6 +1,6 @@
 // Names for what a credential carries, in the holder's language.
 // Types and claims are identifiers from the credential itself, in English
-// ("CybersecurityManagerCertificate", "certificationBody"). A claim is named by
+// ("CybersecurityManagerLicence", "certificationBody"). A claim is named by
 // its schema in the Trusted Schemas Registry (domain/credentials/schemaCatalog.ts),
 // in the schema's own words: the wallet keeps no names of its own for a
 // certificate's attributes, as the registry gains schemas the wallet was built
@@ -14,9 +14,9 @@ import { Bilingual, schemaClaimLabel, schemaClaimOrder, schemaTypeName } from '@
 type Names = Record<string, { sk: string; en: string }>
 
 const TYPE_NAMES: Names = {
-  CybersecurityManagerCertificate: {
+  CybersecurityManagerLicence: {
     sk: 'Licencia manažéra kybernetickej bezpečnosti',
-    en: 'Cybersecurity Manager License',
+    en: 'Cybersecurity Manager Licence',
   },
   VerifiableAttestation: { sk: 'Overiteľné osvedčenie', en: 'Verifiable attestation' },
   VerifiableCredential: { sk: 'Overiteľný doklad', en: 'Verifiable credential' },

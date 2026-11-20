@@ -57,10 +57,10 @@ function decimalDigits(value: string): string {
 }
 
 /** Where a licence's number may come from, whether or not its schema defines it. */
-const numberKeys = ['certificateNumber', 'registrationNumber'];
+const numberKeys = ['licenceNumber', 'registrationNumber'];
 
 /**
- * Normalize claims, apply defaults and validate schema and training dates.
+ * Normalize claims, apply defaults and validate schema, training and examination dates.
  *
  * @param input - Untrusted claim object without a holder DID.
  * @param fields - Published field definitions.
@@ -110,12 +110,20 @@ export function normalizeClaims(input: unknown, fields: SchemaField[]) {
   const dateFields = new Set(
     fields.filter((field) => field.kind === 'date').map((field) => field.key),
   );
-  if (dates.every((key) => dateFields.has(key) && claims.has(key) && !invalid.has(key))) {
+  const valid = (key: string) => dateFields.has(key) && claims.has(key) && !invalid.has(key);
+  if (dates.every(valid)) {
     if ((claims.get('trainingEnd') as string) < (claims.get('trainingStart') as string))
       invalid.add('trainingEnd');
     if ((claims.get('issueDate') as string) < (claims.get('trainingEnd') as string))
       invalid.add('issueDate');
   }
+  // The licence is granted on the examination's results, so it cannot predate the examination.
+  if (
+    valid('examDate') &&
+    valid('issueDate') &&
+    (claims.get('issueDate') as string) < (claims.get('examDate') as string)
+  )
+    invalid.add('examDate');
   if (missing.length || invalid.size) {
     throw new IssuanceError(
       400,

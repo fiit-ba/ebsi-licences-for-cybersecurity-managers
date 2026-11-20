@@ -17,8 +17,8 @@ const ebsi = Object.fromEntries(
 );
 const bundle = {
   _generated: 'From /schemas by scripts/sync-schemas.ts; edit those files, not this one.',
-  cybersecurityManagerCertificate: read('cybersecurity-manager-certificate/1.0.0/schema.json'),
-  certificateStatusEntry: read('certificate-status-entry/1.0.0/schema.json'),
+  cybersecurityManagerLicence: read('cybersecurity-manager-licence/1.0.0/schema.json'),
+  licenceStatusEntry: read('licence-status-entry/1.0.0/schema.json'),
   ebsi,
 };
 const text = JSON.stringify(bundle, null, 2) + '\n';

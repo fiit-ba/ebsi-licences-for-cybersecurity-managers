@@ -17,7 +17,7 @@ const presentations = Array.from({ length: 12 }, (_, index) => ({
   timestamp: `2026-10-08T12:${String(index).padStart(2, '0')}:00.000Z`,
   status: 'Active' as const,
   credential: 'legacy-presentation',
-  credentialTypes: ['CybersecurityManagerCertificate'],
+  credentialTypes: ['CybersecurityManagerLicence'],
   credentialCount: 1,
   legacy: false,
 }))

@@ -54,11 +54,28 @@ test('a registry schema gives the issuance form its type, title and attributes',
 
   // The development schema reads back with every attribute it had.
   const development = registrySchema('zDev', developmentSchemaDocument);
-  assert.equal(development.credential_type, 'CybersecurityManagerCertificate');
-  assert.equal(development.fields.length, 15);
+  assert.equal(development.credential_type, 'CybersecurityManagerLicence');
+  assert.equal(development.fields.length, 19);
   assert.deepEqual(
     development.fields.filter((field) => !field.required).map((field) => field.key),
-    ['jobPosition', 'funding'],
+    [
+      'licenceTitle',
+      'examDate',
+      'placeOfIssue',
+      'signatory',
+      'previousLicenceNumber',
+      'trainingName',
+      'trainingStart',
+      'trainingEnd',
+      'trainingDays',
+      'teachingHours',
+      'funding',
+    ],
+  );
+  // The role and its ECSF profile are fixed: the form starts with them.
+  assert.equal(
+    development.fields.find((field) => field.key === 'ecsfRoleProfile')?.default,
+    'Chief Information Security Officer (CISO)',
   );
   assert.deepEqual(
     development.fields.find((field) => field.key === 'trainingDays')?.kind,
@@ -130,14 +147,14 @@ test('the configured registry schemas become versions, and a type no id names an
   context.after(async () => {
     try {
       await database.query(
-        'UPDATE certificate_schemas SET retired_at = NULL WHERE credential_type = ANY($1::text[])',
+        'UPDATE licence_schemas SET retired_at = NULL WHERE credential_type = ANY($1::text[])',
         [[...retiredByUs].filter((retired) => retired !== type)],
       );
       await database.query(
-        'DELETE FROM certificate_schema_versions WHERE schema_id IN (SELECT id FROM certificate_schemas WHERE credential_type = $1)',
+        'DELETE FROM licence_schema_versions WHERE schema_id IN (SELECT id FROM licence_schemas WHERE credential_type = $1)',
         [type],
       );
-      await database.query('DELETE FROM certificate_schemas WHERE credential_type = $1', [type]);
+      await database.query('DELETE FROM licence_schemas WHERE credential_type = $1', [type]);
     } finally {
       await database.end();
     }
@@ -154,8 +171,8 @@ test('the configured registry schemas become versions, and a type no id names an
   const versions = async () =>
     (
       await database.query(
-        `SELECT v.version, v.tsr_id, v.fields, s.name_sk, s.name_en, s.retired_at FROM certificate_schema_versions v
-        JOIN certificate_schemas s ON s.id = v.schema_id WHERE s.credential_type = $1 ORDER BY v.version`,
+        `SELECT v.version, v.tsr_id, v.fields, s.name_sk, s.name_en, s.retired_at FROM licence_schema_versions v
+        JOIN licence_schemas s ON s.id = v.schema_id WHERE s.credential_type = $1 ORDER BY v.version`,
         [type],
       )
     ).rows;

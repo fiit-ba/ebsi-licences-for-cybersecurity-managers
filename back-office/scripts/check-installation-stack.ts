@@ -177,7 +177,7 @@ try {
       timeout: 1_800_000,
     });
   console.log(bootstrap().trim());
-  const snapshotCode = `import pg from 'pg';const db=new pg.Pool();try{const result={};for(const [name,query] of Object.entries({fieldKeys:'SELECT * FROM field_keys',accounts:'SELECT id,username,password_hash,auth_version,active FROM operator_accounts ORDER BY id',organizations:'SELECT id,account_id,parent_id,kind,accredited_until FROM accredited_organizations ORDER BY id',schemas:'SELECT schema_id,version,fields,tsr_id FROM certificate_schema_versions ORDER BY schema_id,version',keys:'SELECT organization_id,kid,kms_key_id,public_jwk FROM issuer_signing_keys ORDER BY organization_id,kid',roles:'SELECT account_id,role FROM operator_governance_roles ORDER BY account_id,role'})){result[name]=(await db.query(query)).rows;}console.log(JSON.stringify(result));}finally{await db.end();}`;
+  const snapshotCode = `import pg from 'pg';const db=new pg.Pool();try{const result={};for(const [name,query] of Object.entries({fieldKeys:'SELECT * FROM field_keys',accounts:'SELECT id,username,password_hash,auth_version,active FROM operator_accounts ORDER BY id',organizations:'SELECT id,account_id,parent_id,kind,accredited_until FROM accredited_organizations ORDER BY id',schemas:'SELECT schema_id,version,fields,tsr_id FROM licence_schema_versions ORDER BY schema_id,version',keys:'SELECT organization_id,kid,kms_key_id,public_jwk FROM issuer_signing_keys ORDER BY organization_id,kid',roles:'SELECT account_id,role FROM operator_governance_roles ORDER BY account_id,role'})){result[name]=(await db.query(query)).rows;}console.log(JSON.stringify(result));}finally{await db.end();}`;
   const snapshotCommand = [
     ...composeArgs,
     'exec',

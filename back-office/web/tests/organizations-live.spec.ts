@@ -206,7 +206,7 @@ test('the Schémy tab lists the schemas read from the registry, and nobody defin
   await expect(row.getByText('v TSR', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Atribúty', exact: true }).click();
   await expect(page.getByText(/schemas\/organization-browser-fixture$/)).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'certificateNumber', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'licenceNumber', exact: true })).toBeVisible();
   for (const name of ['Nová schéma', 'Upraviť', 'Vyradiť'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   const token = await page.evaluate(() => sessionStorage.getItem('plr.token'));

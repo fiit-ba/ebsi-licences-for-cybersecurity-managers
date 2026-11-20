@@ -59,7 +59,7 @@ const ready = async () => {
     await database.query('SELECT bucket FROM operator_recovery_limits LIMIT 0');
   }
   await database.query('SELECT 1 FROM accredited_organizations LIMIT 0');
-  await database.query('SELECT 1 FROM certificate_schema_versions LIMIT 0');
+  await database.query('SELECT 1 FROM licence_schema_versions LIMIT 0');
   await database.query('SELECT 1 FROM accreditation_events LIMIT 0');
   await database.query('SELECT 1 FROM accreditation_withdrawals LIMIT 0');
   await database.query('SELECT 1 FROM organization_key_requests LIMIT 0');
@@ -77,12 +77,12 @@ const ready = async () => {
     await database.query('SELECT 1 FROM verify_flows LIMIT 0');
     await database.query('SELECT 1 FROM relying_parties LIMIT 0');
     await database.query(
-      'SELECT closed_at, onchain_state, withdrawal_requested_at FROM certificate_status_proposals LIMIT 0',
+      'SELECT closed_at, onchain_state, withdrawal_requested_at FROM licence_status_proposals LIMIT 0',
     );
-    await database.query('SELECT 1 FROM certificate_emergency_suspensions LIMIT 0');
-    await database.query('SELECT local_standing FROM registered_certificates LIMIT 0');
+    await database.query('SELECT 1 FROM licence_emergency_suspensions LIMIT 0');
+    await database.query('SELECT local_standing FROM registered_licences LIMIT 0');
     await database.query(
-      'SELECT requires_governance, delivery_uncertain FROM certificate_status_proposals LIMIT 0',
+      'SELECT requires_governance, delivery_uncertain FROM licence_status_proposals LIMIT 0',
     );
   }
 };

@@ -3,7 +3,7 @@ import type { OperatorAccount } from '../identity/auth/accounts.ts';
 import type { PublishedSchema } from '../schemas/types.ts';
 import { organizationProfile } from '../accreditation/profile.ts';
 
-export const defaultCredentialType = 'CybersecurityManagerCertificate';
+export const defaultCredentialType = 'CybersecurityManagerLicence';
 
 /**
  * Create a reader for published schemas granted to a TI.
@@ -28,11 +28,11 @@ export function postgresIssuanceSchemes(database: Pick<Pool, 'query'>) {
         FROM accredited_organizations ti
         JOIN accredited_organizations tao ON tao.id = ti.parent_id
         JOIN accredited_organizations root ON root.id = tao.parent_id
-        JOIN organization_certificate_schemas g ON g.organization_id = ti.id
-        JOIN certificate_schemas s ON s.id = g.schema_id
+        JOIN organization_licence_schemas g ON g.organization_id = ti.id
+        JOIN licence_schemas s ON s.id = g.schema_id
         JOIN LATERAL (
           SELECT version, fields
-          FROM certificate_schema_versions
+          FROM licence_schema_versions
           WHERE schema_id = s.id AND registered_at IS NOT NULL
           ORDER BY version DESC LIMIT 1
         ) published ON true
@@ -43,7 +43,7 @@ export function postgresIssuanceSchemes(database: Pick<Pool, 'query'>) {
             WHERE revoked_at <= statement_timestamp()
           )
           AND EXISTS (
-            SELECT 1 FROM organization_certificate_schemas parent_grant
+            SELECT 1 FROM organization_licence_schemas parent_grant
             WHERE parent_grant.organization_id = tao.id AND parent_grant.schema_id = s.id
           )
         ORDER BY s.name_sk, s.credential_type

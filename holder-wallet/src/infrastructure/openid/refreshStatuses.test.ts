@@ -38,7 +38,7 @@ const certificate = (id: number) => {
     id: `urn:uuid:${id}`,
     issuer: 'did:ebsi:zTi',
     validFrom: iso(FROM),
-    credentialSubject: { id: 'did:key:z', certificateNumber: `SK-CSM-${id}` },
+    credentialSubject: { id: 'did:key:z', licenceNumber: `SK-CSM-${id}` },
     credentialStatus: [{ id: 'x', type: 'PlrLedgerStatusEntry', chainId: 1337, contract: CONTRACT }],
   }
   return `${part({ alg: 'ES256', typ: 'JWT' })}.${part({ iss: vc.issuer, vc })}.c2ln~disclosure~`

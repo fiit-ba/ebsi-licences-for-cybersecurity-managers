@@ -13,7 +13,7 @@ const PAYLOAD = {
   _sd_alg: 'sha-256',
   vc: {
     issuer: 'did:ebsi:zTi',
-    credentialSubject: { id: 'did:key:z', certificateNumber: 'SK-1', _sd: DISCLOSURES.map(digestOf).sort() },
+    credentialSubject: { id: 'did:key:z', licenceNumber: 'SK-1', _sd: DISCLOSURES.map(digestOf).sort() },
   },
 }
 const TOKEN = `${b64({ alg: 'ES256' })}.${b64(PAYLOAD)}.c2ln~${DISCLOSURES.join('~')}~`
@@ -22,7 +22,7 @@ describe('a selectively disclosed certificate', () => {
   it('shows its holder every attribute', () => {
     expect(claimsOf(TOKEN).vc.credentialSubject).toEqual({
       id: 'did:key:z',
-      certificateNumber: 'SK-1',
+      licenceNumber: 'SK-1',
       holderName: 'Ján Novák',
       trainingDays: 5,
     })
@@ -38,12 +38,12 @@ describe('a selectively disclosed certificate', () => {
     expect(split(shown).disclosures).toEqual([DISCLOSURES[1]])
     expect(claimsOf(shown).vc.credentialSubject).toEqual({
       id: 'did:key:z',
-      certificateNumber: 'SK-1',
+      licenceNumber: 'SK-1',
       trainingDays: 5,
     })
     expect(claimsOf(withDisclosed(TOKEN, [])).vc.credentialSubject).toEqual({
       id: 'did:key:z',
-      certificateNumber: 'SK-1',
+      licenceNumber: 'SK-1',
     })
   })
 

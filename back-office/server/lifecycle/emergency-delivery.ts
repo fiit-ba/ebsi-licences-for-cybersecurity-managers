@@ -34,7 +34,7 @@ export function postgresEmergencyDelivery(
     let failure: unknown;
     const { rows } = await database.query<{ id: string }>(
       `
-      SELECT id FROM certificate_emergency_suspensions WHERE applied_at IS NULL AND ($1::uuid IS NULL OR certificate_id=$1)
+      SELECT id FROM licence_emergency_suspensions WHERE applied_at IS NULL AND ($1::uuid IS NULL OR licence_id=$1)
         AND ($1::uuid IS NOT NULL OR delivery_attempted_at IS NULL OR delivery_attempted_at < clock_timestamp() - interval '15 seconds')
       ORDER BY delivery_attempted_at NULLS FIRST, requested_at, id LIMIT 20
     `,
@@ -46,8 +46,8 @@ export function postgresEmergencyDelivery(
         const {
           rows: [certificate],
         } = await database.query<{ issuer_did: string }>(
-          `SELECT c.issuer_did FROM certificate_emergency_suspensions emergency
-           JOIN registered_certificates c ON c.id = emergency.certificate_id WHERE emergency.id = $1`,
+          `SELECT c.issuer_did FROM licence_emergency_suspensions emergency
+           JOIN registered_licences c ON c.id = emergency.licence_id WHERE emergency.id = $1`,
           [id],
         );
         if (!certificate) continue;
@@ -55,7 +55,7 @@ export function postgresEmergencyDelivery(
         // Keep the deployment fixed even if RPC succeeds and the DB rolls back.
         await database.query(
           `
-          UPDATE certificate_emergency_suspensions SET onchain_contract = $2, onchain_chain_id = $3
+          UPDATE licence_emergency_suspensions SET onchain_contract = $2, onchain_chain_id = $3
           WHERE id = $1 AND onchain_contract IS NULL AND applied_at IS NULL
         `,
           [id, contract, ledger.chainId],
@@ -65,8 +65,8 @@ export function postgresEmergencyDelivery(
             rows: [target],
           } = await client.query(
             `
-            SELECT c.id, c.issuer_id FROM certificate_emergency_suspensions emergency
-            JOIN registered_certificates c ON c.id = emergency.certificate_id WHERE emergency.id = $1
+            SELECT c.id, c.issuer_id FROM licence_emergency_suspensions emergency
+            JOIN registered_licences c ON c.id = emergency.licence_id WHERE emergency.id = $1
           `,
             [id],
           );
@@ -74,7 +74,7 @@ export function postgresEmergencyDelivery(
           // Revocation after the request must not prevent the protective write.
           await lockIssuerChain(client, target.issuer_id);
           const { rowCount } = await client.query(
-            'SELECT id FROM registered_certificates WHERE id = $1 FOR UPDATE SKIP LOCKED',
+            'SELECT id FROM registered_licences WHERE id = $1 FOR UPDATE SKIP LOCKED',
             [target.id],
           );
           if (!rowCount) return;
@@ -82,9 +82,9 @@ export function postgresEmergencyDelivery(
             rows: [record],
           } = await client.query(
             `
-            SELECT emergency.*, c.issuer_did, c.certificate_number, c.credential_id, c.status_key, c.credential_hash
-            FROM certificate_emergency_suspensions emergency
-            JOIN registered_certificates c ON c.id = emergency.certificate_id
+            SELECT emergency.*, c.issuer_did, c.licence_number, c.credential_id, c.status_key, c.credential_hash
+            FROM licence_emergency_suspensions emergency
+            JOIN registered_licences c ON c.id = emergency.licence_id
             WHERE emergency.id = $1 AND emergency.applied_at IS NULL
               AND ($2::boolean OR emergency.delivery_attempted_at IS NULL OR
                 emergency.delivery_attempted_at < clock_timestamp() - interval '15 seconds')
@@ -125,7 +125,7 @@ export function postgresEmergencyDelivery(
             }
             await client.query(
               `
-              UPDATE certificate_emergency_suspensions SET applied_at = clock_timestamp(),
+              UPDATE licence_emergency_suspensions SET applied_at = clock_timestamp(),
                 delivery_attempted_at = clock_timestamp(), delivery_failed = false WHERE id = $1
             `,
               [id],
@@ -134,10 +134,10 @@ export function postgresEmergencyDelivery(
             // current standing rather than overwrite it with the old emergency.
             await client.query(
               `
-              UPDATE registered_certificates SET ledger_standing = NULL, ledger_observed_at = NULL,
+              UPDATE registered_licences SET ledger_standing = NULL, ledger_observed_at = NULL,
                 ledger_observation_invalidated_at = clock_timestamp() WHERE id = $1
             `,
-              [record.certificate_id],
+              [record.licence_id],
             );
             await appendAudit(client, {
               event: 'status.emergency_confirmed',
@@ -155,7 +155,7 @@ export function postgresEmergencyDelivery(
             await client.query('ROLLBACK TO SAVEPOINT emergency_delivery');
             await client.query(
               `
-              UPDATE certificate_emergency_suspensions SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
+              UPDATE licence_emergency_suspensions SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
               WHERE id = $1
             `,
               [id],
@@ -172,7 +172,7 @@ export function postgresEmergencyDelivery(
         failure = error;
         await database.query(
           `
-          UPDATE certificate_emergency_suspensions SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
+          UPDATE licence_emergency_suspensions SET delivery_attempted_at = clock_timestamp(), delivery_failed = true
           WHERE id = $1 AND applied_at IS NULL
         `,
           [id],

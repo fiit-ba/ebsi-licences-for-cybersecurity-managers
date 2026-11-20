@@ -1,9 +1,9 @@
 {
   "_generated": "From /schemas by scripts/sync-schemas.ts; edit those files, not this one.",
-  "cybersecurityManagerCertificate": {
+  "cybersecurityManagerLicence": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Cybersecurity Manager Certificate",
-    "description": "Certificate that a training institution issues to a cybersecurity manager after the training and a successful final test, under Decree of the National Security Authority No. 492/2022 Coll. Its status is the certificate's record on the certificate registry contract named in credentialStatus. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+    "title": "Cybersecurity Manager Licence",
+    "description": "Licence attesting the professional competence of a natural person as a cybersecurity manager. A conformity assessment body accredited under ISO/IEC 17024 issues it under the certification scheme of the Slovak National Security Authority (NBÚ) and the knowledge standard of NBÚ Decree No. 492/2022 Coll., Annex 5. The role corresponds to the Chief Information Security Officer (CISO) role profile of ENISA's European Cybersecurity Skills Framework (ECSF) v1. Domain: cybersecurity professional qualifications. Its status is the licence's record on the licence registry contract named in credentialStatus. VCDM 1.1; extends the EBSI Verifiable Attestation.",
     "type": "object",
     "allOf": [
       {
@@ -17,7 +17,7 @@
               "type": "string"
             },
             "contains": {
-              "const": "CybersecurityManagerCertificate"
+              "const": "CybersecurityManagerLicence"
             }
           },
           "credentialSubject": {
@@ -27,28 +27,91 @@
                 "type": "string",
                 "format": "uri"
               },
-              "certificateTitle": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Certificate title",
-                "default": "Certificate of completion of a training activity and successful completion of the final test"
-              },
               "holderName": {
                 "type": "string",
                 "minLength": 1,
                 "title": "Full name with titles",
-                "description": "e.g. Ing. Lubomir Potok, PhD."
+                "description": "As on the licence, e.g. John Doe, PhD"
               },
-              "jobPosition": {
+              "licenceNumber": {
                 "type": "string",
-                "title": "Job position",
-                "default": "cybersecurity manager"
+                "minLength": 1,
+                "title": "Licence number",
+                "description": "Unique in the certification body's register, e.g. 248"
+              },
+              "licenceTitle": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Licence title",
+                "default": "Cybersecurity Manager Licence"
+              },
+              "role": {
+                "type": "string",
+                "const": "Cybersecurity Manager",
+                "title": "Role",
+                "description": "The role under Act No. 69/2018 Coll. and NBÚ Decree No. 492/2022 Coll. (manažér kybernetickej bezpečnosti)",
+                "default": "Cybersecurity Manager"
+              },
+              "ecsfRoleProfile": {
+                "type": "string",
+                "const": "Chief Information Security Officer (CISO)",
+                "title": "ECSF role profile",
+                "description": "The corresponding role profile of ENISA's European Cybersecurity Skills Framework v1 (@ciso)",
+                "default": "Chief Information Security Officer (CISO)"
+              },
+              "knowledgeStandard": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Knowledge standard",
+                "default": "Decree of the National Security Authority No. 492/2022 Coll., Annex 5"
+              },
+              "certificationScheme": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Certification scheme",
+                "description": "The scheme and its version under which the licence was granted",
+                "default": "NBÚ certification scheme for verifying the professional competence of a cybersecurity manager, version 1.2"
+              },
+              "certificationBody": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Certification body",
+                "description": "The conformity assessment body, accredited under ISO/IEC 17024, that granted the licence, e.g. Example Certification Body Ltd."
+              },
+              "examDate": {
+                "type": "string",
+                "format": "date",
+                "title": "Date of the professional examination"
+              },
+              "issueDate": {
+                "type": "string",
+                "format": "date",
+                "title": "Date of issue",
+                "description": "Day of the decision to grant the licence; its validity starts that day"
+              },
+              "placeOfIssue": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Place of issue",
+                "description": "e.g. Bratislava"
+              },
+              "signatory": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Signed by (name and position)",
+                "description": "e.g. Jane Doe, Head of the Certification Body"
+              },
+              "previousLicenceNumber": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Previous licence number",
+                "description": "When the licence extends an earlier one (recertification): that licence's number"
               },
               "trainingName": {
                 "type": "string",
                 "minLength": 1,
                 "title": "Training name",
-                "default": "Cybersecurity Manager"
+                "description": "Training completed before the examination, if any, e.g. Cybersecurity Manager"
               },
               "trainingStart": {
                 "type": "string",
@@ -70,71 +133,33 @@
                 "minimum": 1,
                 "title": "Number of teaching hours"
               },
-              "knowledgeStandard": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Knowledge standard",
-                "default": "Decree of the National Security Authority No. 492/2022 Coll."
-              },
-              "certificateNumber": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Certificate number",
-                "description": "e.g. 248"
-              },
-              "placeOfIssue": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Place of issue",
-                "description": "e.g. Bratislava"
-              },
-              "issueDate": {
-                "type": "string",
-                "format": "date",
-                "title": "Date of issue"
-              },
-              "certificationBody": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Issuing certification body"
-              },
-              "signatory": {
-                "type": "string",
-                "minLength": 1,
-                "title": "Signed by (name and position)",
-                "description": "e.g. prof. Ing. Lubomir Potok, PhD., dean"
-              },
               "funding": {
                 "type": "string",
+                "minLength": 1,
                 "title": "Funding",
                 "description": "e.g. Recovery and Resilience Plan of the Slovak Republic, Component 17, Reform No. 5"
               }
             },
             "required": [
               "id",
-              "certificateTitle",
               "holderName",
-              "trainingName",
-              "trainingStart",
-              "trainingEnd",
-              "trainingDays",
-              "teachingHours",
+              "licenceNumber",
+              "role",
+              "ecsfRoleProfile",
               "knowledgeStandard",
-              "certificateNumber",
-              "placeOfIssue",
-              "issueDate",
+              "certificationScheme",
               "certificationBody",
-              "signatory"
+              "issueDate"
             ]
           }
         }
       }
     ]
   },
-  "certificateStatusEntry": {
+  "licenceStatusEntry": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Certificate Record on the Certificate Registry",
-    "description": "Type extension for credentialStatus in the Slovak Professional License Registry. Its PlrLedgerStatusEntry names the certificate registry contract (chain and address) that keeps the certificate's record. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+    "title": "Licence Record on the Licence Registry",
+    "description": "Type extension for credentialStatus in the Slovak Professional Licence Registry. Its PlrLedgerStatusEntry names the licence registry contract (chain and address) that keeps the licence's record. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation.",
     "type": "object",
     "allOf": [
       {

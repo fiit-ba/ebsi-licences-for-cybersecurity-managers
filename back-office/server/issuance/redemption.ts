@@ -34,10 +34,10 @@ async function eligibleCertificate(client: PoolClient, id: string) {
   } = await client.query(
     `
     SELECT c.*, s.credential_type, v.tsr_id, ti.tir_attribute_id, tao.id AS tao_id, root.id AS root_id
-    FROM registered_certificates c
-    JOIN certificate_schemas s ON s.id = c.schema_id
+    FROM registered_licences c
+    JOIN licence_schemas s ON s.id = c.schema_id
     JOIN LATERAL (
-      SELECT tsr_id FROM certificate_schema_versions
+      SELECT tsr_id FROM licence_schema_versions
       WHERE schema_id = c.schema_id AND registered_at IS NOT NULL
       ORDER BY version DESC LIMIT 1
     ) v ON true
@@ -104,7 +104,7 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
           rows: [grant],
         } = await client.query(
           `
-          SELECT certificate_id FROM credential_tokens
+          SELECT licence_id FROM credential_tokens
           WHERE token_digest = $1 AND redeemed_at IS NULL AND expires_at > statement_timestamp()
           FOR UPDATE
         `,
@@ -112,7 +112,7 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
         );
         if (!grant) return invalidToken;
 
-        const path = await eligibleCertificate(client, grant.certificate_id);
+        const path = await eligibleCertificate(client, grant.licence_id);
         if (!path) return invalidToken;
 
         // The token answered a pre-authorized offer of one configuration, without
@@ -151,10 +151,10 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
           ]);
         }
         // Serialize issuance with pre-collection decisions and emergency suspension.
-        await client.query('SELECT id FROM registered_certificates WHERE id = $1 FOR UPDATE', [
-          grant.certificate_id,
+        await client.query('SELECT id FROM registered_licences WHERE id = $1 FOR UPDATE', [
+          grant.licence_id,
         ]);
-        const certificate = await eligibleCertificate(client, grant.certificate_id);
+        const certificate = await eligibleCertificate(client, grant.licence_id);
         if (
           !certificate ||
           certificate.root_id !== path.root_id ||
@@ -163,7 +163,7 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
           return invalidToken;
         }
         const { rowCount: uncertain } = await client.query(
-          `SELECT 1 FROM certificate_status_proposals WHERE certificate_id = $1
+          `SELECT 1 FROM licence_status_proposals WHERE licence_id = $1
             AND requires_governance AND delivery_uncertain AND applied_at IS NULL AND closed_at IS NULL`,
           [certificate.id],
         );
@@ -213,7 +213,7 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
         );
         await client.query(
           `
-          UPDATE registered_certificates SET registered_id=COALESCE(registered_id,credential_id),
+          UPDATE registered_licences SET registered_id=COALESCE(registered_id,credential_id),
             credential_id=$2,valid_from=$3,valid_until=$4,status_key=$5,credential_hash=$6,
             ledger_standing=NULL,ledger_observed_at=NULL
           WHERE id = $1
@@ -228,7 +228,7 @@ export function postgresCredentialRedemption(database: Pool, options: Redemption
           ],
         );
         await appendAudit(client, {
-          event: 'certificate.collected',
+          event: 'licence.collected',
           credentialId: issued.credential_id,
           organizationId: certificate.issuer_id,
           detail: {

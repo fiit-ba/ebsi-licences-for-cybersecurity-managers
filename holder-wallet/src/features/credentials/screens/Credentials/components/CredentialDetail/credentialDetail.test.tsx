@@ -23,10 +23,10 @@ jest.mock('@features/credentials/components/CredentialAccordionDetail', () => {
 })
 
 const license = JSON.stringify({
-  type: ['VerifiableCredential', 'VerifiableAttestation', 'CybersecurityManagerCertificate'],
+  type: ['VerifiableCredential', 'VerifiableAttestation', 'CybersecurityManagerLicence'],
   issuer: 'did:ebsi:zTest',
   issuanceDate: '2026-10-25T10:00:00Z',
-  credentialSubject: { certificateTitle: 'Licencia manažéra KB', certificateNumber: 'SK-1' },
+  credentialSubject: { licenceTitle: 'Licencia manažéra KB', licenceNumber: 'SK-1' },
 })
 
 describe('<CredentialDetail />', () => {

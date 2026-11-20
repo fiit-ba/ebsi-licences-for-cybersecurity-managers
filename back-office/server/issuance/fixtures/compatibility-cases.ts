@@ -45,7 +45,7 @@ export const issuanceInputCases: Record<string, unknown>[] = [
   { holder_reference: '', claims: {} },
   { holder_reference: null, claims: null },
   ...[true, [], {}, 'x'.repeat(256), 42, '\u0085reference\u0085', '🔐'.repeat(200)].map(
-    (holder_reference) => ({ holder_reference, claims: { certificateNumber: '42' } }),
+    (holder_reference) => ({ holder_reference, claims: { licenceNumber: '42' } }),
   ),
   ...[[], true, 'text', {}, { id: 'forbidden' }].map((claims) => ({
     holder_reference: 'ref',

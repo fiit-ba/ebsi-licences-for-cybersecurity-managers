@@ -19,7 +19,7 @@ test('accreditation caches isolate issuers/types, bound outage grace and retain 
   const other = did + 'Other';
   const schema = (
     await database.query(
-      'INSERT INTO certificate_schemas(credential_type,name_sk) VALUES($1,$1) RETURNING id',
+      'INSERT INTO licence_schemas(credential_type,name_sk) VALUES($1,$1) RETURNING id',
       [type],
     )
   ).rows[0].id;
@@ -29,14 +29,14 @@ test('accreditation caches isolate issuers/types, bound outage grace and retain 
         'DELETE FROM issuer_accreditation_checks WHERE issuer_did=ANY($1::text[])',
         [[did, other]],
       );
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [schema]);
-      await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
     } finally {
       await database.end();
     }
   });
   await database.query(
-    "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','version1',now())",
+    "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,'[]','version1',now())",
     [schema],
   );
   let mode = 'trusted';
@@ -75,7 +75,7 @@ test('accreditation caches isolate issuers/types, bound outage grace and retain 
   );
   await assert.rejects(service.ensureAccredited(did, type + 'Other', {}));
   await database.query(
-    "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,2,'[]','version2',now())",
+    "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,2,'[]','version2',now())",
     [schema],
   );
   const unavailable = await service.state(true, type);

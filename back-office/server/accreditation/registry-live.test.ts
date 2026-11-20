@@ -112,7 +112,7 @@ test(
     context.after(async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await database.query(
-        'UPDATE certificate_schemas SET retired_at = NULL WHERE credential_type = ANY($1::text[])',
+        'UPDATE licence_schemas SET retired_at = NULL WHERE credential_type = ANY($1::text[])',
         [[...retiredByUs].filter((retired) => retired !== type)],
       );
       const members = (
@@ -123,12 +123,12 @@ test(
       ).rows
         .map((row) => row.account_id)
         .filter(Boolean);
-      for (const table of ['certificate_status_proposals', 'certificate_emergency_suspensions'])
+      for (const table of ['licence_status_proposals', 'licence_emergency_suspensions'])
         await database.query(
-          `DELETE FROM ${table} WHERE certificate_id IN (SELECT id FROM registered_certificates WHERE issuer_id=ANY($1::uuid[]))`,
+          `DELETE FROM ${table} WHERE licence_id IN (SELECT id FROM registered_licences WHERE issuer_id=ANY($1::uuid[]))`,
           [organizations],
         );
-      await database.query('DELETE FROM registered_certificates WHERE issuer_id=ANY($1::uuid[])', [
+      await database.query('DELETE FROM registered_licences WHERE issuer_id=ANY($1::uuid[])', [
         organizations,
       ]);
       await database.query(
@@ -156,10 +156,10 @@ test(
       ]);
       await database.query('DELETE FROM schema_events WHERE credential_type=$1', [type]);
       await database.query(
-        'DELETE FROM certificate_schema_versions WHERE schema_id IN(SELECT id FROM certificate_schemas WHERE credential_type=$1)',
+        'DELETE FROM licence_schema_versions WHERE schema_id IN(SELECT id FROM licence_schemas WHERE credential_type=$1)',
         [type],
       );
-      await database.query('DELETE FROM certificate_schemas WHERE credential_type=$1', [type]);
+      await database.query('DELETE FROM licence_schemas WHERE credential_type=$1', [type]);
       await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::integer[])', [
         [...accounts, ...members],
       ]);
@@ -406,12 +406,12 @@ test(
       schemaId: next.versions[0].schema_address,
     });
     const schemaId = (
-      await database.query('SELECT id FROM certificate_schemas WHERE credential_type=$1', [type])
+      await database.query('SELECT id FROM licence_schemas WHERE credential_type=$1', [type])
     ).rows[0].id;
     // Not collected yet: the ledger holds no record of it.
     const certificate = randomUUID();
     await database.query(
-      `INSERT INTO registered_certificates(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,certificate_number,private_data,created_by)
+      `INSERT INTO registered_licences(id,credential_id,issuer_id,issuer_did,schema_id,schema_version,licence_number,private_data,created_by)
     VALUES($1,$2,$3,$4,$5,1,'stage-two',$6,$7)`,
       [
         certificate,
@@ -429,7 +429,7 @@ test(
     });
     assert.equal(
       (
-        await database.query('SELECT local_standing FROM registered_certificates WHERE id=$1', [
+        await database.query('SELECT local_standing FROM registered_licences WHERE id=$1', [
           certificate,
         ])
       ).rows[0].local_standing,
@@ -492,7 +492,7 @@ test(
       }),
     );
     const proposal = (
-      await database.query('SELECT * FROM certificate_status_proposals WHERE certificate_id=$1', [
+      await database.query('SELECT * FROM licence_status_proposals WHERE licence_id=$1', [
         certificate,
       ])
     ).rows[0];

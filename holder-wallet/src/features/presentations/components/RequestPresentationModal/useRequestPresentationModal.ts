@@ -163,7 +163,7 @@ const useRequestPresentationModal = (props: RequestPresentationModalProps) => {
           {
             id,
             types: ([] as string[]).concat(plain.payload?.vc?.type ?? []),
-            number: subject.certificateNumber,
+            number: subject.licenceNumber,
             attributes: Object.fromEntries(names.map((name) => [name, subject[name]])),
             options: options.map((option) => option.names),
           },

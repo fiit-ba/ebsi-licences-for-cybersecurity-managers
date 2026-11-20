@@ -106,7 +106,7 @@ test('lifecycle API records independent decisions with warm field keys while ext
   assert.equal(proposed.status, 201);
   const stored = (
     await f.database.query(
-      'SELECT reason_note,reason_salt FROM certificate_status_proposals WHERE id=$1',
+      'SELECT reason_note,reason_salt FROM licence_status_proposals WHERE id=$1',
       [proposed.body.proposal_id],
     )
   ).rows[0];

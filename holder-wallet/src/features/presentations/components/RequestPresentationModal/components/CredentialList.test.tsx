@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react-native'
 import CredentialList from '@features/presentations/components/RequestPresentationModal/components/CredentialList'
 import { CredentialData } from '@infrastructure/openid/types'
 // Keeps the fixtures focused on the selection contract exercised by this list.
-const credential = (id: string, certificateNumber: string): CredentialData =>
+const credential = (id: string, licenceNumber: string): CredentialData =>
   ({
     id,
     issuer: `did:ebsi:${id}`,
@@ -16,9 +16,9 @@ const credential = (id: string, certificateNumber: string): CredentialData =>
         vc: {
           '@context': [],
           id,
-          type: ['VerifiableCredential', 'CybersecurityManagerCertificate'],
+          type: ['VerifiableCredential', 'CybersecurityManagerLicence'],
           credentialSchema: { id: 'schema', type: 'JsonSchema' },
-          credentialSubject: { id: 'holder', certificateNumber },
+          credentialSubject: { id: 'holder', licenceNumber },
           issuanceDate: '2026-10-08',
           issuer: `did:ebsi:${id}`,
         },

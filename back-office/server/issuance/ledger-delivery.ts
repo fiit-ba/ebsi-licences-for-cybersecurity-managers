@@ -28,8 +28,8 @@ export function postgresIssuanceLedgerDelivery(
   async function deliverRegistrations(certificateId?: string) {
     let failure: unknown;
     const { rows } = await database.query(
-      `SELECT c.id FROM registered_certificates c
-      JOIN credential_tokens t ON t.certificate_id=c.id AND t.redeemed_at IS NOT NULL
+      `SELECT c.id FROM registered_licences c
+      JOIN credential_tokens t ON t.licence_id=c.id AND t.redeemed_at IS NOT NULL
       WHERE c.registered_id IS NOT NULL AND c.ledger_registered_at IS NULL AND c.credential_hash IS NOT NULL
         AND ($1::uuid IS NULL OR c.id=$1)
       ORDER BY c.ledger_observed_at NULLS FIRST,c.id LIMIT 48`,
@@ -41,8 +41,8 @@ export function postgresIssuanceLedgerDelivery(
         const {
           rows: [certificate],
         } = await client.query(
-          `SELECT c.* FROM registered_certificates c
-        JOIN credential_tokens t ON t.certificate_id=c.id AND t.redeemed_at IS NOT NULL
+          `SELECT c.* FROM registered_licences c
+        JOIN credential_tokens t ON t.licence_id=c.id AND t.redeemed_at IS NOT NULL
         WHERE c.id=$1 AND c.registered_id IS NOT NULL AND c.ledger_registered_at IS NULL AND c.credential_hash IS NOT NULL
         FOR UPDATE OF c SKIP LOCKED`,
           [candidate.id],
@@ -64,22 +64,22 @@ export function postgresIssuanceLedgerDelivery(
         } catch (error) {
           failure = providerAttempt ? new GovernanceUnavailable() : error;
           await client.query(
-            "UPDATE registered_certificates SET ledger_standing='unknown',ledger_observed_at=clock_timestamp() WHERE id=$1",
+            "UPDATE registered_licences SET ledger_standing='unknown',ledger_observed_at=clock_timestamp() WHERE id=$1",
             [certificate.id],
           );
           return 0;
         }
         await client.query(
-          'UPDATE registered_certificates SET ledger_registered_at=clock_timestamp(),ledger_standing=local_standing,ledger_observed_at=clock_timestamp() WHERE id=$1',
+          'UPDATE registered_licences SET ledger_registered_at=clock_timestamp(),ledger_standing=local_standing,ledger_observed_at=clock_timestamp() WHERE id=$1',
           [certificate.id],
         );
         if (certificate.local_standing === 'suspended' || certificate.local_standing === 'revoked')
           await client.query(
-            'UPDATE certificate_emergency_suspensions SET applied_at=clock_timestamp() WHERE certificate_id=$1 AND applied_at IS NULL',
+            'UPDATE licence_emergency_suspensions SET applied_at=clock_timestamp() WHERE licence_id=$1 AND applied_at IS NULL',
             [certificate.id],
           );
         await appendAudit(client, {
-          event: 'certificate.ledger_registered',
+          event: 'licence.ledger_registered',
           credentialId: certificate.credential_id,
           organizationId: certificate.issuer_id,
           detail: { status_key: '0x' + certificate.status_key.toString('hex') },

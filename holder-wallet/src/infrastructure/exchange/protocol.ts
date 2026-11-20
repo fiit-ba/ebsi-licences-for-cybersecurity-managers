@@ -69,20 +69,23 @@ export type Presentation = {
 }
 
 /** What a verifier asks of a cybersecurity manager's certificate, unless it says otherwise. */
-export const CERTIFICATE_TYPE = 'CybersecurityManagerCertificate'
+export const LICENCE_TYPE = 'CybersecurityManagerLicence'
 export const DEFAULT_FIELDS: FieldSelection = {
-  mandatory: ['certificateTitle', 'holderName', 'certificateNumber', 'certificationBody'],
+  mandatory: ['holderName', 'licenceNumber', 'role', 'ecsfRoleProfile', 'certificationBody'],
   optional: [
-    'jobPosition',
+    'licenceTitle',
+    'knowledgeStandard',
+    'certificationScheme',
+    'examDate',
+    'issueDate',
+    'placeOfIssue',
+    'signatory',
+    'previousLicenceNumber',
     'trainingName',
     'trainingStart',
     'trainingEnd',
     'trainingDays',
     'teachingHours',
-    'knowledgeStandard',
-    'placeOfIssue',
-    'issueDate',
-    'signatory',
     'funding',
   ],
 }

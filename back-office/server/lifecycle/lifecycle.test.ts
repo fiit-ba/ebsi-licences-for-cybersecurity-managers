@@ -43,21 +43,18 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
   const accounts: number[] = [];
   context.after(async () => {
     try {
-      await database.query(
-        'DELETE FROM certificate_emergency_suspensions WHERE certificate_id = $1',
-        [certificate],
-      );
-      await database.query('DELETE FROM certificate_status_proposals WHERE certificate_id = $1', [
+      await database.query('DELETE FROM licence_emergency_suspensions WHERE licence_id = $1', [
         certificate,
       ]);
-      await database.query('DELETE FROM registered_certificates WHERE id = $1', [certificate]);
+      await database.query('DELETE FROM licence_status_proposals WHERE licence_id = $1', [
+        certificate,
+      ]);
+      await database.query('DELETE FROM registered_licences WHERE id = $1', [certificate]);
       await database.query('DELETE FROM accredited_organizations WHERE id = ANY($1::uuid[])', [
         [ti, tao, root, foreignTao, foreignRoot],
       ]);
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id = $1', [
-        schema,
-      ]);
-      await database.query('DELETE FROM certificate_schemas WHERE id = $1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id = $1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id = $1', [schema]);
       await database.query('DELETE FROM operator_accounts WHERE id = ANY($1::integer[])', [
         accounts,
       ]);
@@ -128,22 +125,22 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
   );
   await database.query(
     `
-    INSERT INTO certificate_schemas (id, credential_type, name_sk) VALUES ($1, $2, 'Test')
+    INSERT INTO licence_schemas (id, credential_type, name_sk) VALUES ($1, $2, 'Test')
   `,
     [schema, 'LifecycleTest' + randomUUID().replaceAll('-', '')],
   );
   await database.query(
     `
-    INSERT INTO certificate_schema_versions (schema_id, version, fields, tsr_id, registered_at)
+    INSERT INTO licence_schema_versions (schema_id, version, fields, tsr_id, registered_at)
     VALUES ($1, 1, '[]', 'test', now())
   `,
     [schema],
   );
   await database.query(
     `
-    INSERT INTO registered_certificates (
+    INSERT INTO registered_licences (
       id, credential_id, issuer_id, issuer_did, schema_id, schema_version,
-      certificate_number, status_key, credential_hash, private_data, created_by, ledger_standing, ledger_observed_at
+      licence_number, status_key, credential_hash, private_data, created_by, ledger_standing, ledger_observed_at
     ) VALUES ($1,$2,$3,$4,$5,1,'LC-1',$6,$7,$8,$9,'active',now())
   `,
     [
@@ -157,14 +154,14 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       collectedHash,
       protection.seal(certificate, {
         holder_reference: 'case-LC-1',
-        claims: { certificateNumber: 'LC-1', certificationBody: 'TI' },
+        claims: { licenceNumber: 'LC-1', certificationBody: 'TI' },
       }),
       primary,
     ],
   );
   await database.query(
     `
-    INSERT INTO credential_tokens (token_digest, certificate_id, nonce, expires_at, redeemed_at)
+    INSERT INTO credential_tokens (token_digest, licence_id, nonce, expires_at, redeemed_at)
     VALUES ($1, $2, 'test-nonce', now(), now())
   `,
     [Buffer.alloc(32, 41), certificate],
@@ -306,7 +303,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const {
         rows: [stored],
       } = await database.query(
-        'SELECT reason_hash, reason_salt FROM certificate_status_proposals WHERE id = $1',
+        'SELECT reason_hash, reason_salt FROM licence_status_proposals WHERE id = $1',
         [proposalId],
       );
       const expected = sha256(
@@ -332,8 +329,8 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       // What the record key is computed from: the TI and the collected credential's id.
       assert.deepEqual(preimage, {
         issuer_did: issuerDid,
-        certificate_id: credentialId,
-        certificate_number: 'LC-1',
+        licence_id: credentialId,
+        licence_number: 'LC-1',
         status_key: '0x' + certificateStatusKey(issuerDid, credentialId).toString('hex'),
       });
       const reasonResponse = await post(
@@ -355,14 +352,14 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         ).slice(2),
       );
       await database.query(
-        "UPDATE certificate_status_proposals SET reason_note = 'Changed after commitment' WHERE id = $1",
+        "UPDATE licence_status_proposals SET reason_note = 'Changed after commitment' WHERE id = $1",
         [proposalId],
       );
       const mismatched = await post('audit/reason-preimage', { proposal_id: proposalId }, auditor);
       assert.equal(mismatched.status, 409);
       assert.equal((await mismatched.json()).reason, 'ReasonMismatch');
       await database.query(
-        "UPDATE certificate_status_proposals SET reason_note = 'Evidence LC' WHERE id = $1",
+        "UPDATE licence_status_proposals SET reason_note = 'Evidence LC' WHERE id = $1",
         [proposalId],
       );
       const auditResponse = await fetch(
@@ -453,7 +450,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
     'an old ledger observation does not hide local state or bypass an existing open case',
     async () => {
       await database.query(
-        "UPDATE registered_certificates SET ledger_observed_at = now() - interval '10 minutes' WHERE id = $1",
+        "UPDATE registered_licences SET ledger_observed_at = now() - interval '10 minutes' WHERE id = $1",
         [certificate],
       );
       assert.deepEqual((await read('certificates', primary)).results[0].allowed_actions, [
@@ -488,7 +485,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const readyToRetry = () =>
         database.query(
           `
-      UPDATE certificate_status_proposals SET delivery_attempted_at = clock_timestamp() - interval '30 seconds'
+      UPDATE licence_status_proposals SET delivery_attempted_at = clock_timestamp() - interval '30 seconds'
       WHERE id = $1
     `,
           [proposalId],
@@ -497,7 +494,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       assert.equal(attempts, 1);
       const {
         rows: [failed],
-      } = await database.query('SELECT * FROM certificate_status_proposals WHERE id = $1', [
+      } = await database.query('SELECT * FROM licence_status_proposals WHERE id = $1', [
         proposalId,
       ]);
       assert.equal(failed.delivery_failed, true);
@@ -532,7 +529,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const {
         rows: [pinned],
       } = await database.query(
-        'SELECT onchain_contract FROM certificate_status_proposals WHERE id = $1',
+        'SELECT onchain_contract FROM licence_status_proposals WHERE id = $1',
         [proposalId],
       );
       assert.equal(pinned.onchain_contract, await governance.contractFor(''));
@@ -555,7 +552,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
     async () => {
       await database.query(
         `
-      UPDATE registered_certificates SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = clock_timestamp() WHERE id = $1
+      UPDATE registered_licences SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = clock_timestamp() WHERE id = $1
     `,
         [certificate],
       );
@@ -579,7 +576,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const {
         rows: [closed],
       } = await database.query(
-        'SELECT applied_at, closed_at FROM certificate_status_proposals WHERE id = $1',
+        'SELECT applied_at, closed_at FROM licence_status_proposals WHERE id = $1',
         [proposalId],
       );
       assert.equal(closed.applied_at, null);
@@ -677,7 +674,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const retry = () =>
         database.query(
           `
-      UPDATE certificate_emergency_suspensions SET delivery_attempted_at = now() - interval '1 minute' WHERE id = $1
+      UPDATE licence_emergency_suspensions SET delivery_attempted_at = now() - interval '1 minute' WHERE id = $1
     `,
           [response.emergency_id],
         );
@@ -686,7 +683,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       assert.equal(await suspended(issuerDid, credentialId), true);
       const {
         rows: [pending],
-      } = await database.query('SELECT * FROM certificate_emergency_suspensions WHERE id = $1', [
+      } = await database.query('SELECT * FROM licence_emergency_suspensions WHERE id = $1', [
         response.emergency_id,
       ]);
       assert.equal(pending.delivery_failed, true);
@@ -719,7 +716,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       // A refresh started before confirmation must not resurrect its old
       // active observation after the worker invalidates standing.
       await database.query(
-        'UPDATE registered_certificates SET ledger_standing = NULL, ledger_observed_at = NULL WHERE id = $1',
+        'UPDATE registered_licences SET ledger_standing = NULL, ledger_observed_at = NULL WHERE id = $1',
         [certificate],
       );
       let readStarted: () => void;
@@ -761,7 +758,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const {
         rows: [observation],
       } = await database.query(
-        'SELECT ledger_standing, ledger_observed_at FROM registered_certificates WHERE id = $1',
+        'SELECT ledger_standing, ledger_observed_at FROM registered_licences WHERE id = $1',
         [certificate],
       );
       assert.equal(observation.ledger_standing, null);
@@ -778,7 +775,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       // independently observed reinstatement. Each gets a new reason salt.
       for (const actor of [foreignRootOperator, taoOperator, rootOperator]) {
         await database.query(
-          "UPDATE registered_certificates SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
+          "UPDATE registered_licences SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
           [certificate],
         );
         assert.equal((await post('emergency-suspend', emergencyRequest, actor)).status, 200);
@@ -790,13 +787,13 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       } = await database.query(
         `
       SELECT count(*)::integer AS total, count(DISTINCT reason_hash)::integer AS reasons
-      FROM certificate_emergency_suspensions WHERE certificate_id = $1
+      FROM licence_emergency_suspensions WHERE licence_id = $1
     `,
         [certificate],
       );
       assert.deepEqual(history, { total: 4, reasons: 4 });
       await database.query(
-        "UPDATE registered_certificates SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
+        "UPDATE registered_licences SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
         [certificate],
       );
     },
@@ -836,7 +833,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
             rows: [reason],
           } = await database.query(
             `
-          SELECT withdrawal_note, withdrawal_salt, withdrawal_hash FROM certificate_status_proposals WHERE id = $1
+          SELECT withdrawal_note, withdrawal_salt, withdrawal_hash FROM licence_status_proposals WHERE id = $1
         `,
             [proposalId],
           );
@@ -881,7 +878,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       assert.equal((await read('proposals', primary)).total, 1);
       await database.query(
         `
-      UPDATE certificate_status_proposals SET delivery_attempted_at = now() - interval '1 minute' WHERE id = $1
+      UPDATE licence_status_proposals SET delivery_attempted_at = now() - interval '1 minute' WHERE id = $1
     `,
         [proposalId],
       );
@@ -895,7 +892,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         rows: [cancelled],
       } = await database.query(
         `
-      SELECT applied_at, closed_at, withdrawal_completed_at, onchain_state FROM certificate_status_proposals WHERE id = $1
+      SELECT applied_at, closed_at, withdrawal_completed_at, onchain_state FROM licence_status_proposals WHERE id = $1
     `,
         [proposalId],
       );
@@ -926,7 +923,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
         rows: [executed],
       } = await database.query(
         `
-      SELECT applied_at, withdrawal_completed_at, onchain_state FROM certificate_status_proposals WHERE id = $1
+      SELECT applied_at, withdrawal_completed_at, onchain_state FROM licence_status_proposals WHERE id = $1
     `,
         [proposalId],
       );
@@ -936,7 +933,7 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       assert.equal(advances, 2);
       assert.equal((await read('certificates', primary)).results[0].state, 'suspended');
       await database.query(
-        "UPDATE registered_certificates SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
+        "UPDATE registered_licences SET local_standing = 'active', ledger_standing = 'active', ledger_observed_at = now() WHERE id = $1",
         [certificate],
       );
       const last = await post('propose', request, primary);
@@ -974,13 +971,13 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       const {
         rows: [pending],
       } = await database.query(
-        'SELECT applied_at, delivery_failed FROM certificate_status_proposals WHERE id = $1',
+        'SELECT applied_at, delivery_failed FROM licence_status_proposals WHERE id = $1',
         [proposalId],
       );
       assert.equal(pending.applied_at, null);
       assert.equal(pending.delivery_failed, true);
       await database.query(
-        "UPDATE registered_certificates SET local_standing = 'suspended', ledger_standing = 'suspended', ledger_observed_at = now() WHERE id = $1",
+        "UPDATE registered_licences SET local_standing = 'suspended', ledger_standing = 'suspended', ledger_observed_at = now() WHERE id = $1",
         [certificate],
       );
       const reinstate = await post(
@@ -995,10 +992,9 @@ test('status proposal HTTP flow preserves registry-wide lifecycle roles and orga
       assert.equal(reinstate.status, 409);
       assert.match((await reinstate.json()).detail, /revoked; it cannot be reinstated/);
       assert.equal((await read('certificates', outside)).results[0].state, 'suspended');
-      await database.query(
-        "UPDATE registered_certificates SET local_standing='active' WHERE id=$1",
-        [certificate],
-      );
+      await database.query("UPDATE registered_licences SET local_standing='active' WHERE id=$1", [
+        certificate,
+      ]);
       const emergency = await post(
         'emergency-suspend',
         {

@@ -54,8 +54,8 @@ export function postgresNotifications(database: Pool, protection?: Protection) {
         );
 
       const scope = `
-        FROM certificate_status_proposals p
-        JOIN registered_certificates c ON c.id = p.certificate_id
+        FROM licence_status_proposals p
+        JOIN registered_licences c ON c.id = p.licence_id
         JOIN accredited_organizations issuer ON issuer.id = c.issuer_id
         JOIN operator_accounts proposer ON proposer.id = p.proposed_by
         LEFT JOIN accredited_organizations owner ON owner.account_id = $1
@@ -74,7 +74,7 @@ export function postgresNotifications(database: Pool, protection?: Protection) {
         [actor, approver],
       );
       const { rows } = await client.query<NotificationRow>(
-        `SELECT p.id AS proposal_id, c.credential_id, c.certificate_number AS reference,
+        `SELECT p.id AS proposal_id, c.credential_id, c.licence_number AS reference,
           c.id AS claims_certificate_id,c.private_data AS claims_private_data,
           issuer.name AS issuer, p.action, proposer.username AS proposed_by, p.proposed_at,
           COALESCE(p.decision = 'approved', false) AS approved,
@@ -89,7 +89,7 @@ export function postgresNotifications(database: Pool, protection?: Protection) {
             ...row,
             reference: protection
               ? ((await protection.open(claims_certificate_id, claims_private_data)).claims
-                  .certificateNumber ?? '')
+                  .licenceNumber ?? '')
               : row.reference,
             proposed_at: row.proposed_at.toISOString(),
           })),

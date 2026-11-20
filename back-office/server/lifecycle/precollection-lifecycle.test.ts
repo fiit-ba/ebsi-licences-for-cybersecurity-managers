@@ -28,21 +28,21 @@ test('pre-collection decisions apply locally and reach the record at collection,
   context.after(async () => {
     try {
       await database.query(
-        'DELETE FROM certificate_status_proposals WHERE certificate_id = ANY($1::uuid[])',
+        'DELETE FROM licence_status_proposals WHERE licence_id = ANY($1::uuid[])',
         [certificates],
       );
       await database.query(
-        'DELETE FROM certificate_emergency_suspensions WHERE certificate_id = ANY($1::uuid[])',
+        'DELETE FROM licence_emergency_suspensions WHERE licence_id = ANY($1::uuid[])',
         [certificates],
       );
-      await database.query('DELETE FROM registered_certificates WHERE id = ANY($1::uuid[])', [
+      await database.query('DELETE FROM registered_licences WHERE id = ANY($1::uuid[])', [
         certificates,
       ]);
       await database.query('DELETE FROM accredited_organizations WHERE id = ANY($1::uuid[])', [
         organizations,
       ]);
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [schema]);
-      await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
       await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::int[])', [actors]);
     } finally {
       await database.end();
@@ -73,18 +73,18 @@ test('pre-collection decisions apply locally and reach the record at collection,
     [organizations[2], organizations[1], actors[0]],
   );
   await database.query(
-    'INSERT INTO certificate_schemas (id,credential_type,name_sk) VALUES ($1,$2,$3)',
+    'INSERT INTO licence_schemas (id,credential_type,name_sk) VALUES ($1,$2,$3)',
     [schema, prefix, 'Lifecycle fixture'],
   );
   await database.query(
-    `INSERT INTO certificate_schema_versions (schema_id,version,fields,tsr_id,registered_at)
-    VALUES ($1,1,'[{"key":"certificateNumber","kind":"text","required":true}]','fixture',now())`,
+    `INSERT INTO licence_schema_versions (schema_id,version,fields,tsr_id,registered_at)
+    VALUES ($1,1,'[{"key":"licenceNumber","kind":"text","required":true}]','fixture',now())`,
     [schema],
   );
-  await database.query(
-    'INSERT INTO organization_certificate_schemas SELECT unnest($1::uuid[]),$2',
-    [organizations.slice(1), schema],
-  );
+  await database.query('INSERT INTO organization_licence_schemas SELECT unnest($1::uuid[]),$2', [
+    organizations.slice(1),
+    schema,
+  ]);
 
   const protection = issuanceProtection(Buffer.alloc(32, 23));
   const origin = 'https://issuer.example';
@@ -178,9 +178,9 @@ test('pre-collection decisions apply locally and reach the record at collection,
     const offer = await issuer.registration.register(actors[0], {
       holder_reference: number,
       credential_type: prefix,
-      claims: { certificateNumber: number },
+      claims: { licenceNumber: number },
     });
-    certificates.push(offer.certificate_id);
+    certificates.push(offer.licence_id);
     return offer;
   }
   /** Exchange the real PIN (tx_code) and prove the holder key for a fresh c_nonce.
@@ -284,8 +284,8 @@ test('pre-collection decisions apply locally and reach the record at collection,
   });
   assert.equal(
     (
-      await database.query('SELECT ledger_standing FROM registered_certificates WHERE id=$1', [
-        pending.certificate_id,
+      await database.query('SELECT ledger_standing FROM registered_licences WHERE id=$1', [
+        pending.licence_id,
       ])
     ).rows[0].ledger_standing,
     'suspended',
@@ -304,8 +304,8 @@ test('pre-collection decisions apply locally and reach the record at collection,
   );
   await issuer.deliverRegistrations();
   const incidentId = (
-    await database.query('SELECT credential_id FROM registered_certificates WHERE id=$1', [
-      incident.certificate_id,
+    await database.query('SELECT credential_id FROM registered_licences WHERE id=$1', [
+      incident.licence_id,
     ])
   ).rows[0].credential_id;
   assert.equal(records.get(incidentId)?.standing, 'suspended');
@@ -327,8 +327,8 @@ test('pre-collection decisions apply locally and reach the record at collection,
   );
   await issuer.deliverRegistrations();
   const uncertainId = (
-    await database.query('SELECT credential_id FROM registered_certificates WHERE id=$1', [
-      uncertain.certificate_id,
+    await database.query('SELECT credential_id FROM registered_licences WHERE id=$1', [
+      uncertain.licence_id,
     ])
   ).rows[0].credential_id;
   assert.equal(records.get(uncertainId)?.standing, 'revoked');
@@ -398,7 +398,7 @@ test('pre-collection decisions apply locally and reach the record at collection,
         rows: [waiting],
       } = await database.query<{ waiting: boolean }>(
         `SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
-          AND wait_event_type = 'Lock' AND query LIKE '%registered_certificates%') AS waiting`,
+          AND wait_event_type = 'Lock' AND query LIKE '%registered_licences%') AS waiting`,
       );
       if (waiting.waiting) {
         observedWait = true;
@@ -419,8 +419,8 @@ test('pre-collection decisions apply locally and reach the record at collection,
   assert.equal(
     (
       await database.query(
-        'SELECT applied_at FROM certificate_emergency_suspensions WHERE certificate_id=$1',
-        [racing.certificate_id],
+        'SELECT applied_at FROM licence_emergency_suspensions WHERE licence_id=$1',
+        [racing.licence_id],
       )
     ).rows[0].applied_at,
     null,

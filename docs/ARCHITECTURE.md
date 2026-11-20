@@ -372,27 +372,29 @@ The record key is pseudonymous, but anyone who has seen a license can compute it
 
 ## 5. Data model of the digital license
 
-The license type is `CybersecurityManagerCertificate`, defined by its JSON Schema in the Trusted Schemas Registry. Further license types are further schemas; the registry issues those the installation is configured with.
+The license type is `CybersecurityManagerLicence`, defined by its JSON Schema in the Trusted Schemas Registry. Further license types are further schemas; the registry issues those the installation is configured with.
 
 | Attribute | Meaning | Requirement / protection |
 |---|---|---|
 | `id` | Random identifier of the license (`urn:uuid`) | Required; never derived from a national identification number or the license number; with the issuer's DID it keys the license's record |
-| `type` | Credential type | `VerifiableCredential`, `VerifiableAttestation`, `CybersecurityManagerCertificate` |
+| `type` | Credential type | `VerifiableCredential`, `VerifiableAttestation`, `CybersecurityManagerLicence` |
 | `issuer` | `did:ebsi` of the issuing TI | Required; always disclosed |
 | `issued` | When the license was signed | Required; always disclosed; the JWT's `iat` |
 | `issuanceDate` / `validFrom` | Start of validity, the same value in both | Required; always disclosed; the JWT's `nbf` |
-| `expirationDate` | End of validity | Five years by default; always disclosed; the JWT's `exp` |
+| `expirationDate` | End of validity | Three years after issue by default (NBÚ certification scheme, 5.1); always disclosed; the JWT's `exp` |
 | `credentialSubject.id` | The holder's binding `did:key` for this issuer | Required; never the wallet's own DID |
-| Holder: `holderName`, `jobPosition` | Who the license belongs to | Selectively disclosable |
-| Training: `trainingName`, `trainingStart`, `trainingEnd`, `trainingDays`, `teachingHours`, `knowledgeStandard` | The training completed and the knowledge standard (NBÚ Decree No. 492/2022) | Selectively disclosable |
-| Certificate of training: `certificateTitle`, `placeOfIssue`, `issueDate`, `certificationBody`, `signatory`, `funding` | The paper certificate the license is based on | Selectively disclosable; `jobPosition` and `funding` optional |
-| `certificateNumber` | The license number | Always disclosed |
+| Holder: `holderName` | Who the license belongs to | Required; selectively disclosable |
+| Role: `role`, `ecsfRoleProfile` | The role (cybersecurity manager) and the ENISA ECSF v1 role profile it corresponds to (Chief Information Security Officer) | Required, fixed values; selectively disclosable |
+| Certification: `knowledgeStandard`, `certificationScheme`, `certificationBody`, `examDate`, `issueDate` | What the competence was verified against (NBÚ Decree No. 492/2022, Annex 5; NBÚ's certification scheme), by which ISO/IEC 17024 body, and when | Selectively disclosable; `examDate` optional |
+| License document: `licenceTitle`, `placeOfIssue`, `signatory`, `previousLicenceNumber` | The license as issued; for a recertification, the license it extends | Optional; selectively disclosable |
+| Training: `trainingName`, `trainingStart`, `trainingEnd`, `trainingDays`, `teachingHours`, `funding` | A training completed before the examination, if any | Optional; selectively disclosable |
+| `licenceNumber` | The license number | Always disclosed |
 | `credentialSchema` | Three schemas in the EBSI TSR: the license's own, the status entry's, and EBSI's type extension for `termsOfUse` | Required; always disclosed |
 | `credentialStatus` | One `PlrLedgerStatusEntry`: the chain and the registry contract that keep the record | Required; always disclosed |
 | `termsOfUse` | The TI's accreditation in the TIR (`IssuanceCertificate`), where trust-chain verification starts | Always disclosed |
 | proof | The TI's signature over the JWT, with the SD-JWT disclosures appended | Required |
 
-The license schema extends EBSI's Verifiable Attestation (VCDM 1.1) and is written in English, with each attribute's label, hint and default. The console and the wallet name the attributes in the schema's own words, so a schema registered later needs no change to either. Issuance requires the attributes the schema marks as required; a presentation may withhold them. The attributes stay in the license and, encrypted, in the back-office. None of them reaches the ledger.
+The license schema ([`cybersecurity-manager-licence/1.0.0`](../schemas/cybersecurity-manager-licence/1.0.0/schema.json), described in its [data model](../schemas/cybersecurity-manager-licence/1.0.0/data-model.md)) extends EBSI's Verifiable Attestation (VCDM 1.1) and is written in English, with each attribute's label, hint and default. The console and the wallet name the attributes in the schema's own words, so a schema registered later needs no change to either. Issuance requires the attributes the schema marks as required; a presentation may withhold them. The attributes stay in the license and, encrypted, in the back-office. None of them reaches the ledger.
 
 ### 5.1 Format and EUDI compatibility
 

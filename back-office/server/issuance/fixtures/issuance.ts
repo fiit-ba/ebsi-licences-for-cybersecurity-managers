@@ -28,11 +28,11 @@ import { testEbsi } from '../../ebsi/fixtures/environment.ts';
 /** Existing form fields shared by isolated browser and server issuance checks. */
 export const issuanceFields: SchemaField[] = [
   {
-    key: 'certificateNumber',
+    key: 'licenceNumber',
     kind: 'text',
     required: true,
     default: '',
-    label: { sk: 'Číslo osvedčenia', en: 'Certificate number' },
+    label: { sk: 'Číslo osvedčenia', en: 'Licence number' },
     hint: { sk: '', en: '' },
   },
   {
@@ -374,17 +374,17 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
         ],
       );
     await database.query(
-      'INSERT INTO certificate_schemas(id,credential_type,name_sk,name_en) VALUES($1,$2,$3,$4)',
+      'INSERT INTO licence_schemas(id,credential_type,name_sk,name_en) VALUES($1,$2,$3,$4)',
       [schema, type, 'Test osvedčenie', 'Test certificate'],
     );
     await database.query(
-      'INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,$2,$3,now())',
+      'INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,1,$2,$3,now())',
       [schema, JSON.stringify(issuanceFields), tsr],
     );
-    await database.query(
-      'INSERT INTO organization_certificate_schemas SELECT unnest($1::uuid[]),$2',
-      [organizations.slice(1, 4), schema],
-    );
+    await database.query('INSERT INTO organization_licence_schemas SELECT unnest($1::uuid[]),$2', [
+      organizations.slice(1, 4),
+      schema,
+    ]);
   } catch (error) {
     await database.end();
     throw error;
@@ -417,10 +417,9 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
      */
     async close() {
       try {
-        await database.query(
-          'DELETE FROM registered_certificates WHERE issuer_id=ANY($1::uuid[])',
-          [organizations],
-        );
+        await database.query('DELETE FROM registered_licences WHERE issuer_id=ANY($1::uuid[])', [
+          organizations,
+        ]);
         await database.query(
           'DELETE FROM organization_key_requests WHERE organization_id=ANY($1::uuid[])',
           [organizations],
@@ -437,10 +436,8 @@ export async function issuanceFixture(origin: string, prefix = 'stage3-' + rando
           organizations,
         ]);
         await database.query('DELETE FROM operator_accounts WHERE id=ANY($1::int[])', [accounts]);
-        await database.query('DELETE FROM certificate_schema_versions WHERE schema_id=$1', [
-          schema,
-        ]);
-        await database.query('DELETE FROM certificate_schemas WHERE id=$1', [schema]);
+        await database.query('DELETE FROM licence_schema_versions WHERE schema_id=$1', [schema]);
+        await database.query('DELETE FROM licence_schemas WHERE id=$1', [schema]);
       } finally {
         ebsi.close();
         await database.end();

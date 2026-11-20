@@ -66,8 +66,8 @@ export function postgresStandingRefresh(
     const { rows } = await database.query<StandingRow>(`
       SELECT c.id, c.credential_id, c.issuer_did, c.status_key, c.credential_hash,
         c.valid_from, c.valid_until, statement_timestamp() AS started_at
-      FROM registered_certificates c
-      JOIN credential_tokens token ON token.certificate_id = c.id AND token.redeemed_at IS NOT NULL
+      FROM registered_licences c
+      JOIN credential_tokens token ON token.licence_id = c.id AND token.redeemed_at IS NOT NULL
       WHERE c.status_key IS NOT NULL AND (c.ledger_observed_at IS NULL OR c.ledger_observed_at <= statement_timestamp() - interval '15 seconds')
       ORDER BY c.ledger_observed_at NULLS FIRST, c.id LIMIT 48
     `);
@@ -85,7 +85,7 @@ export function postgresStandingRefresh(
           }
           await database.query(
             `
-          UPDATE registered_certificates
+          UPDATE registered_licences
           SET ledger_standing = $2, ledger_observed_at = $3
           WHERE id = $1 AND (ledger_observed_at IS NULL OR ledger_observed_at < $3)
             AND (ledger_observation_invalidated_at IS NULL OR ledger_observation_invalidated_at < $3)

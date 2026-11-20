@@ -130,7 +130,7 @@ test("a presentation may withhold a required attribute; the issuer's whole crede
 });
 
 test("a schema extending EBSI's Verifiable Attestation is validated with it, read by id from the configured registry", async () => {
-  const licence = registrySchemaFiles.cybersecurityManagerCertificate;
+  const licence = registrySchemaFiles.cybersecurityManagerLicence;
   const base = registrySchemaFiles.ebsi[ebsiSchemaIds.attestation];
   // The licence names the base by its pilot address; this registry holds it under the same id.
   const documents = new Map<string, Record<string, unknown>>([
@@ -148,10 +148,7 @@ test("a schema extending EBSI's Verifiable Attestation is validated with it, rea
   const references = [{ id: registry.address('licence') }];
   const example = JSON.parse(
     readFileSync(
-      new URL(
-        '../../../schemas/cybersecurity-manager-certificate/1.0.0/example.json',
-        import.meta.url,
-      ),
+      new URL('../../../schemas/cybersecurity-manager-licence/1.0.0/example.json', import.meta.url),
       'utf8',
     ),
   );

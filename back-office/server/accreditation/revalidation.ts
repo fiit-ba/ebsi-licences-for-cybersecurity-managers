@@ -3,7 +3,7 @@ import { transaction } from '../adapters/transaction.ts';
 import { IssuanceError } from '../issuance/claims.ts';
 import { issuerAttributes } from './registry.ts';
 
-const defaultType = 'CybersecurityManagerCertificate';
+const defaultType = 'CybersecurityManagerLicence';
 
 /** Cached per-issuer, per-type accreditation result returned by the existing operator API. */
 export interface AccreditationState {
@@ -68,7 +68,7 @@ export function postgresAccreditation(
       if (previous && !refresh) return previous;
       const version = (
         await client.query(
-          `SELECT v.tsr_id FROM certificate_schema_versions v JOIN certificate_schemas s ON s.id=v.schema_id
+          `SELECT v.tsr_id FROM licence_schema_versions v JOIN licence_schemas s ON s.id=v.schema_id
         WHERE s.credential_type=$1 AND registered_at IS NOT NULL ORDER BY version DESC LIMIT 1`,
           [type],
         )
@@ -129,10 +129,10 @@ export function postgresAccreditation(
      */
     async revalidateAll(type?: string) {
       const { rows } = await database.query(
-        `SELECT $1::text AS did,s.credential_type FROM certificate_schemas s WHERE ($2::text IS NULL OR s.credential_type=$2)
-        UNION SELECT o.did,s.credential_type FROM accredited_organizations o JOIN organization_certificate_schemas g ON g.organization_id=o.id JOIN certificate_schemas s ON s.id=g.schema_id
+        `SELECT $1::text AS did,s.credential_type FROM licence_schemas s WHERE ($2::text IS NULL OR s.credential_type=$2)
+        UNION SELECT o.did,s.credential_type FROM accredited_organizations o JOIN organization_licence_schemas g ON g.organization_id=o.id JOIN licence_schemas s ON s.id=g.schema_id
         WHERE o.kind='ti' AND o.did IS NOT NULL AND o.revoked_at IS NULL AND ($2::text IS NULL OR s.credential_type=$2)
-        UNION SELECT $1::text,'CybersecurityManagerCertificate' WHERE $2::text IS NULL`,
+        UNION SELECT $1::text,'CybersecurityManagerLicence' WHERE $2::text IS NULL`,
         [options.issuerDid, type ?? null],
       );
       for (const row of rows) await state(true, row.credential_type, row.did);

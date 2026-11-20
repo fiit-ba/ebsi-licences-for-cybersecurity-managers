@@ -65,7 +65,7 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
   const database = new pg.Pool({ connectionTimeoutMillis: 3000 });
   const id = randomUUID();
   const did = 'did:ebsi:zVerify' + id.replaceAll('-', '').replaceAll('0', '1');
-  const type = 'CybersecurityManagerCertificate';
+  const type = 'CybersecurityManagerLicence';
   const types = ['VerifiableCredential', 'VerifiableAttestation', type];
   const schemaId = 'zVerify' + id.replaceAll('-', '');
   const schemaUrl = testEbsi(base).PLR_TSR_URL + '/schemas/' + schemaId;
@@ -82,8 +82,8 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
         properties: {
           credentialSubject: {
             type: 'object',
-            required: ['certificateNumber'],
-            properties: { certificateNumber: { type: 'string', pattern: '^STAGE4-' } },
+            required: ['licenceNumber'],
+            properties: { licenceNumber: { type: 'string', pattern: '^STAGE4-' } },
           },
         },
       },
@@ -250,8 +250,10 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
     const from = new Date(Math.floor(+issuedAt / 1000) * 1000).toISOString();
     const until = new Date(Math.floor((Date.now() + 365 * 86400_000) / 1000) * 1000).toISOString();
     const attributes = {
-      certificateTitle: 'Osvedčenie',
+      licenceTitle: 'Cybersecurity Manager Licence',
       holderName: 'Ada Lovelace',
+      role: 'Cybersecurity Manager',
+      ecsfRoleProfile: 'Chief Information Security Officer (CISO)',
       certificationBody: 'Fixture TI',
     };
     const disclosures = sd
@@ -263,7 +265,7 @@ export async function verificationFixture(origin: string, prefix = 'stage4-' + r
       : [];
     const subject = {
       id: holder.did,
-      certificateNumber: number,
+      licenceNumber: number,
       ...(sd
         ? {
             _sd: disclosures

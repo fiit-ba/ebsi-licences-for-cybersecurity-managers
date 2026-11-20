@@ -32,10 +32,8 @@ test('login and profile use the current database account and role assignments', 
   );
   context.after(async () => {
     try {
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id = $1', [
-        schema,
-      ]);
-      await database.query('DELETE FROM certificate_schemas WHERE id = $1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id = $1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id = $1', [schema]);
       await database.query('DELETE FROM accredited_organizations WHERE id = ANY($1::uuid[])', [
         [ti, tao, root],
       ]);
@@ -231,14 +229,14 @@ test('login and profile use the current database account and role assignments', 
     async () => {
       await database.query(
         `
-      INSERT INTO certificate_schemas (id, credential_type, name_sk, name_en, retired_at)
+      INSERT INTO licence_schemas (id, credential_type, name_sk, name_en, retired_at)
       VALUES ($1, 'TestLicense', 'Licencia', 'License', now())
     `,
         [schema],
       );
       await database.query(
         `
-      INSERT INTO certificate_schema_versions (schema_id, version, fields, tsr_id, registered_at)
+      INSERT INTO licence_schema_versions (schema_id, version, fields, tsr_id, registered_at)
       VALUES ($1, 1, $2, 'tsr-one', now()), ($1, 2, $3, 'tsr-two', now()), ($1, 3, $4, NULL, NULL)
     `,
         [

@@ -11,7 +11,7 @@ test('the actual Wallet SD-JWT consumer reconstructs replacement credential clai
   const keys = await generateKeyPair('ES256', { extractable: true });
   const issuer = 'did:ebsi:zDisclosureCompatibility';
   const claims = {
-    certificateNumber: 'COMPAT-42',
+    licenceNumber: 'COMPAT-42',
     registrationNumber: 'OLD-42',
     holderName: 'Ada',
     trainingDays: 3,
@@ -40,7 +40,7 @@ test('the actual Wallet SD-JWT consumer reconstructs replacement credential clai
       issuer_did: issuer,
       credential_id: 'urn:uuid:df7e2d5b-aaef-4444-8151-1cf9154f60b7',
       credential_type: 'ProfessionalLicense',
-      certificate_number: 'COMPAT-42',
+      licence_number: 'COMPAT-42',
       created_at: new Date(),
       tsr_id: 'schema',
       tir_attribute_id: 'attribute',
@@ -56,7 +56,7 @@ test('the actual Wallet SD-JWT consumer reconstructs replacement credential clai
   });
   assert.deepEqual(wallet.reveal(payload, []).vc.credentialSubject, {
     id: 'did:key:zHolder',
-    certificateNumber: 'COMPAT-42',
+    licenceNumber: 'COMPAT-42',
   });
   assert.throws(() => wallet.reveal(payload, [...disclosures, disclosures[0]]));
   assert.throws(() =>

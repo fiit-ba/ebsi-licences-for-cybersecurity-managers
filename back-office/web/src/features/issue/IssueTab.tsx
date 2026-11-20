@@ -402,7 +402,7 @@ export default function IssueTab() {
             <dt>{t('DID TI')}</dt>
             <dd className="mono">{result.issuer_did}</dd>
             <dt>{t('Číslo certifikátu')}</dt>
-            <dd>{result.certificate_number}</dd>
+            <dd>{result.licence_number}</dd>
           </KeyValue>
           <Notice>
             {t(

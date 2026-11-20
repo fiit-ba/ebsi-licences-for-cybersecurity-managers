@@ -276,7 +276,7 @@ function CertificateAudit(options) {
     try {
       const result = await verifyRecordKey(contract, Number(proposalId), {
         issuerDid: preimage.issuer_did,
-        certificateId: preimage.certificate_id,
+        certificateId: preimage.licence_id,
       });
       setCheck({ state: 'done', ...result });
     } catch (e) {
@@ -360,14 +360,14 @@ function CertificateAudit(options) {
             <KeyValue className="mt-3">
               <dt>issuerDid</dt>
               <dd>{preimage.issuer_did}</dd>
-              <dt>certificateNumber</dt>
-              <dd>{preimage.certificate_number}</dd>
+              <dt>licenceNumber</dt>
+              <dd>{preimage.licence_number}</dd>
               <dt>certificateId</dt>
-              <dd>{preimage.certificate_id ?? t('— licencia ešte nebola vyzdvihnutá')}</dd>
+              <dd>{preimage.licence_id ?? t('— licencia ešte nebola vyzdvihnutá')}</dd>
               <dt>statusKey</dt>
               <dd className="mono">{preimage.status_key ?? '—'}</dd>
             </KeyValue>
-            {contract && preimage.certificate_id && (
+            {contract && preimage.licence_id && (
               <FormActions>
                 <TextInput
                   className="max-sm"

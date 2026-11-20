@@ -66,17 +66,16 @@ test('existing lifecycle form opens an auditable case and A proposal before appr
       async () =>
         (
           await database.query(
-            'SELECT onchain_proposal_id FROM certificate_status_proposals WHERE id=$1',
+            'SELECT onchain_proposal_id FROM licence_status_proposals WHERE id=$1',
             [proposal],
           )
         ).rows[0].onchain_proposal_id,
     )
     .not.toBeNull();
   onchain = (
-    await database.query(
-      'SELECT onchain_proposal_id FROM certificate_status_proposals WHERE id=$1',
-      [proposal],
-    )
+    await database.query('SELECT onchain_proposal_id FROM licence_status_proposals WHERE id=$1', [
+      proposal,
+    ])
   ).rows[0].onchain_proposal_id;
   const self = await api(page, '/registry/governance/vote/', {
     proposal_id: onchain,
@@ -99,7 +98,7 @@ test('signer-only B uses the existing governance screen and waits for actual rev
     .poll(
       async () =>
         (
-          await database.query('SELECT decision FROM certificate_status_proposals WHERE id=$1', [
+          await database.query('SELECT decision FROM licence_status_proposals WHERE id=$1', [
             proposal,
           ])
         ).rows[0].decision,
@@ -109,10 +108,9 @@ test('signer-only B uses the existing governance screen and waits for actual rev
     .poll(
       async () =>
         (
-          await database.query(
-            'SELECT onchain_state FROM certificate_status_proposals WHERE id=$1',
-            [proposal],
-          )
+          await database.query('SELECT onchain_state FROM licence_status_proposals WHERE id=$1', [
+            proposal,
+          ])
         ).rows[0].onchain_state,
     )
     // Approved by A and B; executable once the revocation timelock has passed.
@@ -209,7 +207,7 @@ test('audit screen and source preimages retain reason privacy and recorded discl
   });
   expect(preimage.status).toBe(200);
   // What the record key is computed from: the TI and the collected credential's id.
-  expect(preimage.body.certificate_id).toBe(credential);
+  expect(preimage.body.licence_id).toBe(credential);
   expect(preimage.body.status_key).toMatch(/^0x[0-9a-f]{64}$/);
   const events = await api(
     page,
@@ -268,18 +266,16 @@ test('external supervisory wallet veto reaches the real contract and actual back
     .poll(
       async () =>
         (
-          await database.query(
-            'SELECT onchain_state FROM certificate_status_proposals WHERE id=$1',
-            [proposal],
-          )
+          await database.query('SELECT onchain_state FROM licence_status_proposals WHERE id=$1', [
+            proposal,
+          ])
         ).rows[0].onchain_state,
     )
     .toBe('cancelled');
   const record = (
-    await database.query(
-      'SELECT applied_at,closed_at FROM certificate_status_proposals WHERE id=$1',
-      [proposal],
-    )
+    await database.query('SELECT applied_at,closed_at FROM licence_status_proposals WHERE id=$1', [
+      proposal,
+    ])
   ).rows[0];
   expect(record.applied_at).toBeNull();
   expect(record.closed_at).not.toBeNull();

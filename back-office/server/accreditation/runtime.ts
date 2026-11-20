@@ -311,8 +311,8 @@ export function configuredOrganizations(
         const { rows } = await database.query(
           `SELECT o.id FROM accredited_organizations o WHERE o.kind='tao' AND o.did<>'' AND o.account_id IS NOT NULL AND o.revoked_at IS NULL
           UNION ALL
-          SELECT o.id FROM accredited_organizations o JOIN organization_certificate_schemas g ON g.organization_id=o.id
-          JOIN certificate_schemas s ON s.id=g.schema_id WHERE o.kind='ti' AND o.did<>'' AND o.revoked_at IS NULL AND s.credential_type=$1`,
+          SELECT o.id FROM accredited_organizations o JOIN organization_licence_schemas g ON g.organization_id=o.id
+          JOIN licence_schemas s ON s.id=g.schema_id WHERE o.kind='ti' AND o.did<>'' AND o.revoked_at IS NULL AND s.credential_type=$1`,
           [type],
         );
         for (const row of rows) {

@@ -23,8 +23,8 @@ export const ebsiSchemaIds = {
 export const registrySchemaFiles = JSON.parse(
   readFileSync(new URL('../../shared/schemas.json', import.meta.url), 'utf8'),
 ) as {
-  cybersecurityManagerCertificate: Record<string, unknown>;
-  certificateStatusEntry: Record<string, unknown>;
+  cybersecurityManagerLicence: Record<string, unknown>;
+  licenceStatusEntry: Record<string, unknown>;
   ebsi: Record<string, Record<string, unknown>>;
 };
 

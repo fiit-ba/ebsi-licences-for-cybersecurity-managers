@@ -1,15 +1,16 @@
 import type { DevelopmentSupportOffice } from '../ebsi/support-office.ts';
 import { ebsiSchemaCopies, registrySchemaFiles } from './ebsi-schemas.ts';
 
-/** TSR id of the schema of a registry certificate's `credentialStatus` (its record on chain). */
-export const ledgerStatusEntrySchemaId = 'zPlrCertificateStatusEntryV4';
+/** TSR id of the schema of a registry licence's `credentialStatus` (its record on chain). */
+export const ledgerStatusEntrySchemaId = 'zPlrLicenceStatusEntryV5';
 
 /**
- * A registry certificate's status: one entry naming the certificate registry its record is on.
- * A verifier computes the record's key from the issuer and the credential's id, so the entry
- * carries no key (V4); V3 named the governance contract and a key. `/schemas/certificate-status-entry`.
+ * A registry licence's status: exactly one entry naming the licence registry its record is on,
+ * beside which other status entries may sit (V5). A verifier computes the record's key from the
+ * issuer and the credential's id, so the entry carries no key (V4); V3 named the governance
+ * contract and a key. `/schemas/licence-status-entry`.
  */
-export const ledgerStatusEntrySchema = registrySchemaFiles.certificateStatusEntry;
+export const ledgerStatusEntrySchema = registrySchemaFiles.licenceStatusEntry;
 
 /**
  * Register schemas in the development Trusted Schemas Registry, as EBSI's Support Office does on

@@ -28,8 +28,8 @@ export async function withdrawOrganizationCertificates(
 ) {
   const { rows: certificates } = await client.query(
     `
-    SELECT c.*, EXISTS(SELECT 1 FROM credential_tokens t WHERE t.certificate_id=c.id AND t.redeemed_at IS NOT NULL) AS collected
-    FROM registered_certificates c WHERE issuer_id=ANY($1::uuid[]) AND local_standing<>'revoked' ORDER BY c.id FOR UPDATE OF c
+    SELECT c.*, EXISTS(SELECT 1 FROM credential_tokens t WHERE t.licence_id=c.id AND t.redeemed_at IS NOT NULL) AS collected
+    FROM registered_licences c WHERE issuer_id=ANY($1::uuid[]) AND local_standing<>'revoked' ORDER BY c.id FOR UPDATE OF c
   `,
     [organizations],
   );
@@ -38,7 +38,7 @@ export async function withdrawOrganizationCertificates(
   for (const certificate of certificates) {
     let open = (
       await client.query(
-        `SELECT * FROM certificate_status_proposals WHERE certificate_id=$1 AND applied_at IS NULL AND closed_at IS NULL AND decision IS DISTINCT FROM 'rejected' FOR UPDATE`,
+        `SELECT * FROM licence_status_proposals WHERE licence_id=$1 AND applied_at IS NULL AND closed_at IS NULL AND decision IS DISTINCT FROM 'rejected' FOR UPDATE`,
         [certificate.id],
       )
     ).rows[0];
@@ -46,7 +46,7 @@ export async function withdrawOrganizationCertificates(
       // A submitted case is no longer locally approvable. Its independent on-chain
       // reconciliation still belongs to the existing governance delivery service.
       await client.query(
-        'UPDATE certificate_status_proposals SET closed_at=clock_timestamp() WHERE id=$1',
+        'UPDATE licence_status_proposals SET closed_at=clock_timestamp() WHERE id=$1',
         [open.id],
       );
       if (open.onchain_proposal_id || open.delivery_uncertain) {
@@ -80,7 +80,7 @@ export async function withdrawOrganizationCertificates(
       const storedReason = await storeReason('issuer_revoked', '', salt, protection);
       const hash = storedReason.reason_hash;
       const emergency = await client.query(
-        `INSERT INTO certificate_emergency_suspensions(certificate_id,requested_by,reason_code,reason_note,reason_salt,reason_hash,applied_at)
+        `INSERT INTO licence_emergency_suspensions(licence_id,requested_by,reason_code,reason_note,reason_salt,reason_hash,applied_at)
         VALUES($1,$2,'issuer_revoked',$3,$4,$5,CASE WHEN $6 THEN clock_timestamp() END) ON CONFLICT DO NOTHING RETURNING id`,
         [
           certificate.id,
@@ -91,10 +91,9 @@ export async function withdrawOrganizationCertificates(
           !governanceEnabled || !certificate.collected,
         ],
       );
-      await client.query(
-        "UPDATE registered_certificates SET local_standing='suspended' WHERE id=$1",
-        [certificate.id],
-      );
+      await client.query("UPDATE registered_licences SET local_standing='suspended' WHERE id=$1", [
+        certificate.id,
+      ]);
       if (governanceEnabled && certificate.collected)
         enqueueAfterCommit(client, { operation: 'record-standing', certificateId: certificate.id });
       if (emergency.rowCount) {
@@ -139,7 +138,7 @@ export async function withdrawOrganizationCertificates(
     }
     if (open?.action === 'revoke' && !open.decision) {
       await client.query(
-        "UPDATE certificate_status_proposals SET initial_standing='suspended' WHERE id=$1",
+        "UPDATE licence_status_proposals SET initial_standing='suspended' WHERE id=$1",
         [open.id],
       );
     }
@@ -150,7 +149,7 @@ export async function withdrawOrganizationCertificates(
       const {
         rows: [proposal],
       } = await client.query(
-        `INSERT INTO certificate_status_proposals(certificate_id,action,initial_standing,reason_code,reason_note,reason_salt,reason_hash,proposed_by,requires_governance)
+        `INSERT INTO licence_status_proposals(licence_id,action,initial_standing,reason_code,reason_note,reason_salt,reason_hash,proposed_by,requires_governance)
         VALUES($1,'revoke','suspended','issuer_revoked',$2,$3,$4,$5,$6) RETURNING id`,
         [
           certificate.id,

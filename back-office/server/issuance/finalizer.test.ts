@@ -62,7 +62,7 @@ test('finalization signs a holder-bound credential without blocking on backgroun
     id: '752bdc2c-83dd-4283-a867-e9f967b84034',
     credential_id: 'urn:uuid:752bdc2c-83dd-4283-a867-e9f967b84034',
     issuer_did: issuer,
-    certificate_number: number,
+    licence_number: number,
     credential_type: 'ProfessionalLicense',
     tsr_id: 'professional-license',
     tir_attribute_id: 'approved',
@@ -71,7 +71,7 @@ test('finalization signs a holder-bound credential without blocking on backgroun
 
   const input = {
     certificate,
-    claims: { certificateNumber: number, name: 'Private name' },
+    claims: { licenceNumber: number, name: 'Private name' },
     subject,
   };
   const [jwt, disclosure, end] = (await finalize(input)).split('~');
@@ -105,13 +105,18 @@ test('finalization signs a holder-bound credential without blocking on backgroun
   assert.equal(vc.issuanceDate, vc.validFrom);
   assert.equal(Date.parse(vc.validFrom), Number(payload.nbf) * 1000);
   assert.equal(Date.parse(vc.expirationDate), Number(payload.exp) * 1000);
+  // Without an end of its own, a licence is valid for three years from its issue, as NBÚ's
+  // certification scheme sets.
+  const threeYears = new Date(Number(payload.iat) * 1000);
+  threeYears.setUTCFullYear(threeYears.getUTCFullYear() + 3);
+  assert.equal(Date.parse(vc.expirationDate), +threeYears);
   assert.equal(
     validatedCredential.issued,
     vc.issued,
     'TSR validation must inspect the signed timestamp, not the registration date.',
   );
   assert.equal(vc.credentialSubject.id, subject);
-  assert.equal(vc.credentialSubject.certificateNumber, number);
+  assert.equal(vc.credentialSubject.licenceNumber, number);
   assert.equal(vc.credentialSubject.name, undefined);
   assert.equal(payload._sd_alg, 'sha-256');
   assert.deepEqual(vc.credentialSubject._sd, [secretDigest(disclosure).toString('base64url')]);
@@ -173,16 +178,16 @@ test('finalization signs a holder-bound credential without blocking on backgroun
   });
   const token = [jwt, disclosure, ''].join('~');
   assert.deepEqual((await verification(token, { expectedHolder: subject })).claims, {
-    certificateNumber: number,
+    licenceNumber: number,
     name: 'Private name',
   });
   assert.deepEqual(projectedSubject, {
     id: subject,
-    certificateNumber: number,
+    licenceNumber: number,
     name: 'Private name',
   });
-  assert.deepEqual((await verification(jwt)).claims, { certificateNumber: number });
-  assert.deepEqual(projectedSubject, { id: subject, certificateNumber: number });
+  assert.deepEqual((await verification(jwt)).claims, { licenceNumber: number });
+  assert.deepEqual(projectedSubject, { id: subject, licenceNumber: number });
   await assert.rejects(verification(token, { expectedHolder: 'different' }), {
     code: 'InvalidCredentialBinding',
   });

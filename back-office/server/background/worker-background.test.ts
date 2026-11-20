@@ -73,7 +73,7 @@ test(
         });
         assert.ok(Date.now() - start < 6000, 'Broker failure must be bounded.');
         const row = (
-          await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+          await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
             opened.proposal_id,
           ])
         ).rows[0];
@@ -118,7 +118,7 @@ test(
         assert.equal(
           (
             await f.database.query(
-              'SELECT onchain_state FROM certificate_status_proposals WHERE id=$1',
+              'SELECT onchain_state FROM licence_status_proposals WHERE id=$1',
               [opened.proposal_id],
             )
           ).rows[0].onchain_state,
@@ -180,7 +180,7 @@ test(
       'phase tasks independently propose, sign and reconcile the actual contract',
       async () => {
         await f.database.query(
-          "UPDATE registered_certificates SET ledger_standing='suspended',ledger_observed_at=clock_timestamp() WHERE id=$1",
+          "UPDATE registered_licences SET ledger_standing='suspended',ledger_observed_at=clock_timestamp() WHERE id=$1",
           [f.certificate],
         );
         const opened = await proposals.propose(f.accounts.proposer, {
@@ -191,7 +191,7 @@ test(
         await proposals.decide(f.accounts.mixed, opened.proposal_id, 'approved');
         await handle({ operation: 'submit-governance-proposal', proposalId: opened.proposal_id });
         let row = (
-          await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+          await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
             opened.proposal_id,
           ])
         ).rows[0];
@@ -202,7 +202,7 @@ test(
           handle({ operation: 'submit-governance-signature', proposalId: opened.proposal_id }),
         ]);
         row = (
-          await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+          await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
             opened.proposal_id,
           ])
         ).rows[0];
@@ -212,7 +212,7 @@ test(
           proposalId: opened.proposal_id,
         });
         row = (
-          await f.database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+          await f.database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
             opened.proposal_id,
           ])
         ).rows[0];
@@ -226,7 +226,7 @@ test(
       'standing safety sweep uses an ordinary 300-second deduplication lease',
       async () => {
         await f.database.query(
-          'UPDATE registered_certificates SET ledger_registered_at=NULL WHERE id=$1',
+          'UPDATE registered_licences SET ledger_registered_at=NULL WHERE id=$1',
           [f.certificate],
         );
         try {
@@ -246,7 +246,7 @@ test(
           await queue.drain();
         } finally {
           await f.database.query(
-            'UPDATE registered_certificates SET ledger_registered_at=clock_timestamp() WHERE id=$1',
+            'UPDATE registered_licences SET ledger_registered_at=clock_timestamp() WHERE id=$1',
             [f.certificate],
           );
         }

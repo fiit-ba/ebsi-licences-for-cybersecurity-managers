@@ -134,7 +134,7 @@ test('issuance preserves schema fields, schema defaults, validity and separate Q
       credential_type: 'TrainingCertificate',
       holder_reference: 'HOLDER-0142',
       claims: {
-        certificateNumber: 'AT-2026-0142',
+        licenceNumber: 'AT-2026-0142',
         holderName: 'Test Holder',
         certificationBody: 'Odborná akadémia',
       },

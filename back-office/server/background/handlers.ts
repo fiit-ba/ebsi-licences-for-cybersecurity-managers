@@ -30,7 +30,7 @@ export function backgroundHandlers(
       const rows = (
         await database.query(`SELECT p.id,p.onchain_proposal_id,p.withdrawal_requested_at,p.rejected_at,
         EXISTS(SELECT 1 FROM organization_case_cancellations x WHERE x.proposal_id=p.id AND x.completed_at IS NULL) AS cancelling
-        FROM certificate_status_proposals p WHERE p.requires_governance AND (
+        FROM licence_status_proposals p WHERE p.requires_governance AND (
           (p.applied_at IS NULL AND p.closed_at IS NULL AND p.rejected_at IS NULL)
           OR (p.rejected_at IS NOT NULL AND p.rejection_delivered_at IS NULL AND p.onchain_contract IS NOT NULL)
           OR EXISTS(SELECT 1 FROM organization_case_cancellations x WHERE x.proposal_id=p.id AND x.completed_at IS NULL))
@@ -78,10 +78,10 @@ export function backgroundHandlers(
   async function sweepStanding() {
     if (!domains.issuer) return;
     const rows = (
-      await database.query(`SELECT c.id FROM registered_certificates c
-      JOIN credential_tokens t ON t.certificate_id=c.id AND t.redeemed_at IS NOT NULL
+      await database.query(`SELECT c.id FROM registered_licences c
+      JOIN credential_tokens t ON t.licence_id=c.id AND t.redeemed_at IS NOT NULL
       WHERE c.registered_id IS NOT NULL AND (c.ledger_registered_at IS NULL OR EXISTS (
-        SELECT 1 FROM certificate_emergency_suspensions e WHERE e.certificate_id=c.id AND e.applied_at IS NULL))
+        SELECT 1 FROM licence_emergency_suspensions e WHERE e.licence_id=c.id AND e.applied_at IS NULL))
       ORDER BY c.created_at,c.id LIMIT 400`)
     ).rows;
     let queued = 0;
@@ -154,7 +154,7 @@ export function backgroundHandlers(
       case 'withdraw-governance-proposal': {
         if (!domains.issuer?.deliverApprovedCases) return;
         const row = (
-          await database.query('SELECT * FROM certificate_status_proposals WHERE id=$1', [
+          await database.query('SELECT * FROM licence_status_proposals WHERE id=$1', [
             task.proposalId,
           ])
         ).rows[0];
@@ -182,7 +182,7 @@ export function backgroundHandlers(
         }
         if (!result || withdrawing) return;
         const current = (
-          await database.query('SELECT decision FROM certificate_status_proposals WHERE id=$1', [
+          await database.query('SELECT decision FROM licence_status_proposals WHERE id=$1', [
             task.proposalId,
           ])
         ).rows[0];

@@ -59,14 +59,14 @@ const useCredentialDetail = (props: CredentialDetailProps): CredentialDetailView
   const normalizedTypes = Array.isArray(parsed.type) ? parsed.type : parsed.type ? [String(parsed.type)] : []
   const displayCredentialType = filterCredentialType(normalizedTypes)
   const subject = parsed.credentialSubject
-  const certificateTitle = subject?.certificateTitle
+  const licenceTitle = subject?.licenceTitle
   const displayCertificateTitle =
-    (typeof certificateTitle === 'string' || typeof certificateTitle === 'number') && String(certificateTitle).trim()
-      ? String(certificateTitle).trim()
+    (typeof licenceTitle === 'string' || typeof licenceTitle === 'number') && String(licenceTitle).trim()
+      ? String(licenceTitle).trim()
       : displayCredentialType.join(', ')
   const reference = useMemo(() => {
     if (!subject || typeof subject !== 'object') return undefined
-    for (const name of ['certificateNumber', 'registrationNumber', 'licenceNumber']) {
+    for (const name of ['licenceNumber', 'registrationNumber']) {
       const value = subject[name]
       if ((typeof value === 'string' || typeof value === 'number') && String(value)) return String(value)
     }

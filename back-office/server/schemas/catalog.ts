@@ -23,10 +23,10 @@ export function postgresSchemaCatalog(database: Pick<Pool, 'query'>) {
       }>(`
         SELECT s.credential_type, s.name_sk, s.name_en, COALESCE((
           SELECT jsonb_agg(v.fields ORDER BY v.version)
-          FROM certificate_schema_versions v
+          FROM licence_schema_versions v
           WHERE v.schema_id = s.id AND v.registered_at IS NOT NULL
         ), '[]'::jsonb) AS published_fields
-        FROM certificate_schemas s
+        FROM licence_schemas s
         ORDER BY s.credential_type COLLATE "C"
       `);
 

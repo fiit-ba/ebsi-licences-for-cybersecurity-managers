@@ -6,7 +6,7 @@ import { ColorKeys, getThemeColor } from '@shared/constants/Colors'
 import { claimLabel } from '@shared/utils/labels'
 import { certificates, ebsi } from '@infrastructure/config/Ebsi'
 import { recordVerification } from '@infrastructure/verifier/VerifierService'
-import { CERTIFICATE_TYPE, DEFAULT_FIELDS, parseInvitation } from '@infrastructure/exchange/protocol'
+import { LICENCE_TYPE, DEFAULT_FIELDS, parseInvitation } from '@infrastructure/exchange/protocol'
 import { ExchangeDeclined, ExchangeExpired, askForPresentation } from '@infrastructure/exchange/client'
 import { verifyPresentation } from '@infrastructure/exchange/verify'
 import LocalStorageService, { STORAGE_KEYS } from '@infrastructure/storage'
@@ -35,7 +35,7 @@ const useVerifyOfflineScreen = ({ route, navigation }: VerifyOfflineScreenProps)
         return setPhase({ kind: 'error', message: VerifyI18nKeys.OFFLINE_NOT_CONFIGURED })
       }
       try {
-        const asked = await askForPresentation(invitation, [CERTIFICATE_TYPE], DEFAULT_FIELDS, {
+        const asked = await askForPresentation(invitation, [LICENCE_TYPE], DEFAULT_FIELDS, {
           verifierName: String(t(VerifyI18nKeys.OFFLINE_VERIFIER_NAME, { brand: BRAND.NAME })),
           isCancelled: () => cancelled.current,
         })

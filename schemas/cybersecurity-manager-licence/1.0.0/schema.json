@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cybersecurity Manager Licence",
+  "description": "Licence attesting the professional competence of a natural person as a cybersecurity manager. A conformity assessment body accredited under ISO/IEC 17024 issues it under the certification scheme of the Slovak National Security Authority (NBÚ) and the knowledge standard of NBÚ Decree No. 492/2022 Coll., Annex 5. The role corresponds to the Chief Information Security Officer (CISO) role profile of ENISA's European Cybersecurity Skills Framework (ECSF) v1. Domain: cybersecurity professional qualifications. Its status is the licence's record on the licence registry contract named in credentialStatus. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/0xef484394a9c6622016a2e2e4eba7e093d96433474938fa2a70935697a139c5ec"
+    },
+    {
+      "properties": {
+        "type": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "contains": {
+            "const": "CybersecurityManagerLicence"
+          }
+        },
+        "credentialSubject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uri"
+            },
+            "holderName": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Full name with titles",
+              "description": "As on the licence, e.g. John Doe, PhD"
+            },
+            "licenceNumber": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Licence number",
+              "description": "Unique in the certification body's register, e.g. 248"
+            },
+            "licenceTitle": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Licence title",
+              "default": "Cybersecurity Manager Licence"
+            },
+            "role": {
+              "type": "string",
+              "const": "Cybersecurity Manager",
+              "title": "Role",
+              "description": "The role under Act No. 69/2018 Coll. and NBÚ Decree No. 492/2022 Coll. (manažér kybernetickej bezpečnosti)",
+              "default": "Cybersecurity Manager"
+            },
+            "ecsfRoleProfile": {
+              "type": "string",
+              "const": "Chief Information Security Officer (CISO)",
+              "title": "ECSF role profile",
+              "description": "The corresponding role profile of ENISA's European Cybersecurity Skills Framework v1 (@ciso)",
+              "default": "Chief Information Security Officer (CISO)"
+            },
+            "knowledgeStandard": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Knowledge standard",
+              "default": "Decree of the National Security Authority No. 492/2022 Coll., Annex 5"
+            },
+            "certificationScheme": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Certification scheme",
+              "description": "The scheme and its version under which the licence was granted",
+              "default": "NBÚ certification scheme for verifying the professional competence of a cybersecurity manager, version 1.2"
+            },
+            "certificationBody": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Certification body",
+              "description": "The conformity assessment body, accredited under ISO/IEC 17024, that granted the licence, e.g. Example Certification Body Ltd."
+            },
+            "examDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Date of the professional examination"
+            },
+            "issueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Date of issue",
+              "description": "Day of the decision to grant the licence; its validity starts that day"
+            },
+            "placeOfIssue": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Place of issue",
+              "description": "e.g. Bratislava"
+            },
+            "signatory": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Signed by (name and position)",
+              "description": "e.g. Jane Doe, Head of the Certification Body"
+            },
+            "previousLicenceNumber": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Previous licence number",
+              "description": "When the licence extends an earlier one (recertification): that licence's number"
+            },
+            "trainingName": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Training name",
+              "description": "Training completed before the examination, if any, e.g. Cybersecurity Manager"
+            },
+            "trainingStart": {
+              "type": "string",
+              "format": "date",
+              "title": "Training start date"
+            },
+            "trainingEnd": {
+              "type": "string",
+              "format": "date",
+              "title": "Training end date"
+            },
+            "trainingDays": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Number of training days"
+            },
+            "teachingHours": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Number of teaching hours"
+            },
+            "funding": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Funding",
+              "description": "e.g. Recovery and Resilience Plan of the Slovak Republic, Component 17, Reform No. 5"
+            }
+          },
+          "required": [
+            "id",
+            "holderName",
+            "licenceNumber",
+            "role",
+            "ecsfRoleProfile",
+            "knowledgeStandard",
+            "certificationScheme",
+            "certificationBody",
+            "issueDate"
+          ]
+        }
+      }
+    }
+  ]
+}

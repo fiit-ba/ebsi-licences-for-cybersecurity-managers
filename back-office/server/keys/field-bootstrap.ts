@@ -19,16 +19,16 @@ export interface FieldBootstrapOptions {
 
 /** All protected TS fields and their exact owner AAD, including immutable audit snapshots. */
 const encryptedFields = `
-  SELECT id::text AS owner, private_data AS ciphertext FROM registered_certificates
+  SELECT id::text AS owner, private_data AS ciphertext FROM registered_licences
   UNION ALL SELECT id::text, decision_encrypted FROM decision_anchors
   UNION ALL SELECT 'presentation:' || state, disclosed_data FROM presentation_sessions WHERE disclosed_data IS NOT NULL
   UNION ALL SELECT 'presentation:' || state, attributes_encrypted FROM presentation_results WHERE attributes_encrypted IS NOT NULL
-  UNION ALL SELECT encode(reason_hash,'hex') || ':salt', reason_salt FROM certificate_status_proposals WHERE octet_length(reason_salt)<>32
-  UNION ALL SELECT encode(reason_hash,'hex') || ':note', decode(substr(reason_note,8),'base64') FROM certificate_status_proposals WHERE reason_note LIKE 'enc:v1:%'
-  UNION ALL SELECT encode(withdrawal_hash,'hex') || ':salt', withdrawal_salt FROM certificate_status_proposals WHERE octet_length(withdrawal_salt)<>32
-  UNION ALL SELECT encode(withdrawal_hash,'hex') || ':note', decode(substr(withdrawal_note,8),'base64') FROM certificate_status_proposals WHERE withdrawal_note LIKE 'enc:v1:%'
-  UNION ALL SELECT encode(reason_hash,'hex') || ':salt', reason_salt FROM certificate_emergency_suspensions WHERE octet_length(reason_salt)<>32
-  UNION ALL SELECT encode(reason_hash,'hex') || ':note', decode(substr(reason_note,8),'base64') FROM certificate_emergency_suspensions WHERE reason_note LIKE 'enc:v1:%'
+  UNION ALL SELECT encode(reason_hash,'hex') || ':salt', reason_salt FROM licence_status_proposals WHERE octet_length(reason_salt)<>32
+  UNION ALL SELECT encode(reason_hash,'hex') || ':note', decode(substr(reason_note,8),'base64') FROM licence_status_proposals WHERE reason_note LIKE 'enc:v1:%'
+  UNION ALL SELECT encode(withdrawal_hash,'hex') || ':salt', withdrawal_salt FROM licence_status_proposals WHERE octet_length(withdrawal_salt)<>32
+  UNION ALL SELECT encode(withdrawal_hash,'hex') || ':note', decode(substr(withdrawal_note,8),'base64') FROM licence_status_proposals WHERE withdrawal_note LIKE 'enc:v1:%'
+  UNION ALL SELECT encode(reason_hash,'hex') || ':salt', reason_salt FROM licence_emergency_suspensions WHERE octet_length(reason_salt)<>32
+  UNION ALL SELECT encode(reason_hash,'hex') || ':note', decode(substr(reason_note,8),'base64') FROM licence_emergency_suspensions WHERE reason_note LIKE 'enc:v1:%'
   UNION ALL SELECT encode(reason_hash,'hex') || ':salt', reason_salt FROM organization_case_cancellations WHERE octet_length(reason_salt)<>32`;
 
 /**

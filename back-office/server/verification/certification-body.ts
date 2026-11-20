@@ -22,7 +22,7 @@ export function postgresCertificationBody(database: Pick<Pool, 'query'>) {
       `
       SELECT ti.name, c.created_at, c.issuer_accredited_until, ti.accredited_until,
         revoked.name AS revoked_name, revoked.kind AS revoked_kind, revoked.revoked_at
-      FROM registered_certificates c
+      FROM registered_licences c
       JOIN accredited_organizations ti ON ti.id = c.issuer_id
       LEFT JOIN LATERAL (
         WITH RECURSIVE chain AS (

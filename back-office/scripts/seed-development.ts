@@ -200,7 +200,7 @@ try {
   if (
     !(
       await database.query(
-        'SELECT 1 FROM certificate_schemas WHERE credential_type=$1 AND retired_at IS NULL',
+        'SELECT 1 FROM licence_schemas WHERE credential_type=$1 AND retired_at IS NULL',
         [developmentCredentialType],
       )
     ).rowCount

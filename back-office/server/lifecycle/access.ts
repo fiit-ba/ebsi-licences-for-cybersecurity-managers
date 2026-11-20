@@ -39,8 +39,8 @@ export const certificateReaderAccess = `
 `;
 
 export const pendingEmergency = `EXISTS (
-  SELECT 1 FROM certificate_emergency_suspensions emergency
-  WHERE emergency.certificate_id = c.id AND emergency.applied_at IS NULL
+  SELECT 1 FROM licence_emergency_suspensions emergency
+  WHERE emergency.licence_id = c.id AND emergency.applied_at IS NULL
 )`;
 
 export const emergencyAccess = `EXISTS (
@@ -55,7 +55,7 @@ export const emergencyAccess = `EXISTS (
 export const observedStanding = `
   CASE WHEN ${pendingEmergency} THEN 'unknown'
     WHEN NOT EXISTS (
-      SELECT 1 FROM credential_tokens collected WHERE collected.certificate_id = c.id AND collected.redeemed_at IS NOT NULL
+      SELECT 1 FROM credential_tokens collected WHERE collected.licence_id = c.id AND collected.redeemed_at IS NOT NULL
     ) THEN c.local_standing
     WHEN c.ledger_observed_at > clock_timestamp() - interval '180 seconds'
     THEN c.ledger_standing ELSE 'unknown' END

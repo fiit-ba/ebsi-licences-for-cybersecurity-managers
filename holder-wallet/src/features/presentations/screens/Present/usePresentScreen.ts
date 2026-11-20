@@ -156,7 +156,7 @@ const usePresentScreen = ({ navigation }: PresentScreenProps) => {
     () =>
       candidates.map((candidate) => {
         const subject = vcOf(candidate)?.credentialSubject ?? {}
-        return String(subject.certificateNumber ?? subject.certificateTitle ?? candidate.id)
+        return String(subject.licenceNumber ?? subject.licenceTitle ?? candidate.id)
       }),
     [candidates],
   )
@@ -177,7 +177,7 @@ const usePresentScreen = ({ navigation }: PresentScreenProps) => {
     ? [
         {
           label: translated(PresentI18nKeys.ALWAYS_NUMBER),
-          value: String(vc.credentialSubject?.certificateNumber ?? translated(PresentI18nKeys.ALWAYS_MISSING)),
+          value: String(vc.credentialSubject?.licenceNumber ?? translated(PresentI18nKeys.ALWAYS_MISSING)),
         },
         {
           label: translated(PresentI18nKeys.ALWAYS_ISSUER),

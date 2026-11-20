@@ -34,7 +34,7 @@ describe('presentation history', () => {
       vc: {
         id: 'credential-121',
         issuer: 'did:ebsi:issuer',
-        type: ['VerifiableCredential', 'CybersecurityManagerCertificate'],
+        type: ['VerifiableCredential', 'CybersecurityManagerLicence'],
       },
     })
     const first = jwt({
@@ -67,7 +67,7 @@ describe('presentation history', () => {
     expect(presentations[0]).toMatchObject({
       verifier: 'https://verifier.example',
       credentialCount: 1,
-      credentialTypes: ['CybersecurityManagerCertificate'],
+      credentialTypes: ['CybersecurityManagerLicence'],
       legacy: false,
     })
   })
@@ -77,7 +77,7 @@ describe('presentation history', () => {
       vc: {
         id: 'credential-121',
         issuer: 'did:ebsi:issuer',
-        type: ['VerifiableCredential', 'CybersecurityManagerCertificate'],
+        type: ['VerifiableCredential', 'CybersecurityManagerLicence'],
       },
     })
     const presentation = jwt({
@@ -99,7 +99,7 @@ describe('presentation history', () => {
       vc: {
         id: 'credential-121',
         issuer: 'did:ebsi:issuer',
-        type: ['VerifiableCredential', 'CybersecurityManagerCertificate'],
+        type: ['VerifiableCredential', 'CybersecurityManagerLicence'],
       },
     })
     const presentationIds = Array.from({ length: 12 }, (_, index) =>

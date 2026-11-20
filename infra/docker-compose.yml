@@ -43,9 +43,9 @@ x-runtime: &runtime
     PLR_TSR_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-schemas-registry/v3
     # The certificate schemas the installation takes from the TSR; the development Support Office
     # registers this one (back-office/scripts/development-schema.ts).
-    PLR_TSR_SCHEMAS: ${PLR_TSR_SCHEMAS:-zPlrCybersecurityManagerV1}
+    PLR_TSR_SCHEMAS: ${PLR_TSR_SCHEMAS:-zPlrCybersecurityManagerV3}
     PLR_TRUSTED_ROOT_DIDS: ${PLR_TRUSTED_ROOT_DIDS:-did:ebsi:zSupport}
-    PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-schemas-registry/v3/schemas/zPlrCertificateStatusEntryV4
+    PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL: http://${PLR_PUBLIC_HOST}:${PLR_REGISTRY_PORT:-8090}/trusted-schemas-registry/v3/schemas/zPlrLicenceStatusEntryV5
     PLR_GOVERNANCE_CONTRACT: ${PLR_GOVERNANCE_CONTRACT:?}
     PLR_CERTIFICATE_REGISTRY: ${PLR_CERTIFICATE_REGISTRY:?Deploy the certificate registry first}
     # EBSI's Proxy Factory: the back-office deploys every further TAO's registry and governance

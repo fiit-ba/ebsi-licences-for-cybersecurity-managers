@@ -8,7 +8,7 @@ describe('<PresentationDetail />', () => {
       <PresentationDetail
         id="urn:uuid:presentation-one"
         verifier="https://verifier.example/request"
-        credentialTypes={['CybersecurityManagerCertificate']}
+        credentialTypes={['CybersecurityManagerLicence']}
         credentialCount={1}
         legacy={false}
         itemTimestamp="2026-10-08T12:13:00.000Z"

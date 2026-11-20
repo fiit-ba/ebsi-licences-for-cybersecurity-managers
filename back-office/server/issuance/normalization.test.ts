@@ -39,3 +39,19 @@ test('Unicode claim/date/integer normalization and complete request refusals ret
   assert.deepEqual(claims, expected.claims);
   assert.deepEqual(inputs, expected.inputs);
 });
+
+test('a licence is not granted before its examination', () => {
+  const fields = ['examDate', 'issueDate'].map(
+    (key) => ({ key, kind: 'date', required: true, default: '' }) as SchemaField,
+  );
+  const granted = { examDate: '2026-11-14', issueDate: '2026-11-17' };
+  assert.deepEqual(normalizeClaims(granted, fields), granted);
+  assert.deepEqual(normalizeClaims({ ...granted, examDate: '2026-11-17' }, fields), {
+    ...granted,
+    examDate: '2026-11-17',
+  });
+  assert.throws(
+    () => normalizeClaims({ ...granted, examDate: '2026-11-18' }, fields),
+    (error) => error instanceof IssuanceError && error.body.invalid?.[0] === 'examDate',
+  );
+});

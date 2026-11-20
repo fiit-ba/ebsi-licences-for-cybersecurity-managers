@@ -92,7 +92,7 @@ export async function anchorDecision(
   const digest = Buffer.from(decisionDigest(snapshot), 'hex');
   const id = randomUUID();
   await client.query(
-    `INSERT INTO decision_anchors(id,digest,certificate_id,credential_id,proposal_id,kind,decision_encrypted)
+    `INSERT INTO decision_anchors(id,digest,licence_id,credential_id,proposal_id,kind,decision_encrypted)
     VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(digest) DO NOTHING`,
     [
       id,
@@ -143,8 +143,8 @@ export function postgresDecisionAnchors(
       return (
         await client.query(
           `SELECT d.*,q.chain_id,q.contract,q.signer_address FROM decision_anchors d
-        JOIN audit_anchors q ON q.decision_id=d.id WHERE d.certificate_id IN (
-          SELECT id FROM registered_certificates WHERE credential_id=$1 OR registered_id=$1)
+        JOIN audit_anchors q ON q.decision_id=d.id WHERE d.licence_id IN (
+          SELECT id FROM registered_licences WHERE credential_id=$1 OR registered_id=$1)
         ORDER BY d.created_at,d.id`,
           [query.get('credential_id')],
         )

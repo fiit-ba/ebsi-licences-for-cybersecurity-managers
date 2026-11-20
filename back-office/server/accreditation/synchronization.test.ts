@@ -103,7 +103,7 @@ test(
       );
     const schema = (
       await database.query(
-        'INSERT INTO certificate_schemas(credential_type,name_sk,retired_at) VALUES($1,$1,now()) RETURNING id',
+        'INSERT INTO licence_schemas(credential_type,name_sk,retired_at) VALUES($1,$1,now()) RETURNING id',
         ['Sync' + suffix],
       )
     ).rows[0].id;
@@ -127,10 +127,10 @@ test(
     );
     for (const [index, id] of ids.entries())
       await database.query(
-        "INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,$2,'[]',$3,now())",
+        "INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES($1,$2,'[]',$3,now())",
         [schema, index + 1, id],
       );
-    await database.query('INSERT INTO organization_certificate_schemas VALUES($1,$2)', [
+    await database.query('INSERT INTO organization_licence_schemas VALUES($1,$2)', [
       organizations[2],
       schema,
     ]);

@@ -126,7 +126,7 @@ test('a signed certificate remains verifiable after its key disappears from the 
       credential_id: 'urn:uuid:certificate',
       issuer_id: 'organization',
       issuer_did: did,
-      certificate_number: 'HISTORY-1',
+      licence_number: 'HISTORY-1',
       credential_type: 'ProfessionalLicense',
       tsr_id: 'schema',
       tir_attribute_id: 'attribute',

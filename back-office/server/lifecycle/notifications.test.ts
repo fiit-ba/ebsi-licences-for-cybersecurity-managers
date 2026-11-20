@@ -22,19 +22,17 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
   const schema = randomUUID();
   context.after(async () => {
     try {
-      await database.query('DELETE FROM certificate_status_proposals WHERE id = ANY($1::uuid[])', [
+      await database.query('DELETE FROM licence_status_proposals WHERE id = ANY($1::uuid[])', [
         proposals,
       ]);
-      await database.query('DELETE FROM registered_certificates WHERE id = ANY($1::uuid[])', [
+      await database.query('DELETE FROM registered_licences WHERE id = ANY($1::uuid[])', [
         certificates,
       ]);
       await database.query('DELETE FROM accredited_organizations WHERE id = ANY($1::uuid[])', [
         organizations,
       ]);
-      await database.query('DELETE FROM certificate_schema_versions WHERE schema_id = $1', [
-        schema,
-      ]);
-      await database.query('DELETE FROM certificate_schemas WHERE id = $1', [schema]);
+      await database.query('DELETE FROM licence_schema_versions WHERE schema_id = $1', [schema]);
+      await database.query('DELETE FROM licence_schemas WHERE id = $1', [schema]);
       await database.query('DELETE FROM operator_accounts WHERE id = ANY($1::int[])', [accounts]);
     } finally {
       await database.end();
@@ -94,11 +92,11 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
     organizations.push(id);
   }
   await database.query(
-    'INSERT INTO certificate_schemas (id, credential_type, name_sk) VALUES ($1,$2,$3)',
+    'INSERT INTO licence_schemas (id, credential_type, name_sk) VALUES ($1,$2,$3)',
     [schema, 'Notice' + randomUUID().replaceAll('-', ''), 'Notice'],
   );
   await database.query(
-    `INSERT INTO certificate_schema_versions (schema_id, version, fields, tsr_id, registered_at)
+    `INSERT INTO licence_schema_versions (schema_id, version, fields, tsr_id, registered_at)
     VALUES ($1,1,'[]','fixture',now())`,
     [schema],
   );
@@ -110,8 +108,8 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
     proposals.push(proposal);
     const actor = own ? proposer : otherProposer;
     await database.query(
-      `INSERT INTO registered_certificates
-      (id, credential_id, issuer_id, issuer_did, schema_id, schema_version, certificate_number, status_key, credential_hash, private_data, created_by, ledger_standing, ledger_observed_at)
+      `INSERT INTO registered_licences
+      (id, credential_id, issuer_id, issuer_did, schema_id, schema_version, licence_number, status_key, credential_hash, private_data, created_by, ledger_standing, ledger_observed_at)
       VALUES ($1,$2,$3,$4,$5,1,$6,$7,$8,$9,$10,'active',now())`,
       [
         certificate,
@@ -128,8 +126,8 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
     );
     const reasonSalt = randomBytes(32);
     await database.query(
-      `INSERT INTO certificate_status_proposals
-      (id, certificate_id, action, initial_standing, reason_code, reason_note, reason_salt, reason_hash, proposed_by, proposed_at)
+      `INSERT INTO licence_status_proposals
+      (id, licence_id, action, initial_standing, reason_code, reason_note, reason_salt, reason_hash, proposed_by, proposed_at)
       VALUES ($1,$2,'suspend','active','other','Private reason omitted from notices',$3,$4,$5,$6)`,
       [
         proposal,
@@ -217,12 +215,12 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
   const after = await notifications(second);
   assert.deepEqual([after.total, after.waiting], [13, 12]);
   await database.query(
-    `UPDATE certificate_status_proposals SET onchain_proposal_id=42, onchain_contract=$2,
+    `UPDATE licence_status_proposals SET onchain_proposal_id=42, onchain_contract=$2,
     onchain_chain_id=1337, onchain_state='proposed' WHERE id=$1`,
     [selected, '0x' + 'ab'.repeat(20)],
   );
   await database.query(
-    'UPDATE certificate_status_proposals SET closed_at=now() WHERE id=ANY($1::uuid[])',
+    'UPDATE licence_status_proposals SET closed_at=now() WHERE id=ANY($1::uuid[])',
     [proposals.slice(1, 5)],
   );
   const open = await notifications(second);
@@ -233,10 +231,10 @@ test('sign-in notices preserve organization scope, full counts and registry-wide
     [true, false, '42', 'proposed'],
   );
   await database.query(
-    `UPDATE certificate_status_proposals SET decision='rejected',decided_by=$2,decided_at=now() WHERE id=$1`,
+    `UPDATE licence_status_proposals SET decision='rejected',decided_by=$2,decided_at=now() WHERE id=$1`,
     [proposals[5], second],
   );
-  await database.query(`UPDATE certificate_status_proposals SET applied_at=now() WHERE id=$1`, [
+  await database.query(`UPDATE licence_status_proposals SET applied_at=now() WHERE id=$1`, [
     selected,
   ]);
   assert.equal((await notifications(second)).total, 7);

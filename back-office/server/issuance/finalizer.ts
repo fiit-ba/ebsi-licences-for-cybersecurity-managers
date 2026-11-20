@@ -3,11 +3,23 @@ import { secretDigest } from './protection.ts';
 import type { FinalizerOptions, FinalizationInput } from './types.ts';
 import { ebsiSchemaIds } from '../schemas/ebsi-schemas.ts';
 
-const defaultLifetime = 5 * 365 * 24 * 60 * 60;
-const reserved = new Set(['id', 'certificateNumber', '_metadata', '_sd', '_sd_alg', '...']);
+/** Years a licence is valid unless its issuer says otherwise (NBÚ certification scheme, 5.1). */
+const defaultYears = 3;
+const reserved = new Set(['id', 'licenceNumber', '_metadata', '_sd', '_sd_alg', '...']);
 const schemaType = 'FullJsonSchemaValidator2021';
 const epoch = (date: Date) => Math.floor(date.getTime() / 1000);
 const iso = (timestamp: number) => new Date(timestamp * 1000).toISOString();
+/**
+ * The same instant the given number of calendar years later.
+ * @param timestamp - Seconds since the epoch.
+ * @param years - Whole years to add.
+ * @returns Seconds since the epoch; 29 February moves to 1 March in a common year.
+ */
+const yearsLater = (timestamp: number, years: number) => {
+  const date = new Date(timestamp * 1000);
+  date.setUTCFullYear(date.getUTCFullYear() + years);
+  return epoch(date);
+};
 
 /**
  * Create a selective-disclosure credential signer with ledger references.
@@ -54,7 +66,7 @@ export function certificateFinalizer(options: FinalizerOptions) {
     const contract = (await ledger.contractFor(issuer)).toLowerCase();
     if (!/^0x[0-9a-f]{40}$/.test(contract))
       throw new Error('The TI has no certificate registry to record its certificates in.');
-    const number = certificate.certificate_number;
+    const number = certificate.licence_number;
     const id = certificate.credential_id;
     const schemaId = schemaAddress(certificate.tsr_id);
     if (ensureAccredited) {
@@ -69,7 +81,7 @@ export function certificateFinalizer(options: FinalizerOptions) {
     const start = iso(validFrom);
     const validUntil = certificate.valid_until
       ? epoch(certificate.valid_until)
-      : epoch(issuedAt) + defaultLifetime;
+      : yearsLater(epoch(issuedAt), defaultYears);
     if (validUntil <= validFrom || validUntil <= epoch(now())) {
       throw new Error('Certificate validity ended before finalization.');
     }
@@ -83,7 +95,7 @@ export function certificateFinalizer(options: FinalizerOptions) {
       );
     const subjectClaims = {
       id: subject,
-      certificateNumber: number,
+      licenceNumber: number,
       ...(disclosures.length
         ? { _sd: disclosures.map((value) => secretDigest(value).toString('base64url')).sort() }
         : {}),
@@ -146,7 +158,7 @@ export function certificateFinalizer(options: FinalizerOptions) {
         credentialSubject: {
           ...Object.fromEntries(Object.entries(claims).filter(([key]) => !reserved.has(key))),
           id: subject,
-          certificateNumber: number,
+          licenceNumber: number,
         },
       },
       vc.credentialSchema,

@@ -39,18 +39,21 @@ export class ExchangeError extends Error {
 
 /** Default QueryByExample fields shared by existing console and Wallet verifiers. */
 export const defaultExchangeFields: ExchangeFields = {
-  mandatory: ['certificateTitle', 'holderName', 'certificateNumber', 'certificationBody'],
+  mandatory: ['holderName', 'licenceNumber', 'role', 'ecsfRoleProfile', 'certificationBody'],
   optional: [
-    'jobPosition',
+    'licenceTitle',
+    'knowledgeStandard',
+    'certificationScheme',
+    'examDate',
+    'issueDate',
+    'placeOfIssue',
+    'signatory',
+    'previousLicenceNumber',
     'trainingName',
     'trainingStart',
     'trainingEnd',
     'trainingDays',
     'teachingHours',
-    'knowledgeStandard',
-    'placeOfIssue',
-    'issueDate',
-    'signatory',
     'funding',
   ],
 };
@@ -281,7 +284,7 @@ export function holderExchange(options: {
               type: [
                 'VerifiableCredential',
                 'VerifiableAttestation',
-                'CybersecurityManagerCertificate',
+                'CybersecurityManagerLicence',
               ],
             },
             'plr:mandatory': asked.mandatory,

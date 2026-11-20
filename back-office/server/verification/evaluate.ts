@@ -243,7 +243,7 @@ export function credentialEvaluator(options: EvaluationOptions) {
       outcome.ledger = {
         contract: status.contract.toLowerCase(),
         standing,
-        certificate_number: String(vc.credentialSubject?.certificateNumber || '') || null,
+        licence_number: String(vc.credentialSubject?.licenceNumber || '') || null,
         registered_at: record?.registeredAt
           ? evidenceTime(Number(record.registeredAt) * 1000)
           : null,

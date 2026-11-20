@@ -123,7 +123,7 @@ try {
   await api('/registry/approve/', actors[1], { proposal_id: proposed.proposal_id });
   const pending = JSON.parse(
     inspect(
-      `import pg from 'pg';const d=new pg.Pool();try{console.log(JSON.stringify((await d.query('SELECT applied_at,onchain_proposal_id FROM certificate_status_proposals WHERE id=$1',['${proposed.proposal_id}'])).rows[0]));}finally{await d.end();}`,
+      `import pg from 'pg';const d=new pg.Pool();try{console.log(JSON.stringify((await d.query('SELECT applied_at,onchain_proposal_id FROM licence_status_proposals WHERE id=$1',['${proposed.proposal_id}'])).rows[0]));}finally{await d.end();}`,
     ),
   );
   assert.equal(pending.applied_at, null);
@@ -133,7 +133,7 @@ try {
   docker('up', '-d', '--no-deps', '--wait', '--wait-timeout', '90', 'redis');
   // Wait for the scheduled database safety sweep, using the configured test interval.
   inspect(
-    `import pg from 'pg';const d=new pg.Pool();try{let complete=false;for(let i=0;i<150;i++){const r=(await d.query('SELECT applied_at FROM certificate_status_proposals WHERE id=$1',['${proposed.proposal_id}'])).rows[0];if(r.applied_at){complete=true;break;}await new Promise(r=>setTimeout(r,200));}if(!complete)throw new Error('Scheduled recovery did not execute the committed case.');}finally{await d.end();}`,
+    `import pg from 'pg';const d=new pg.Pool();try{let complete=false;for(let i=0;i<150;i++){const r=(await d.query('SELECT applied_at FROM licence_status_proposals WHERE id=$1',['${proposed.proposal_id}'])).rows[0];if(r.applied_at){complete=true;break;}await new Promise(r=>setTimeout(r,200));}if(!complete)throw new Error('Scheduled recovery did not execute the committed case.');}finally{await d.end();}`,
   );
   assert.equal(docker('ps', '-q', 'worker'), id, 'Redis recovery replaced worker.');
   inspect(
@@ -141,7 +141,7 @@ try {
   );
   const deployment = JSON.parse(
     inspect(
-      `import pg from 'pg';const d=new pg.Pool();try{console.log(JSON.stringify({contract:process.env.PLR_CERTIFICATE_REGISTRY,key:(await d.query("SELECT encode(status_key,'hex') AS key FROM registered_certificates WHERE id=$1",['${state.certificate_id}'])).rows[0].key}));}finally{await d.end();}`,
+      `import pg from 'pg';const d=new pg.Pool();try{console.log(JSON.stringify({contract:process.env.PLR_CERTIFICATE_REGISTRY,key:(await d.query("SELECT encode(status_key,'hex') AS key FROM registered_licences WHERE id=$1",['${state.licence_id}'])).rows[0].key}));}finally{await d.end();}`,
     ),
   );
   const ledger = new Contract(

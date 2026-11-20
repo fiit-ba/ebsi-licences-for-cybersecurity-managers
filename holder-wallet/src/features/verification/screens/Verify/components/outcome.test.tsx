@@ -9,7 +9,7 @@ const result = (certificationBody: Record<string, unknown> | null): Verification
   status: 'done',
   outcome: 'VALID',
   verified: true,
-  credential_types: ['VerifiableCredential', 'CybersecurityManagerCertificate'],
+  credential_types: ['VerifiableCredential', 'CybersecurityManagerLicence'],
   checks: {},
   credentials: [
     {

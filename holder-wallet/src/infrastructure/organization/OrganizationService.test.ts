@@ -121,7 +121,7 @@ describe('the organization profile', () => {
     mocked.post.mockRejectedValueOnce({
       response: { status: 403, data: { reason: 'AccreditationExpired', accredited_until: until } },
     })
-    const refused = await issueCertificate('spis-1', { holderName: 'X' }, 'CybersecurityManagerCertificate').catch(
+    const refused = await issueCertificate('spis-1', { holderName: 'X' }, 'CybersecurityManagerLicence').catch(
       (e) => e,
     )
     expect(isOrganizationError(refused)).toBe(true)

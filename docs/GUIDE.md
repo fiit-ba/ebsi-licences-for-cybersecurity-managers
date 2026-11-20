@@ -138,8 +138,8 @@ The same `./bootstrap.sh` waits for migrations and healthy dependencies, then:
   `PLR_DEV_PASSWORD` (default **`Atest-2026!Demo`**).
 - Creates NBÚ (RootTAO/supervisor) → MIRRI (TAO/mirri) → STU FIIT (TI/alice), with
   one-year TI accreditation and delegated certificate schema.
-- Registers `CybersecurityManagerCertificate` in the development Trusted Schemas
-  Registry as its Support Office (`zPlrCybersecurityManagerV1`, the same document as `schemas/cybersecurity-manager-certificate`, all 15 attributes
+- Registers `CybersecurityManagerLicence` in the development Trusted Schemas
+  Registry as its Support Office (`zPlrCybersecurityManagerV3`, the same document as `schemas/cybersecurity-manager-licence/1.0.0`, all 19 attributes
   with their titles and defaults) and reads it back, as the back-office does with
   every schema named in `PLR_TSR_SCHEMAS`; plus the presentation/verification flow.
 - Prepares KMS-wrapped data-encryption and stable PIN/commitment secrets without

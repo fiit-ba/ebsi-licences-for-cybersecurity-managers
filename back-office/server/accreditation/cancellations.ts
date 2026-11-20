@@ -36,19 +36,18 @@ export function postgresOrganizationCancellations(
     for (const row of rows)
       await transaction(database, async (client) => {
         const target = (
-          await client.query(
-            'SELECT certificate_id FROM certificate_status_proposals WHERE id=$1',
-            [row.proposal_id],
-          )
+          await client.query('SELECT licence_id FROM licence_status_proposals WHERE id=$1', [
+            row.proposal_id,
+          ])
         ).rows[0];
         if (!target) return;
-        await client.query('SELECT id FROM registered_certificates WHERE id=$1 FOR UPDATE', [
-          target.certificate_id,
+        await client.query('SELECT id FROM registered_licences WHERE id=$1 FOR UPDATE', [
+          target.licence_id,
         ]);
         const record = (
           await client.query(
-            `SELECT p.*,c.issuer_did,c.certificate_number,c.credential_id,c.status_key,c.credential_hash,x.requested_by,x.reason_salt AS cancellation_salt,x.reason_hash AS cancellation_hash
-        FROM organization_case_cancellations x JOIN certificate_status_proposals p ON p.id=x.proposal_id JOIN registered_certificates c ON c.id=p.certificate_id
+            `SELECT p.*,c.issuer_did,c.licence_number,c.credential_id,c.status_key,c.credential_hash,x.requested_by,x.reason_salt AS cancellation_salt,x.reason_hash AS cancellation_hash
+        FROM organization_case_cancellations x JOIN licence_status_proposals p ON p.id=x.proposal_id JOIN registered_licences c ON c.id=p.licence_id
         WHERE x.proposal_id=$1 AND x.completed_at IS NULL AND ($2::boolean OR x.attempted_at IS NULL OR x.attempted_at<clock_timestamp()-interval '15 seconds') FOR UPDATE OF x,p`,
             [row.proposal_id, Boolean(proposalId)],
           )
@@ -111,10 +110,10 @@ export function postgresOrganizationCancellations(
           const storedReason = await storeReason('issuer_revoked', '', salt, protection);
           const hash = storedReason.reason_hash;
           const emergency = await client.query(
-            `INSERT INTO certificate_emergency_suspensions(certificate_id,requested_by,reason_code,reason_note,reason_salt,reason_hash)
+            `INSERT INTO licence_emergency_suspensions(licence_id,requested_by,reason_code,reason_note,reason_salt,reason_hash)
             VALUES($1,$2,'issuer_revoked',$3,$4,$5) ON CONFLICT DO NOTHING RETURNING id`,
             [
-              record.certificate_id,
+              record.licence_id,
               record.requested_by,
               storedReason.reason_note,
               storedReason.reason_salt,
@@ -122,13 +121,13 @@ export function postgresOrganizationCancellations(
             ],
           );
           await client.query(
-            `UPDATE registered_certificates SET local_standing='suspended',ledger_standing=NULL,ledger_observed_at=NULL,ledger_observation_invalidated_at=clock_timestamp() WHERE id=$1`,
-            [record.certificate_id],
+            `UPDATE registered_licences SET local_standing='suspended',ledger_standing=NULL,ledger_observed_at=NULL,ledger_observation_invalidated_at=clock_timestamp() WHERE id=$1`,
+            [record.licence_id],
           );
           if (emergency.rowCount)
             enqueueAfterCommit(client, {
               operation: 'record-standing',
-              certificateId: record.certificate_id,
+              certificateId: record.licence_id,
             });
           if (emergency.rowCount)
             await appendAudit(client, {
@@ -142,7 +141,7 @@ export function postgresOrganizationCancellations(
             });
         }
         await client.query(
-          'UPDATE certificate_status_proposals SET onchain_state=$2,delivery_uncertain=false WHERE id=$1',
+          'UPDATE licence_status_proposals SET onchain_state=$2,delivery_uncertain=false WHERE id=$1',
           [row.proposal_id, result.state],
         );
         if (['cancelled', 'expired', 'executed'].includes(result.state))

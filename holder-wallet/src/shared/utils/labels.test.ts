@@ -52,7 +52,7 @@ describe('labels', () => {
     expect(claimLabel('holderName')).toBe('holder Name')
     applySchemaNames(SCHEMAS)
     expect(claimLabel('holderName')).toBe('Iný názov')
-    expect(credentialTypeName('CybersecurityManagerCertificate')).toBe('Licencia manažéra kybernetickej bezpečnosti')
+    expect(credentialTypeName('CybersecurityManagerLicence')).toBe('Licencia manažéra kybernetickej bezpečnosti')
   })
 
   it('names the fields every credential has itself', () => {

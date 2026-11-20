@@ -21,7 +21,7 @@
 // URLs the certificate names are followed only within the registries this
 // wallet is configured with: the holder hands over the certificate, and a
 // URL in it could lead anywhere.
-import { Validator } from 'jsonschema'
+import { Schema, Validator } from 'jsonschema'
 import { ebsi, issuersRegistryMarkers, supportOfficeDid } from '@infrastructure/config/Ebsi'
 import {
   UntrustedRegistry,
@@ -247,8 +247,7 @@ const registrySchemaId = (reference: unknown): string | undefined =>
   /^https?:\/\/[^#?]+\/schemas\/([A-Za-z0-9._-]{1,200})$/.exec(String(reference ?? ''))?.[1]
 
 /** A schema read by its id from the configured Trusted Schemas Registry. */
-const schemaById = (id: string) =>
-  getJson(`${ebsi.trustedSchemasRegistry()}/schemas/${encodeURIComponent(id)}`)
+const schemaById = (id: string) => getJson(`${ebsi.trustedSchemasRegistry()}/schemas/${encodeURIComponent(id)}`)
 
 /**
  * What a presented credential must meet: a holder may withhold any attribute it was given
@@ -264,9 +263,26 @@ const presented = (schema: any) => {
   return copy
 }
 
+/**
+ * A JSON Schema validator that also checks `maxContains` (JSON Schema 2019-09), which jsonschema
+ * 1.4 would ignore: the registry's status entry schema allows exactly one PlrLedgerStatusEntry.
+ */
+export const schemaValidator = () => {
+  const validator = new Validator()
+  validator.attributes.maxContains = (instance, schema, options, ctx) => {
+    const { contains, maxContains } = schema as { contains?: Schema; maxContains?: unknown }
+    if (!Array.isArray(instance) || contains === undefined || typeof maxContains !== 'number') return ''
+    const matching = instance.filter(
+      (item, index) => validator.validate(item, contains, options, ctx.makeChild(contains, String(index))).valid,
+    ).length
+    return matching > maxContains ? `must contain at most ${maxContains} items matching "contains"` : ''
+  }
+  return validator
+}
+
 const validateSchemas = async (schemaIds: string[], credential: object): Promise<boolean> => {
   if (schemaIds.length === 0) return false
-  const validator = new Validator()
+  const validator = schemaValidator()
   const added = new Set<string>()
   // A schema extends EBSI's Verifiable Attestation by a $ref into a schemas registry: read it by
   // its id from the configured one. Nothing else a schema refers to is fetched.
@@ -485,7 +501,7 @@ export const verifyPresentation = async (
       evidence.ledger = {
         contract: ledger.contract.toLowerCase(),
         standing: record.standing,
-        certificate_number: String(vc?.credentialSubject?.certificateNumber ?? '') || null,
+        certificate_number: String(vc?.credentialSubject?.licenceNumber ?? '') || null,
         registered_at: iso(record.registeredAt),
         changed_at: iso(record.changedAt),
       }

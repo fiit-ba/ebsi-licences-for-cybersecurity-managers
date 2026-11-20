@@ -43,7 +43,7 @@ export function postgresEmergencySuspension(
       const {
         rows: [target],
       } = await client.query<{ issuer_id: string }>(
-        'SELECT issuer_id FROM registered_certificates WHERE credential_id = $1 OR registered_id = $1',
+        'SELECT issuer_id FROM registered_licences WHERE credential_id = $1 OR registered_id = $1',
         [credentialId],
       );
       if (!target) throw lifecycleRefusal(404, { detail: 'Unknown certificate' });
@@ -51,7 +51,7 @@ export function postgresEmergencySuspension(
       // Read collection after acquiring the certificate lock; a waiting locking
       // SELECT could otherwise retain the token's pre-collection snapshot.
       await client.query(
-        'SELECT id FROM registered_certificates WHERE credential_id = $1 OR registered_id = $1 FOR UPDATE',
+        'SELECT id FROM registered_licences WHERE credential_id = $1 OR registered_id = $1 FOR UPDATE',
         [credentialId],
       );
       const {
@@ -61,8 +61,8 @@ export function postgresEmergencySuspension(
         SELECT c.id, c.credential_id, CASE WHEN c.registered_id IS NOT NULL AND c.ledger_registered_at IS NULL
           THEN c.local_standing ELSE ${standing} END AS state, token.redeemed_at IS NOT NULL AS collected,
           COALESCE(LEAST(ti.revoked_at, tao.revoked_at, root.revoked_at) <= statement_timestamp(), false) AS issuer_revoked
-        FROM registered_certificates c ${certificateOrganizations}
-        LEFT JOIN credential_tokens token ON token.certificate_id = c.id
+        FROM registered_licences c ${certificateOrganizations}
+        LEFT JOIN credential_tokens token ON token.licence_id = c.id
         WHERE (c.credential_id = $1 OR c.registered_id = $1)
       `,
         [credentialId],
@@ -78,8 +78,8 @@ export function postgresEmergencySuspension(
         rows: [emergency],
       } = await client.query(
         `
-        INSERT INTO certificate_emergency_suspensions
-          (certificate_id, requested_by, reason_code, reason_note, reason_salt, reason_hash, applied_at)
+        INSERT INTO licence_emergency_suspensions
+          (licence_id, requested_by, reason_code, reason_note, reason_salt, reason_hash, applied_at)
         VALUES ($1,$2,$3,$4,$5,$6,CASE WHEN $7 THEN clock_timestamp() END) ON CONFLICT DO NOTHING RETURNING id
       `,
         [
@@ -99,7 +99,7 @@ export function postgresEmergencySuspension(
           'An emergency suspension is already pending.',
         );
       await client.query(
-        "UPDATE registered_certificates SET local_standing = 'suspended' WHERE id = $1",
+        "UPDATE registered_licences SET local_standing = 'suspended' WHERE id = $1",
         [certificate.id],
       );
       await appendAudit(client, {
@@ -169,8 +169,8 @@ export function postgresPendingSuspension(database: Pool) {
   async function isCertificateSuspended(issuerDid: string, credentialId: string) {
     const { rowCount } = await database.query(
       `
-      SELECT 1 FROM certificate_emergency_suspensions emergency
-      JOIN registered_certificates c ON c.id = emergency.certificate_id
+      SELECT 1 FROM licence_emergency_suspensions emergency
+      JOIN registered_licences c ON c.id = emergency.licence_id
       WHERE c.issuer_did = $1 AND (c.credential_id = $2 OR c.registered_id = $2) AND emergency.applied_at IS NULL
     `,
       [issuerDid, credentialId],

@@ -69,13 +69,13 @@ async function cleanup(): Promise<void> {
     [accounts, usernames],
   );
   await database.query(
-    'DELETE FROM certificate_schema_versions WHERE schema_id IN (SELECT id FROM certificate_schemas WHERE credential_type=ANY($1::text[]))',
+    'DELETE FROM licence_schema_versions WHERE schema_id IN (SELECT id FROM licence_schemas WHERE credential_type=ANY($1::text[]))',
     [[credentialType]],
   );
   await database.query('DELETE FROM schema_events WHERE credential_type=ANY($1::text[])', [
     [credentialType],
   ]);
-  await database.query('DELETE FROM certificate_schemas WHERE credential_type=ANY($1::text[])', [
+  await database.query('DELETE FROM licence_schemas WHERE credential_type=ANY($1::text[])', [
     [credentialType],
   ]);
   await database.query(`DELETE FROM operator_groups WHERE name IN ('plr_tao','plr_issuer','plr_status_manager','plr_verifier')
@@ -99,17 +99,17 @@ for (const username of usernames) {
 }
 const schema = (
   await database.query<{ id: string }>(
-    'INSERT INTO certificate_schemas(credential_type,name_sk,name_en) VALUES ($1,$2,$3) RETURNING id',
+    'INSERT INTO licence_schemas(credential_type,name_sk,name_en) VALUES ($1,$2,$3) RETURNING id',
     [credentialType, 'Organizačné oprávnenie', 'Organization credential'],
   )
 ).rows[0];
 await database.query(
-  `INSERT INTO certificate_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES ($1,1,$2,'organization-browser-fixture',clock_timestamp())`,
+  `INSERT INTO licence_schema_versions(schema_id,version,fields,tsr_id,registered_at) VALUES ($1,1,$2,'organization-browser-fixture',clock_timestamp())`,
   [
     schema.id,
     JSON.stringify([
       {
-        key: 'certificateNumber',
+        key: 'licenceNumber',
         kind: 'text',
         label: { sk: 'Číslo', en: 'Number' },
         hint: { sk: '', en: '' },

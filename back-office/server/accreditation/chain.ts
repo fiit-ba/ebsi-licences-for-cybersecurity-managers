@@ -66,7 +66,7 @@ export function postgresTrustChain(database: Pick<Pool, 'query'>) {
           statement_timestamp() AS observed_at,
           ARRAY(
             SELECT s.credential_type
-            FROM organization_certificate_schemas g JOIN certificate_schemas s ON s.id = g.schema_id
+            FROM organization_licence_schemas g JOIN licence_schemas s ON s.id = g.schema_id
             WHERE g.organization_id = scope.id
             ORDER BY s.credential_type
           ) AS schemas,
@@ -75,9 +75,9 @@ export function postgresTrustChain(database: Pick<Pool, 'query'>) {
               'credential_type', s.credential_type,
               'name', jsonb_build_object('sk', s.name_sk, 'en', s.name_en)
             )
-            FROM certificate_schemas s
+            FROM licence_schemas s
             WHERE s.retired_at IS NULL AND (scope.kind = 'rtao' OR EXISTS (
-              SELECT 1 FROM organization_certificate_schemas g
+              SELECT 1 FROM organization_licence_schemas g
               WHERE g.schema_id = s.id AND g.organization_id = scope.id
             ))
             ORDER BY s.name_sk, s.credential_type
