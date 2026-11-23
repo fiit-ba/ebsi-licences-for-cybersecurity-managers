@@ -172,16 +172,21 @@ services:
       timeout: 5s
       retries: 20
 
+  # Valkey (BSD-3-Clause), the Linux Foundation's fork of Redis 7.2, pinned to a release. It speaks
+  # the Redis protocol, so the service keeps its name and the back-office its redis:// URLs. Redis
+  # from 7.4 on is source-available (RSALv2/SSPL), not open source.
   redis:
     <<: *hardening
-    image: redis:7
-    command: [redis-server, --requirepass, "${REDIS_PASSWORD}", --appendonly, "yes"]
-    volumes: [redisdata:/data]
+    image: valkey/valkey:9.1.4
+    # valkey-server by name: the image drops root only for it.
+    command: [valkey-server, --requirepass, "${REDIS_PASSWORD}", --appendonly, "yes"]
+    # Its own volume: Valkey cannot read the files Redis 7.4 wrote to redisdata (RDB format 12).
+    volumes: [valkeydata:/data]
     environment:
-      REDISCLI_AUTH: ${REDIS_PASSWORD}
+      VALKEYCLI_AUTH: ${REDIS_PASSWORD}
     networks: [data]
     healthcheck:
-      test: [CMD, redis-cli, ping]
+      test: [CMD, valkey-cli, ping]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -193,4 +198,4 @@ networks:
   data: {internal: true}
 volumes:
   product-postgres: {}
-  redisdata: {}
+  valkeydata: {}

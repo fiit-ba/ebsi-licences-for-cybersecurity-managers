@@ -20,8 +20,13 @@ explicit configuration; `ebsi-mock` reads the deployed addresses from
 The hosted template uses external KMS/EBSI/ledger and an mTLS edge sidecar.
 No command here deploys externally or starts the native Wallet automatically.
 
-Redis keeps `redis:7` local defaults without explicit AOF or a named
-volume. Hosted Redis requires `REDIS_PASSWORD`, enables AOF and reuses
-`redisdata:/data`. Persistence applies to **all logical databases**, including
-expiring cache data; expiry does not promise absence of temporary data on disk.
+The `redis` service runs Valkey (`valkey/valkey:9.1.4`, BSD-3-Clause), the Linux
+Foundation's fork of Redis 7.2, which speaks the Redis protocol; Redis itself is
+source-available (RSALv2/SSPL) from 7.4 on. Locally it keeps Valkey's defaults,
+without explicit AOF or a named volume. Hosted, it requires `REDIS_PASSWORD`,
+enables AOF and keeps its data in `valkeydata:/data`; Valkey cannot read the
+`redisdata` volume of the earlier `redis:7` template (see
+[hosted installation](../docs/PRODUCTION.md)). Persistence applies to **all
+logical databases**, including expiring cache data; expiry does not promise
+absence of temporary data on disk.
 See [background execution and recovery](../back-office/docs/background.md).

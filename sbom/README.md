@@ -81,7 +81,7 @@ repository. It is listed below as a development tool that is not distributed.
 | --- | ---: | ---: | ---: | --- |
 | Back Office (`back-office/`) | 381 | 148 | 233 | [list](back-office.md), [CycloneDX](back-office.cdx.json) |
 | Contracts (`contracts/`) | 5 | 2 | 3 | [list](contracts.md), [CycloneDX](contracts.cdx.json) |
-| Atest Wallet (`holder-wallet/`) | 1788 | 1500 | 288 | [list](holder-wallet.md), [CycloneDX](holder-wallet.cdx.json) |
+| Atest Wallet (`holder-wallet/`) | 1787 | 1499 | 288 | [list](holder-wallet.md), [CycloneDX](holder-wallet.cdx.json) |
 | Infrastructure (`infra/`) | 81 | 3 | 78 | [list](infra.md), [CycloneDX](infra.cdx.json) |
 
 ### Components whose licence asks more than keeping a notice
@@ -138,7 +138,6 @@ the like), or offers one as an alternative.
 | Atest Wallet | web3-providers-ws | 1.10.0 | LGPL-3.0-only | production | Weak copyleft: whoever distributes the component makes its source, with any changes, available under the LGPL 3.0, and lets users replace it in the work that uses it. |
 | Atest Wallet | web3-shh | 1.10.0 | LGPL-3.0-only | production | Weak copyleft: whoever distributes the component makes its source, with any changes, available under the LGPL 3.0, and lets users replace it in the work that uses it. |
 | Atest Wallet | web3-utils | 1.10.0 | LGPL-3.0-only | production | Weak copyleft: whoever distributes the component makes its source, with any changes, available under the LGPL 3.0, and lets users replace it in the work that uses it. |
-| Infrastructure | redis | 7 | LicenseRef-RSALv2 OR SSPL-1.0 | production | The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause. |
 
 ### Development tools outside the repository
 

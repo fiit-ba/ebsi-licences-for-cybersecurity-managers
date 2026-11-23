@@ -113,10 +113,15 @@ terminals with the same domain environment. `npm run health:worker` checks the
 worker's named Redis connection, six schedulers and PostgreSQL. HTTP readiness
 checks database/schema availability.
 
-Both Compose templates use `redis:7`. BullMQ was locally tested against Redis
-7.4.11. Development uses image defaults, `restart: unless-stopped`, no explicit
-AOF setting and no named Redis volume. Default snapshotting is enabled. Hosted
-Redis requires `REDIS_PASSWORD`, `--appendonly yes` and `redisdata:/data`.
+Both Compose templates run Valkey 9.1.4 (`valkey/valkey:9.1.4`, BSD-3-Clause), the
+Linux Foundation's fork of Redis 7.2, as their `redis` service: it speaks the Redis
+protocol, so BullMQ and the exchange cache use it through the same `redis://` URLs.
+Redis itself is source-available (RSALv2/SSPL) from 7.4 on. BullMQ was locally
+tested against Valkey 9.1.4. Development uses image defaults,
+`restart: unless-stopped`, no explicit AOF setting and no named volume. Default
+snapshotting is enabled. Hosted Valkey requires `REDIS_PASSWORD`,
+`--appendonly yes` and `valkeydata:/data`; it cannot read the `redisdata` volume
+of the earlier `redis:7` template (see the hosted installation guide).
 Persistence applies to all logical databases, including expiring DB-2 cache data.
 TTL does not mean temporary data cannot reach disk. Preserve existing volumes.
 

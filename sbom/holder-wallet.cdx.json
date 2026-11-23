@@ -28361,14 +28361,14 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/expo-asset@57.0.21",
+      "bom-ref": "pkg:npm/expo-asset@57.0.22",
       "name": "expo-asset",
-      "version": "57.0.21",
+      "version": "57.0.22",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "6a1c17e0c0ed2267be69dd0082634ce12b1bcac27bcb1b8ca967c4d76d418272533ffdaaa4a78791dc3a8e478ee7b93409d2683b187e5bcde32bbd466f239250"
+          "content": "7165aaa283f6d4cd27abe28cbbd523287e8cbd9e59c061b1dba3d40ba56aa2977d7ea48d0810e4d96ac5c8856aa099bf5abdf9515d880225bef6cbb20b3e7946"
         }
       ],
       "licenses": [
@@ -28378,11 +28378,11 @@
           }
         }
       ],
-      "purl": "pkg:npm/expo-asset@57.0.21",
+      "purl": "pkg:npm/expo-asset@57.0.22",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.yarnpkg.com/expo-asset/-/expo-asset-57.0.21.tgz"
+          "url": "https://registry.yarnpkg.com/expo-asset/-/expo-asset-57.0.22.tgz"
         }
       ],
       "properties": [
@@ -28427,14 +28427,14 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/expo-constants@57.0.23",
+      "bom-ref": "pkg:npm/expo-constants@57.0.25",
       "name": "expo-constants",
-      "version": "57.0.23",
+      "version": "57.0.25",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "53e547721aedeff55c4028091f94d44d03289f5f5ee46901d9f9326096b1f2688dc685b5c2d4c8761607945eb30a58f25b0f7de476dcabc20817d92d0bdab11c"
+          "content": "82e15e4d28c168e490a66b8486f7967c2f5a00f429f0cf05f606c8a0e8eefc565b87050b4c3ca64bf97465fab1475e8ab9a0dfd72d3dd232794d46ce624368e7"
         }
       ],
       "licenses": [
@@ -28444,44 +28444,11 @@
           }
         }
       ],
-      "purl": "pkg:npm/expo-constants@57.0.23",
+      "purl": "pkg:npm/expo-constants@57.0.25",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.23.tgz"
-        }
-      ],
-      "properties": [
-        {
-          "name": "atest:use",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "pkg:npm/expo-constants@57.0.24",
-      "name": "expo-constants",
-      "version": "57.0.24",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "2ad278bc2cf487905bac2defb7841f8b854dbf38e35b3bd3e07b9fa3e8663ad5b75471d4d01a75263ecf4615408601612a6af2e50bb367cd287089e1a0907c85"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT"
-          }
-        }
-      ],
-      "purl": "pkg:npm/expo-constants@57.0.24",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.24.tgz"
+          "url": "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.25.tgz"
         }
       ],
       "properties": [
@@ -28790,14 +28757,14 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/expo-splash-screen@57.0.11",
+      "bom-ref": "pkg:npm/expo-splash-screen@57.0.12",
       "name": "expo-splash-screen",
-      "version": "57.0.11",
+      "version": "57.0.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ca5535a77ee386ccd12b9ba19c532631d5b6ce53c75006645fb427cc75f91cf78dfebbacfd48a21b4d2859401bd83fbed9abd3c379ba666ddeaa749386a30228"
+          "content": "2548d1451df5bc13724f2e4f271c6a47ae6abd70416e31d6c80c1226c560d7e716b0bf1db6a2cc577e045f6196b7eedea0b315b52923d96d0c0c444e36390f65"
         }
       ],
       "licenses": [
@@ -28807,11 +28774,11 @@
           }
         }
       ],
-      "purl": "pkg:npm/expo-splash-screen@57.0.11",
+      "purl": "pkg:npm/expo-splash-screen@57.0.12",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-57.0.11.tgz"
+          "url": "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-57.0.12.tgz"
         }
       ],
       "properties": [

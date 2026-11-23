@@ -85,12 +85,15 @@ services:
       timeout: 5s
       retries: 20
 
+  # Valkey (BSD-3-Clause), the Linux Foundation's fork of Redis 7.2. It speaks the Redis protocol,
+  # so the service keeps its name and the back-office its redis:// URLs. Redis from 7.4 on is
+  # source-available (RSALv2/SSPL), not open source.
   redis:
-    image: redis:7
+    image: valkey/valkey:9.1.4
     restart: unless-stopped
-    # Use Redis defaults without explicit AOF configuration or a named data volume.
+    # Use Valkey defaults without explicit AOF configuration or a named data volume.
     healthcheck:
-      test: [CMD, redis-cli, ping]
+      test: [CMD, valkey-cli, ping]
       interval: 5s
       timeout: 5s
       retries: 10

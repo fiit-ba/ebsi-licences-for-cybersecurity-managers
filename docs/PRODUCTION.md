@@ -140,7 +140,7 @@ the staff network and exercise the configured KMS/registry/ledger operations.
 Readiness proves database/schema availability, not successful AWS/EBSI onboarding.
 For subsequent starts retain configuration, keys, data and contract addresses;
 repeat migrations/startup, not the initial administrator or key replacement.
-`docker compose ... stop` preserves volumes; `down -v` deletes PostgreSQL and Redis volumes.
+`docker compose ... stop` preserves volumes; `down -v` deletes the PostgreSQL and Valkey volumes.
 
 Timestamp anchoring still sends its transactions the Core API v1 way (through the
 Ledger API); on the pilot, EBSI's Timestamp API takes them through its own JSON-RPC,
@@ -154,9 +154,19 @@ in the selected environment. Local acceptance does not certify those providers.
 
 The `worker` service uses the same image with `server/worker/start.ts`, independent
 of API restarts. Include it in normal Compose startup. A single password-protected
-`redis:7` provides broker DB 0 and cache DB 2. Hosted `--appendonly yes` writes to
-the existing `redisdata:/data` volume and applies to **both** logical databases;
+Valkey (`valkey/valkey:9.1.4`, BSD-3-Clause) provides broker DB 0 and cache DB 2.
+Valkey is the Linux Foundation's fork of Redis 7.2 and speaks the Redis protocol, so
+the service is still called `redis` and the URLs stay `redis://`; Redis itself is
+source-available (RSALv2/SSPL) from 7.4 on. Hosted `--appendonly yes` writes to
+the `valkeydata:/data` volume and applies to **both** logical databases;
 expiring cache contents can appear on disk. Do not delete or reset existing volumes.
 Queue keys use the `atest-bullmq` prefix; committed domain state is recovered by
 periodic reconciliation. See
 [background execution](../back-office/docs/background.md).
+
+An installation that ran the earlier `redis:7` template keeps its data in the
+`redisdata` volume, which Valkey cannot read (Redis 7.4 writes RDB format 12).
+The template therefore gives Valkey a new volume, and Valkey starts empty: the
+worker registers its schedules again and the database sweeps queue any pending
+work, while presentations in progress at that moment must be started again.
+Compose leaves `redisdata` in place; remove it once the stack runs on Valkey.
