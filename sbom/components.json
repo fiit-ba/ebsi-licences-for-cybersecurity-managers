@@ -376,16 +376,16 @@
       {
         "category": "Container images",
         "type": "container",
-        "name": "redis",
-        "version": "7",
-        "license": "LicenseRef-RSALv2 OR SSPL-1.0",
+        "name": "valkey/valkey",
+        "version": "9.1.4",
+        "license": "BSD-3-Clause",
         "use": "production",
-        "supplier": "Docker Official Images",
-        "url": "https://hub.docker.com/_/redis",
-        "purl": "pkg:docker/library/redis@7",
+        "supplier": "Valkey (Linux Foundation)",
+        "url": "https://github.com/valkey-io/valkey",
+        "purl": "pkg:docker/valkey/valkey@9.1.4",
         "location": "infra/docker-compose.yml, infra/docker-compose.prod.yml",
-        "note": "The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause.",
-        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: redis:7" }
+        "note": "The job broker and exchange cache, in place of Redis, whose releases from 7.4 on are under RSALv2 or SSPLv1 (source-available, not open source). Valkey is the Linux Foundation's fork of Redis 7.2 and speaks its protocol; both its own code and the Redis code it forked are BSD-3-Clause. The Debian packages in the image keep their own licences.",
+        "evidence": { "file": "infra/docker-compose.prod.yml", "contains": "image: valkey/valkey:9.1.4" }
       },
       {
         "category": "Container images",
@@ -493,7 +493,6 @@
     "CC-BY-4.0": "Attribution: keep the authors' notice.",
     "EUPL-1.2": "Copyleft: whoever distributes the component, changed or not, makes its source available under the EUPL 1.2.",
     "LGPL-3.0-only": "Weak copyleft: whoever distributes the component makes its source, with any changes, available under the LGPL 3.0, and lets users replace it in the work that uses it.",
-    "LicenseRef-RSALv2 OR SSPL-1.0": "Source-available: may be used and self-hosted, but not offered to others as a managed Redis service.",
     "MPL-2.0": "File-level copyleft: whoever distributes the component makes its files' source, with any changes to them, available under the MPL 2.0.",
     "OFL-1.1": "May be bundled with software; the licence text goes with the font, and the font may not be sold on its own."
   }

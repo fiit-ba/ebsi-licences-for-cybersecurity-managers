@@ -244,23 +244,25 @@
     },
     {
       "type": "container",
-      "bom-ref": "pkg:docker/library/redis@7",
+      "bom-ref": "pkg:docker/valkey/valkey@9.1.4",
       "supplier": {
-        "name": "Docker Official Images"
+        "name": "Valkey (Linux Foundation)"
       },
-      "name": "redis",
-      "version": "7",
+      "name": "valkey/valkey",
+      "version": "9.1.4",
       "scope": "required",
       "licenses": [
         {
-          "expression": "LicenseRef-RSALv2 OR SSPL-1.0"
+          "license": {
+            "id": "BSD-3-Clause"
+          }
         }
       ],
-      "purl": "pkg:docker/library/redis@7",
+      "purl": "pkg:docker/valkey/valkey@9.1.4",
       "externalReferences": [
         {
           "type": "website",
-          "url": "https://hub.docker.com/_/redis"
+          "url": "https://github.com/valkey-io/valkey"
         }
       ],
       "properties": [
@@ -278,7 +280,7 @@
         },
         {
           "name": "atest:note",
-          "value": "The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause."
+          "value": "The job broker and exchange cache, in place of Redis, whose releases from 7.4 on are under RSALv2 or SSPLv1 (source-available, not open source). Valkey is the Linux Foundation's fork of Redis 7.2 and speaks its protocol; both its own code and the Redis code it forked are BSD-3-Clause. The Debian packages in the image keep their own licences."
         }
       ]
     },

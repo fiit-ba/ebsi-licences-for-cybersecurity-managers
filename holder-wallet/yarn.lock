@@ -6153,13 +6153,13 @@ expect@^29.7.0:
     jest-message-util "^29.7.0"
     jest-util "^29.7.0"
 
-expo-asset@~57.0.21:
-  version "57.0.21"
-  resolved "https://registry.yarnpkg.com/expo-asset/-/expo-asset-57.0.21.tgz#9470f56ec9f65abfc621edc01c2db5cb382ee920"
-  integrity sha512-ahwX4MDtIme+ad0AgmNM4SsbysJ7yxuMqWfE121BgnJTP/2qpKeHkdw6jkeO57k0CdJoOxh+W83jK71GbyOSUA==
+expo-asset@~57.0.21, expo-asset@~57.0.22:
+  version "57.0.22"
+  resolved "https://registry.yarnpkg.com/expo-asset/-/expo-asset-57.0.22.tgz#4a355b0e7ee4400652aabde87578620a68582b32"
+  integrity sha512-cWWqooP21M0nq+KMu9UjKH6MvZ5ZwGGx26PUC6Vqopd9fqSNCBDk2WrFyIVqoJm/Wr35UV2IAiW+9suyCz55Rg==
   dependencies:
     "@expo/image-utils" "^0.11.7"
-    expo-constants "~57.0.23"
+    expo-constants "~57.0.25"
 
 expo-camera@~57.0.6:
   version "57.0.6"
@@ -6168,17 +6168,10 @@ expo-camera@~57.0.6:
   dependencies:
     barcode-detector "^3.0.0"
 
-expo-constants@~57.0.23:
-  version "57.0.23"
-  resolved "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.23.tgz#14cac6787798b0c13c509cbd28efe1f5395fe533"
-  integrity sha512-U+VHchrt7/VcQCgJH5TUTQMon19e5GkB2fkyYJax8miNxoW1wtTIdhYHlF6zCljyWw995Hbcq8IIF9ktC9qxHA==
-  dependencies:
-    "@expo/env" "~2.4.4"
-
-expo-constants@~57.0.24:
-  version "57.0.24"
-  resolved "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.24.tgz#2c49fda99fe2bfa3cfbb9d519a18bf20d615060e"
-  integrity sha512-KtJ4vCz0h5BbrC3vt4Qfi4VNvzjjWzvT4Hufo+hmOtW3VHHU0Bp1Jj7PRhVAhgFhKmry5QuzZ80ocInhoJB8hQ==
+expo-constants@~57.0.24, expo-constants@~57.0.25:
+  version "57.0.25"
+  resolved "https://registry.yarnpkg.com/expo-constants/-/expo-constants-57.0.25.tgz#96c853505cdbfc4890ac05b06f7260db8d83aa6f"
+  integrity sha512-guFeTSjBaOSQpmuEhveWfC9aAPQp8M8F9gbIoOju/FZbhwULTDymS/l0ZfqxR16KuaDf1y090jJ5TUbOYkNo5w==
   dependencies:
     "@expo/env" "~2.4.4"
 
@@ -6241,12 +6234,12 @@ expo-server@^57.0.3:
   resolved "https://registry.yarnpkg.com/expo-server/-/expo-server-57.0.3.tgz#02e038a85453f1f4eb00024256b4b3cab949cace"
   integrity sha512-aK+LdKzauHSGmsOStZtyxdzv0zWssCkxTw3m4QuOhfDSJsZaMRTd9O41d8ixU/QfELTbaJ0oRNcF7JFV/7O9YQ==
 
-expo-splash-screen@~57.0.11:
-  version "57.0.11"
-  resolved "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-57.0.11.tgz#7e888bcd7862cdbf37c5e5b3d60767a23369922a"
-  integrity sha512-ylU1p37jhszRK5uhnFMmMdW2zlPHUAZkX7QnzHX5HPeN/rus/UiiG00oWUAb2D++2avTw3m6Zm3eqnSThqMCKA==
+expo-splash-screen@~57.0.12:
+  version "57.0.12"
+  resolved "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-57.0.12.tgz#4cb001af379794fa98c21f8e76921cd980adf76b"
+  integrity sha512-JUjRRR31vBNyTy5PJxxqR65qvXBBbjHWyAwSJsVg1+cWsL8dtqLMV34EX2GWt+7eoLMVtSkj2W0MDERONjkPZQ==
   dependencies:
-    "@expo/config-plugins" "~57.0.12"
+    "@expo/config-plugins" "~57.0.13"
     "@expo/image-utils" "^0.11.7"
     xml2js "0.6.0"
 

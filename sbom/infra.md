@@ -17,10 +17,9 @@ components only build, test or run it locally.
 | MIT | 0 | 70 |
 | ISC | 0 | 4 |
 | Apache-2.0 | 0 | 2 |
+| BSD-3-Clause | 1 | 1 |
 | 0BSD | 0 | 1 |
 | BSD-2-Clause | 1 | 0 |
-| BSD-3-Clause | 0 | 1 |
-| LicenseRef-RSALv2 OR SSPL-1.0 | 1 | 0 |
 | PostgreSQL | 1 | 0 |
 
 ## Container images
@@ -32,7 +31,7 @@ components only build, test or run it locally.
 | nginx | 1.30.7-alpine | BSD-2-Clause | production | infra/docker-compose.prod.yml | The backend's TLS proxy. BSD-2-Clause is nginx; the Alpine Linux packages in the image keep their own licences. |
 | node | 24-alpine | MIT | development | infra/ebsi-mock/Dockerfile | Base of the development EBSI service's image. MIT is Node.js; the Alpine Linux packages in the image keep their own licences. |
 | postgres | 17 | PostgreSQL | production | infra/docker-compose.yml, infra/docker-compose.prod.yml | PostgreSQL is under the PostgreSQL Licence; the Debian packages in the image keep their own licences. |
-| redis | 7 | LicenseRef-RSALv2 OR SSPL-1.0 | production | infra/docker-compose.yml, infra/docker-compose.prod.yml | The tag 7 resolves to Redis 7.4.x. From 7.4, Redis is under RSALv2 or SSPLv1 (source-available, not OSI open source); up to 7.2 it was BSD-3-Clause. |
+| valkey/valkey | 9.1.4 | BSD-3-Clause | production | infra/docker-compose.yml, infra/docker-compose.prod.yml | The job broker and exchange cache, in place of Redis, whose releases from 7.4 on are under RSALv2 or SSPLv1 (source-available, not open source). Valkey is the Linux Foundation's fork of Redis 7.2 and speaks its protocol; both its own code and the Redis code it forked are BSD-3-Clause. The Debian packages in the image keep their own licences. |
 
 ## npm packages (`infra/ebsi-mock/package-lock.json`)
 

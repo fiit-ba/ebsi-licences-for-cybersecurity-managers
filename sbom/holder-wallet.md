@@ -14,7 +14,7 @@ components only build, test or run it locally.
 
 | Licence | Production | Development |
 | --- | ---: | ---: |
-| MIT | 1256 | 240 |
+| MIT | 1255 | 240 |
 | ISC | 83 | 11 |
 | Apache-2.0 | 37 | 17 |
 | BSD-3-Clause | 24 | 13 |
@@ -820,10 +820,9 @@ components only build, test or run it locally.
 | expect | 29.6.2 | MIT | development |
 | expect | 29.7.0 | MIT | development |
 | expo | 57.0.33 | MIT | production |
-| expo-asset | 57.0.21 | MIT | production |
+| expo-asset | 57.0.22 | MIT | production |
 | expo-camera | 57.0.6 | MIT | production |
-| expo-constants | 57.0.23 | MIT | production |
-| expo-constants | 57.0.24 | MIT | production |
+| expo-constants | 57.0.25 | MIT | production |
 | expo-file-system | 57.0.7 | MIT | production |
 | expo-font | 57.0.4 | MIT | production |
 | expo-keep-awake | 57.0.2 | MIT | production |
@@ -833,7 +832,7 @@ components only build, test or run it locally.
 | expo-modules-jsi | 57.1.3 | MIT | production |
 | expo-network | 57.0.3 | MIT | production |
 | expo-server | 57.0.3 | MIT | production |
-| expo-splash-screen | 57.0.11 | MIT | production |
+| expo-splash-screen | 57.0.12 | MIT | production |
 | expo-status-bar | 57.0.1 | MIT | production |
 | expo-system-ui | 57.0.4 | MIT | production |
 | expo-web-browser | 57.0.3 | MIT | production |

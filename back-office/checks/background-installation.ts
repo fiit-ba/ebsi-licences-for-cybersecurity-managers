@@ -190,13 +190,13 @@ try {
   }
   assert.ok(active, 'Reinstatement after API/worker restart did not finish.');
   assert.equal((await ledger.certificateStatus('0x' + deployment.key)).standing, 1n);
-  const redis = docker('exec', '-T', 'redis', 'redis-cli', 'CONFIG', 'GET', 'appendonly', 'save');
+  const redis = docker('exec', '-T', 'redis', 'valkey-cli', 'CONFIG', 'GET', 'appendonly', 'save');
   assert.match(redis, /appendonly\s+no/);
   assert.ok(
     redis
       .split(/\r?\n/)
       .find((value, index, values) => values[index - 1] === 'save' && value.trim().length > 0),
-    'Local Redis must retain default snapshot configuration.',
+    'Local Valkey must retain default snapshot configuration.',
   );
   console.log(
     'API stop, independent worker, broker outage with committed decisions, automatic schedule/DB recovery, worker restart/redelivery and Redis local defaults passed.',
