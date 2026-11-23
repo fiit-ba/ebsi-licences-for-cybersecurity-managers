@@ -29,7 +29,7 @@ import {
   readCertificateStatus,
   recordDiffers,
   statusKeyOfCredential,
-  trustRegistry,
+  trustLedgerEntry,
 } from '@infrastructure/ledger'
 import { reveal, split } from '@domain/credentials/sdJwt'
 import { fetchWithin } from '@infrastructure/network/http'
@@ -483,12 +483,13 @@ export const verifyPresentation = async (
   let standing: string | undefined
   const ledger = ledgerEntryOf(vc)
   const statusKey = statusKeyOfCredential(vc)
-  // The registry is trusted only as the one of the TAO that accredited the TI: EBSI's Proxy
-  // Factory deployed it and its governance, and that governance serves this TAO.
+  // The registry is trusted only on the EBSI ledger, named by the entry's own id, and as the one
+  // of the TAO that accredited the TI: EBSI's Proxy Factory deployed it and its governance, and
+  // that governance serves this TAO.
   let trusted = false
   if (ledger && statusKey) {
     try {
-      await trustRegistry(ledger.contract, evidence.trust_chain?.[1]?.did)
+      await trustLedgerEntry(ledger, evidence.trust_chain?.[1]?.did)
       trusted = true
     } catch (error) {
       if (error instanceof UntrustedRegistry) evidence.reason = error.message

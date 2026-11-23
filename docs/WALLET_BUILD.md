@@ -57,6 +57,8 @@ CERTIFICATE_REGISTRY=0xCertificateRegistryAddress
 # CERTIFICATE_REGISTRY is trusted.
 EBSI_PROXY_FACTORY=0xProxyFactoryAddress
 CONTRACT_TEMPLATES=CertificateRegistry@1,CertificateGovernance@1
+# The EBSI ledger's chain: a licence whose status entry names another chain is not
+# trusted, and without it no licence's registry is.
 LEDGER_CHAIN_ID=1337
 EBSI_SUPPORT_OFFICE_DID=did:ebsi:zSupport
 ```

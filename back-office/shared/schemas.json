@@ -152,14 +152,21 @@
               "issueDate"
             ]
           }
-        }
+        },
+        "required": [
+          "credentialStatus",
+          "expirationDate"
+        ]
+      },
+      {
+        "$ref": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A"
       }
     ]
   },
   "licenceStatusEntry": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Licence Record on the Licence Registry",
-    "description": "Type extension for credentialStatus in the Slovak Professional Licence Registry. Its PlrLedgerStatusEntry names the licence registry contract (chain and address) that keeps the licence's record. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation.",
+    "description": "Type extension for credentialStatus in the Slovak Professional Licence Registry. Its PlrLedgerStatusEntry names the licence registry contract (chain and address) that keeps the licence's record. A verifier computes the record's key from the issuer's DID and the credential's id, so the entry carries no key. VCDM 1.1; extends the EBSI Verifiable Attestation. Verifiers must check that chainId is the EBSI ledger's chain, that id is eip155:<chainId>:<contract>, and that the contract is the licence registry of the Trusted Accreditation Organisation that accredited the issuer.",
     "type": "object",
     "allOf": [
       {

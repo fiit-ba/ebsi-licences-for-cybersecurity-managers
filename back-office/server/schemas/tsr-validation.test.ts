@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { ebsiSchemaIds, registrySchemaFiles } from './ebsi-schemas.ts';
+import { ledgerStatusEntryRegistryId } from './publication.ts';
 import { trustedSchemaRegistry } from './tsr.ts';
 import {
   tsrCredentialValidation,
@@ -132,10 +133,12 @@ test("a presentation may withhold a required attribute; the issuer's whole crede
 test("a schema extending EBSI's Verifiable Attestation is validated with it, read by id from the configured registry", async () => {
   const licence = registrySchemaFiles.cybersecurityManagerLicence;
   const base = registrySchemaFiles.ebsi[ebsiSchemaIds.attestation];
-  // The licence names the base by its pilot address; this registry holds it under the same id.
+  // The licence names the base and its status entry by their pilot addresses; this registry
+  // holds them under the same ids.
   const documents = new Map<string, Record<string, unknown>>([
     ['licence', licence],
     [ebsiSchemaIds.attestationHex, base],
+    [ledgerStatusEntryRegistryId, registrySchemaFiles.licenceStatusEntry],
   ]);
   const requested: string[] = [];
   const registry = trustedSchemaRegistry('https://tsr.example/v1/schemas-registry', async (url) => {
@@ -153,12 +156,37 @@ test("a schema extending EBSI's Verifiable Attestation is validated with it, rea
     ),
   );
   await tsrCredentialValidation(registry)(example, references);
-  assert.deepEqual(requested, ['licence', ebsiSchemaIds.attestationHex]);
+  assert.deepEqual(requested, [
+    'licence',
+    ebsiSchemaIds.attestationHex,
+    ledgerStatusEntryRegistryId,
+  ]);
   // The base requires `issued`.
   const { issued: _issued, ...withoutIssued } = example;
   await assert.rejects(tsrCredentialValidation(registry)(withoutIssued, references), {
     code: 'SchemaMismatch',
   });
+  // The licence requires its expiry and its PlrLedgerStatusEntry, whatever else its status holds.
+  const { expirationDate: _expiry, credentialStatus, ...withoutStatus } = example;
+  const statusList = {
+    id: 'https://status.example/1#5',
+    type: 'StatusList2021Entry',
+    statusListIndex: '5',
+    statusListCredential: 'https://status.example/1',
+  };
+  for (const refused of [
+    { ...withoutStatus, credentialStatus },
+    withoutStatus,
+    { ...example, credentialStatus: [] },
+    { ...example, credentialStatus: [statusList] },
+  ])
+    await assert.rejects(tsrCredentialValidation(registry)(refused, references), {
+      code: 'SchemaMismatch',
+    });
+  await tsrCredentialValidation(registry)(
+    { ...example, credentialStatus: [...credentialStatus, statusList] },
+    references,
+  );
   // A presentation may withhold the licence's attributes, not the base's.
   const { holderName: _holder, ...subject } = example.credentialSubject;
   await tsrCredentialValidation(registry, { presented: true })(

@@ -115,6 +115,8 @@ const world = async ({
   withTerms = true,
   termsAttribute = 'a-ti',
   contract = CONTRACT,
+  chainId = 1337,
+  statusId = undefined as string | undefined,
   omit = [] as string[],
   recorded = {} as Partial<{ hash: string; issuer: string; validFrom: number; validUntil: number }>,
 } = {}) => {
@@ -198,7 +200,9 @@ const world = async ({
     },
     credentialSchema: [{ id: SCHEMA, type: 'FullJsonSchemaValidator2021' }],
     // The registry only: its key follows from the issuer and the id.
-    credentialStatus: [{ id: `eip155:1337:${contract}`, type: 'PlrLedgerStatusEntry', chainId: 1337, contract }],
+    credentialStatus: [
+      { id: statusId ?? `eip155:${chainId}:${contract}`, type: 'PlrLedgerStatusEntry', chainId, contract },
+    ],
     ...(withTerms
       ? { termsOfUse: { id: `${TIR}/issuers/${ti.did}/attributes/${termsAttribute}`, type: 'IssuanceCertificate' } }
       : {}),
@@ -536,6 +540,14 @@ describe('verifying without the server', () => {
     expect(result.outcome).toBe('STATUS_UNAVAILABLE')
   })
 
+  it('cannot decide a certificate whose record is on another chain, or whose entry names another', async () => {
+    for (const status of [{ chainId: 6179 }, { statusId: `eip155:1337:0x${'dd'.repeat(20)}` }]) {
+      const result = await ask(await world(status))
+      expect(result.checks.status_available).toBe(false)
+      expect(result.outcome).toBe('STATUS_UNAVAILABLE')
+    }
+  })
+
   it('notices required data the certificate does not have', async () => {
     const w = await world({ omit: ['certificationBody'] })
     const result = await ask(w)
@@ -588,12 +600,12 @@ describe('verifying without the server', () => {
 
 describe("the holder's own view of a certificate", () => {
   const FROM = 1767225600
-  const vcOf = (contract = CONTRACT) => ({
+  const vcOf = (contract = CONTRACT, chainId = 1337, id = `eip155:${chainId}:${contract}`) => ({
     id: 'urn:uuid:1',
     issuer: 'did:ebsi:zTi',
     validFrom: iso(FROM),
     credentialSubject: { id: 'did:key:z', licenceNumber: 'SK-CSM-1' },
-    credentialStatus: [{ id: 'x', type: 'PlrLedgerStatusEntry', chainId: 1337, contract }],
+    credentialStatus: [{ id, type: 'PlrLedgerStatusEntry', chainId, contract }],
   })
   // The credential whose hash the record keeps; any JWT will do for the holder's own view.
   const CREDENTIAL = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln~disclosure~'
@@ -625,6 +637,17 @@ describe("the holder's own view of a certificate", () => {
   it("is not known from a record that is not the certificate's own", async () => {
     ledger(3, '0x' + '22'.repeat(32))
     expect((await check()).state).toBe('unknown')
+  })
+
+  it('is not known from a registry on another chain, or an entry whose id names another', async () => {
+    ledger(1)
+    expect(await check(vcOf(CONTRACT, 6179))).toMatchObject({ state: 'unknown', error: expect.stringMatching(/chain 6179/) })
+    expect(await check(vcOf(CONTRACT, 1337, `eip155:1337:0x${'dd'.repeat(20)}`))).toMatchObject({
+      state: 'unknown',
+      error: 'The status entry does not name its own chain and contract',
+    })
+    // The address in the id may be written in either case.
+    expect(await check(vcOf(CONTRACT, 1337, `eip155:1337:0x${'CC'.repeat(20)}`))).toEqual({ valid: true, state: 'valid' })
   })
 })
 

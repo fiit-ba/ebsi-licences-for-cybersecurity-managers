@@ -241,7 +241,7 @@ where `certificateId` is the license's random `urn:uuid`. The contract computes 
 - The back-office writes asynchronously, and a periodic check catches up with anything not yet written.
 
 **Reading.**
-- The verifier reads the registry the license names, after checking that it is the registry of the TAO that accredited the license's TI (section 4.5).
+- The verifier reads the registry the license names, after checking that the entry's chain is the EBSI ledger's, that its `id` is `eip155:<chainId>:<contract>` for its own chain and contract, and that the registry is the one of the TAO that accredited the license's TI (section 4.5).
 - It compares the record with the license: TI, credential hash, `validFrom` and `validUntil`. A license whose record does not match is refused. Only `VALID` passes.
 - The verifier, not the contract, evaluates expiry from `validUntil`.
 - A record that cannot be read within 30 seconds, or has not been written yet, gives `STATUS_UNAVAILABLE`, never `VALID`. There is no fallback source of status.

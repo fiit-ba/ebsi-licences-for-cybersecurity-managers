@@ -379,6 +379,30 @@ test('verification contracts with real HTTP, PostgreSQL, Redis and development D
         credential.record,
       ]);
       assert.equal((await service.verifyCredential(credential.token)).state, 'VALID');
+      // What the status entry's schema leaves to the verifier: the entry's chain is the EBSI
+      // ledger's, and its id is the CAIP-10 account of its own chain and contract.
+      const { contract } = credential.vc.credentialStatus[0];
+      const entry = (chainId: number, id = `eip155:${chainId}:${contract}`) => ({
+        credentialStatus: [{ id, type: 'PlrLedgerStatusEntry', contract, chainId }],
+      });
+      const otherChain = await service.verifyCredential(
+        (await fixture.credential(entry(6179))).token,
+      );
+      assert.equal(otherChain.state, 'STATUS_UNAVAILABLE');
+      assert.equal(otherChain.checks.status_available, false);
+      assert.match(otherChain.reason!, /chain 6179/);
+      const misnamed = await service.verifyCredential(
+        (await fixture.credential(entry(1337, 'eip155:1337:0x' + '12'.repeat(20)))).token,
+      );
+      assert.equal(misnamed.state, 'INDETERMINATE');
+      assert.equal(misnamed.checks.status_available, false);
+      assert.equal(misnamed.reason, 'The status entry does not name its own chain and contract');
+      // The address in its id may be written in either case.
+      const upper = `eip155:1337:0x${contract.slice(2).toUpperCase()}`;
+      const checksummed = await service.verifyCredential(
+        (await fixture.credential(entry(1337, upper))).token,
+      );
+      assert.equal(checksummed.state, 'VALID');
     },
   );
 

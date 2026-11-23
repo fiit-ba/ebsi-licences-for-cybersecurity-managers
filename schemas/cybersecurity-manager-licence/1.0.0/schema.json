@@ -150,7 +150,14 @@
             "issueDate"
           ]
         }
-      }
+      },
+      "required": [
+        "credentialStatus",
+        "expirationDate"
+      ]
+    },
+    {
+      "$ref": "https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A"
     }
   ]
 }

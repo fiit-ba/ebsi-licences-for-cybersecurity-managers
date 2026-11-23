@@ -30,7 +30,7 @@
   },
   "credentialSchema": [
     {
-      "id": "ebsi:pilot:schemas-registry:/schemas/z3HnfZRoKcq3uWw6rQaJJXu7Qj6amQ7d8FCQbj3vWj4hM",
+      "id": "ebsi:pilot:schemas-registry:/schemas/zAzgraLwVMbGDBF8NvpwC57AdRCKK3d1tLarxb4BFevTz",
       "type": "FullJsonSchemaValidator2021"
     },
     {
@@ -44,7 +44,7 @@
   ],
   "termsOfUse": [
     {
-      "id": "ebsi:pilot:issuers-registry:/issuers/did:ebsi:zvHWX359A3CvfJnCYaAiAde/attributes/0x9f1a4c3e2b7d6a5f8e0c1b2a3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6",
+      "id": "ebsi:pilot:issuers-registry:/issuers/did:ebsi:zvHWX359A3CvfJnCYaAiAde/attributes/9f1a4c3e2b7d6a5f8e0c1b2a3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6",
       "type": "IssuanceCertificate"
     }
   ],

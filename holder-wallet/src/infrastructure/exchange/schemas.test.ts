@@ -19,10 +19,17 @@ const statusEntry = read('licence-status-entry/1.0.0/schema.json')
 const example = read('cybersecurity-manager-licence/1.0.0/example.json')
 const ledgerEntry = example.credentialStatus[0]
 
+// The licence schema includes the status entry schema; both name their schemas by registry address.
+const [attestationAddress, statusEntryAddress] = licence.allOf
+  .map((part: { $ref?: string }) => part.$ref)
+  .filter(Boolean)
+
 const valid = (schema: any, credential: object) => {
   const validator = schemaValidator()
   const { $schema: _draft, ...base } = attestation
-  validator.addSchema(base, schema.allOf[0].$ref)
+  const { $schema: _entry, ...entry } = statusEntry
+  validator.addSchema(base, attestationAddress)
+  validator.addSchema(entry, statusEntryAddress)
   const { $schema: _own, ...rules } = schema
   return validator.validate(credential, rules).valid
 }
@@ -43,6 +50,16 @@ describe("the registry's schemas", () => {
     expect(valid(statusEntry, { ...example, credentialStatus: [ledgerEntry, other] })).toBe(true)
     expect(valid(statusEntry, { ...example, credentialStatus: [other] })).toBe(false)
     expect(valid(statusEntry, { ...example, credentialStatus: [ledgerEntry, ledgerEntry] })).toBe(false)
+  })
+
+  it("require the licence's expiry and its PlrLedgerStatusEntry", () => {
+    const { expirationDate: _expiry, ...withoutExpiry } = example
+    const { credentialStatus: _status, ...withoutStatus } = example
+    const other = { id: 'https://status.example/1#5', type: 'StatusList2021Entry' }
+    expect(valid(licence, withoutExpiry)).toBe(false)
+    expect(valid(licence, withoutStatus)).toBe(false)
+    expect(valid(licence, { ...example, credentialStatus: [] })).toBe(false)
+    expect(valid(licence, { ...example, credentialStatus: [other] })).toBe(false)
   })
 
   it('accept the status entry the development ledger names', () => {
