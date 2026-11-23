@@ -20,7 +20,7 @@ import {
   readCertificateStatus,
   recordDiffers,
   statusKeyOfCredential,
-  trustRegistry,
+  trustLedgerEntry,
   UntrustedRegistry,
   TIMEOUT_MS as LEDGER_TIMEOUT_MS,
 } from '@infrastructure/ledger'
@@ -97,9 +97,10 @@ export async function checkCertificateStatus(
 ): Promise<CredentialStatusResult> {
   const ledger = ledgerEntryOf(vc)
   if (!ledger) return checkCredentialStatus(vc, signal, statusListCache)
-  // The registry must be the one of the TAO that accredited the certificate's TI.
+  // The registry must be on the EBSI ledger, named by the entry's own id, and the one of the TAO
+  // that accredited the certificate's TI.
   try {
-    await trustRegistry(ledger.contract, await issuerTaoOf(vc), signal)
+    await trustLedgerEntry(ledger, await issuerTaoOf(vc), signal)
   } catch (error) {
     return {
       valid: false,

@@ -187,6 +187,22 @@ export const trustRegistry = async (contract: string, taoDid: string | undefined
     throw new UntrustedRegistry("The certificate registry is not its TI's TAO's")
 }
 
+/**
+ * What the status entry's schema leaves to the verifier (licence-status-entry 1.0.0): the entry's
+ * id is the CAIP-10 account of its own chain and contract, the chain is the EBSI ledger's this
+ * wallet reads (LEDGER_CHAIN_ID), and the contract is the registry of the TAO that accredited the
+ * certificate's TI ({@link trustRegistry}).
+ */
+export const trustLedgerEntry = async (entry: LedgerStatusEntry, taoDid: string | undefined, signal?: AbortSignal) => {
+  if (String(entry.id).toLowerCase() !== `eip155:${entry.chainId}:${entry.contract}`.toLowerCase())
+    throw new UntrustedRegistry('The status entry does not name its own chain and contract')
+  const chainId = certificates.chainId()
+  if (!chainId) throw new UntrustedRegistry('No EBSI ledger chain is configured')
+  if (entry.chainId !== chainId)
+    throw new UntrustedRegistry(`The certificate registry is on chain ${entry.chainId}, not on the EBSI ledger`)
+  await trustRegistry(entry.contract, taoDid, signal)
+}
+
 /** The record kept under `statusKey`, on the certificate registry the certificate names. */
 export const readCertificateStatus = async (
   statusKey: string,

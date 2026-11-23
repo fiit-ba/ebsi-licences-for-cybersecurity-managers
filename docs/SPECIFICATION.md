@@ -446,7 +446,7 @@ statusKey         = SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certific
 
 ### 4.3 Reading
 
-- The verifier first checks that the registry named in the license belongs to the TAO that accredited the TI (component 4.5).
+- The verifier first checks the `credentialStatus` entry: its `chainId` is the EBSI ledger's, its `id` is `eip155:<chainId>:<contract>` for its own chain and contract, and the registry it names belongs to the TAO that accredited the TI (component 4.5). The status entry schema requires the entry but cannot express these three checks.
 - The contract does not compare `validUntil` with the time; the verifier does (`EXPIRED`, `NOT_YET_VALID`).
 - The verifier compares the record with the license (TI, `credentialHash`, `validFrom`, `validUntil`) and refuses the license if they differ. Only `VALID` passes; `SUSPENDED` and `REVOKED` are both refusals.
 - A record that cannot be read within 30 s, or is not written yet, is `STATUS_UNAVAILABLE`, never `VALID`. There is no fallback source of status.
@@ -633,7 +633,7 @@ Documents required for registration:
 
 1. Completed data model templates
 2. The JSON Schema
-3. **Confirmation from the domain's representatives that the schema is recognised in the domain** — in our case this means involving NBÚ as the owner of the certification scheme
+3. **Confirmation from the domain's representatives that the schema is recognised in the domain**
 4. An example credential, which a representative adds to EBSI's JSON Schema repository by a pull request, named `EA-v3-{cluster name}-{name of the example}.json`
 
 **The registry's schemas.** Two schemas are to be registered: the license schema `CybersecurityManagerLicence` (19 attributes with labels, hints, default values and which are required, in English, aligned with NBÚ's certification scheme and the ECSF role profile Chief Information Security Officer; it extends EBSI's Verifiable Attestation for VCDM 1.1) and the schema of the `PlrLedgerStatusEntry` entry (`[STATUS_ENTRY_SCHEMA]` in section 2.2), which extends it too. Both use JSON Schema 2020-12 (`$schema` `https://json-schema.org/draft/2020-12/schema`), the only version the Schemas Registry accepts. The TSR forms a schema's identifier from its content without annotations, so fixing a label or a hint keeps the identifier; any other change is a new version with a new identifier.

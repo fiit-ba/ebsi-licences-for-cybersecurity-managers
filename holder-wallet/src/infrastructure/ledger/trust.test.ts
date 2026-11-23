@@ -3,7 +3,8 @@
 // serves the TAO that accredited the certificate's TI. Each TAO has its own pair; the wallet keeps
 // no list of them.
 import { utils } from 'ethers'
-import { registryTao, trustRegistry, UntrustedRegistry } from './index'
+import { certificates } from '@infrastructure/config/Ebsi'
+import { registryTao, trustLedgerEntry, trustRegistry, UntrustedRegistry } from './index'
 
 const FACTORY = '0x' + 'fa'.repeat(20)
 const REGISTRY = '0x' + 'aa'.repeat(20)
@@ -19,7 +20,7 @@ jest.mock('@infrastructure/config/Ebsi', () => ({
       registry: { name: 'CertificateRegistry', version: '1' },
       governance: { name: 'CertificateGovernance', version: '1' },
     }),
-    chainId: () => 1337,
+    chainId: jest.fn(() => 1337),
   },
 }))
 
@@ -90,5 +91,36 @@ describe("a TAO's certificate registry", () => {
       active: false,
     })
     await expect(trustRegistry(registry, TAO)).rejects.toBeInstanceOf(UntrustedRegistry)
+  })
+})
+
+// What the status entry's schema leaves to the verifier (licence-status-entry 1.0.0).
+describe("a certificate's status entry", () => {
+  const entry = (chainId = 1337, id = `eip155:${chainId}:${REGISTRY}`) =>
+    ({ id, type: 'PlrLedgerStatusEntry', chainId, contract: REGISTRY }) as const
+
+  it("is trusted on the EBSI ledger, naming its own chain and contract, as the TAO's registry", async () => {
+    chain()
+    await expect(trustLedgerEntry(entry(), TAO)).resolves.toBeUndefined()
+    // The address in the id may be written in either case.
+    await expect(trustLedgerEntry(entry(1337, `eip155:1337:0x${'AA'.repeat(20)}`), TAO)).resolves.toBeUndefined()
+    await expect(trustLedgerEntry(entry(), 'did:ebsi:zOtherTao')).rejects.toBeInstanceOf(UntrustedRegistry)
+  })
+
+  it('is not trusted on another chain than the EBSI ledger', async () => {
+    chain()
+    await expect(trustLedgerEntry(entry(6179), TAO)).rejects.toThrow('on chain 6179')
+  })
+
+  it('is not trusted when its id names another chain or contract', async () => {
+    chain()
+    for (const id of [`eip155:6179:${REGISTRY}`, `eip155:1337:0x${'ab'.repeat(20)}`, 'urn:x'])
+      await expect(trustLedgerEntry(entry(1337, id), TAO)).rejects.toThrow('does not name its own chain and contract')
+  })
+
+  it('is not trusted when the wallet knows no EBSI ledger chain', async () => {
+    chain()
+    jest.mocked(certificates.chainId).mockReturnValueOnce(0)
+    await expect(trustLedgerEntry(entry(), TAO)).rejects.toThrow('No EBSI ledger chain is configured')
   })
 })

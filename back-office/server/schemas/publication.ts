@@ -5,6 +5,12 @@ import { ebsiSchemaCopies, registrySchemaFiles } from './ebsi-schemas.ts';
 export const ledgerStatusEntrySchemaId = 'zPlrLicenceStatusEntryV5';
 
 /**
+ * The id EBSI's registry gives the same status entry schema. The licence schema includes it by a
+ * reference to this id, so the development registry holds it under this id too.
+ */
+export const ledgerStatusEntryRegistryId = 'z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A';
+
+/**
  * A registry licence's status: exactly one entry naming the licence registry its record is on,
  * beside which other status entries may sit (V5). A verifier computes the record's key from the
  * issuer and the credential's id, so the entry carries no key (V4); V3 named the governance
@@ -28,6 +34,7 @@ export async function registerDevelopmentSchemas(
 ) {
   for (const copy of ebsiSchemaCopies()) await supportOffice.registerSchema(copy.id, copy.document);
   await supportOffice.registerSchema(ledgerStatusEntrySchemaId, ledgerStatusEntrySchema);
+  await supportOffice.registerSchema(ledgerStatusEntryRegistryId, ledgerStatusEntrySchema);
   for (const certificate of certificates)
     await supportOffice.registerSchema(certificate.id, certificate.document);
 }

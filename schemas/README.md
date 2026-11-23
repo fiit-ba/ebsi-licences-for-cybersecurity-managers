@@ -8,8 +8,8 @@ in the registry directly.
 
 | Schema | What it validates | Schema id |
 |---|---|---|
-| [`cybersecurity-manager-licence/1.0.0`](cybersecurity-manager-licence/1.0.0/schema.json) | The cybersecurity manager licence (`CybersecurityManagerLicence`) that a certification body accredited under ISO/IEC 17024 grants under NBÚ's certification scheme and Annex 5 of Decree No. 492/2022 Coll. Its 19 attributes, with their labels (`title`), hints (`description`), defaults and which are required, in English, include the role and the ECSF role profile it corresponds to (Chief Information Security Officer). Dates are `format: date`; the holder's `id` is `format: uri`. Extends EBSI's Verifiable Attestation (VCDM 1.1). Described attribute by attribute in its [data model](cybersecurity-manager-licence/1.0.0/data-model.md). | `z3HnfZRoKcq3uWw6rQaJJXu7Qj6amQ7d8FCQbj3vWj4hM` (`0x22044cd7…b990`) |
-| [`licence-status-entry/1.0.0`](licence-status-entry/1.0.0/schema.json) | The licence's `credentialStatus`: exactly one `PlrLedgerStatusEntry`, naming the licence registry contract that keeps its record. Other status entries may sit beside it. A type extension; unlike EBSI's own type extensions, it also extends EBSI's Verifiable Attestation, so it validates a complete credential. | `z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A` (`0x2d139716…d8b5`) |
+| [`cybersecurity-manager-licence/1.0.0`](cybersecurity-manager-licence/1.0.0/schema.json) | The cybersecurity manager licence (`CybersecurityManagerLicence`) that a certification body accredited under ISO/IEC 17024 grants under NBÚ's certification scheme and Annex 5 of Decree No. 492/2022 Coll. Its 19 attributes, with their labels (`title`), hints (`description`), defaults and which are required, in English, include the role and the ECSF role profile it corresponds to (Chief Information Security Officer). Dates are `format: date`; the holder's `id` is `format: uri`. Requires `expirationDate` and `credentialStatus`, and includes the status entry schema, so a licence must carry its `PlrLedgerStatusEntry`. Extends EBSI's Verifiable Attestation (VCDM 1.1). Described attribute by attribute in its [data model](cybersecurity-manager-licence/1.0.0/data-model.md). | `zAzgraLwVMbGDBF8NvpwC57AdRCKK3d1tLarxb4BFevTz` (`0x94805a33…ca39`) |
+| [`licence-status-entry/1.0.0`](licence-status-entry/1.0.0/schema.json) | The licence's `credentialStatus`: exactly one `PlrLedgerStatusEntry`, naming the licence registry contract that keeps its record. Other status entries may sit beside it. A type extension; unlike EBSI's own type extensions, it also extends EBSI's Verifiable Attestation, so it validates a complete credential. Verifiers check that `chainId` is the EBSI ledger's, that `id` is `eip155:<chainId>:<contract>`, and that the contract is the licence registry of the TAO that accredited the issuer. | `z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A` (`0x2d139716…d8b5`) |
 
 The ids are those EBSI's schema repository computes for these schemas (see below how). They
 become final when the Support Office registers the schemas.
@@ -46,7 +46,7 @@ the request to the Support Office (support@europeum.eu) includes:
   ([`data-model.md`](cybersecurity-manager-licence/1.0.0/data-model.md));
 - the JSON Schemas in this folder;
 - an acknowledgement from the domain's representative that the schema is recognised in the
-  domain (for the cybersecurity manager licence, the National Security Authority);
+  domain;
 - confirmation that the persons and the certification body named in the examples are fictitious.
 
 The schemas and their examples go into EBSI's schema repository by merge request
@@ -75,7 +75,7 @@ open. Until then, the settings are:
 
 ```sh
 PLR_EBSI_API_ORIGIN=https://api-pilot.ebsi.eu
-PLR_TSR_SCHEMAS=z3HnfZRoKcq3uWw6rQaJJXu7Qj6amQ7d8FCQbj3vWj4hM
+PLR_TSR_SCHEMAS=zAzgraLwVMbGDBF8NvpwC57AdRCKK3d1tLarxb4BFevTz
 PLR_LEDGER_STATUS_ENTRY_SCHEMA_URL=https://api-pilot.ebsi.eu/trusted-schemas-registry/v3/schemas/z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A
 ```
 
@@ -96,6 +96,7 @@ of their own for attributes, so a schema registered later is shown in its own wo
 
 The development installation registers the same files in its own registry:
 `cybersecurity-manager-licence/1.0.0` as `zPlrCybersecurityManagerV3`, the status entry as
-`zPlrLicenceStatusEntryV5`, and copies of EBSI's schemas from [`ebsi/`](ebsi) under their
+`zPlrLicenceStatusEntryV5` and, because the licence schema includes it by that id, as
+`z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A`, and copies of EBSI's schemas from [`ebsi/`](ebsi) under their
 legacy ids. The back-office reads them from `back-office/shared/schemas.json`, which
 `node back-office/scripts/sync-schemas.ts` writes from this folder; CI fails when it is stale.

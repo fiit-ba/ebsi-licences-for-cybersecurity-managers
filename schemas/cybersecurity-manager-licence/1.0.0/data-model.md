@@ -3,9 +3,10 @@
 This document describes the data model of the `CybersecurityManagerLicence` Verifiable
 Credential. It follows the four templates of EBSI's
 [Define your Data Model](https://hub.ebsi.eu/docs/services/trust-chains-and-trusted-issuers/data-models/define-data-model):
-context, glossary, data model and content classes. The JSON Schema is
-[`schema.json`](schema.json), and [`example.json`](example.json) is a complete licence with
-fictitious data.
+context, glossary, data model and content classes. The JSON Schema and a complete licence with
+fictitious data are in EBSI's JSON Schema repository, in
+`schemas/vcdm1.1/professional-licence-registry/cybersecurity-manager-licence/` (`schema.json` and
+`examples/cybersecurity-manager-licence.json`).
 
 ## 1. Context
 
@@ -98,9 +99,8 @@ properties of the scheme that `certificationScheme` names, not of each licence.
 | Conformity assessment body | CAB | A body certifying persons under ISO/IEC 17024; on EBSI, the Trusted Issuer | ISO/IEC 17000 |
 | e-Competence Framework | e-CF | European standard of ICT competences, EN 16234-1, which the ECSF's role profiles use | EN 16234-1 |
 | European Cybersecurity Skills Framework | ECSF | ENISA's framework of twelve cybersecurity role profiles | [ENISA](https://www.enisa.europa.eu/topics/skills-and-competences/skills-development/european-cybersecurity-skills-framework-ecsf), [ecsf-v1.json](https://github.com/enisaeu/ECSF/blob/main/src/framework/ecsf-v1.json) |
-| Licence registry contract | | The smart contract on the EBSI ledger that keeps each licence's record and standing | [`licence-status-entry`](../../licence-status-entry/1.0.0/schema.json) |
+| Licence registry contract | | The smart contract on the EBSI ledger that keeps each licence's record and standing | Licence status entry schema `z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A`, `schemas/vcdm1.1/professional-licence-registry/licence-status-entry/` in EBSI's JSON Schema repository |
 | National Security Authority | NBÚ | *Národný bezpečnostný úrad*, the Slovak cybersecurity supervisory authority and owner of the certification scheme | Act No. 69/2018 Coll. |
-| Selective disclosure | SD-JWT | Each attribute of `credentialSubject` except `id` and `licenceNumber` is signed as the digest of a disclosure, so the holder can present it or withhold it | IETF SD-JWT |
 | Slovak National Accreditation Service | SNAS | The national accreditation body, which accredits the certification bodies | Act No. 505/2009 Coll. |
 | Trusted Accreditation Organisation, Root TAO, Trusted Issuer | TAO, RTAO, TI | The roles of EBSI's trust chain | [EBSI](https://hub.ebsi.eu/docs/services/trust-chains-and-trusted-issuers) |
 
@@ -114,12 +114,12 @@ properties of the scheme that `certificationScheme` names, not of each licence.
 | Reference | NBÚ Decree No. 492/2022 Coll., Annex 5; NBÚ certification scheme v1.2; ENISA ECSF v1, role profile Chief Information Security Officer (CISO) |
 | Expires | — |
 | Replaced by | — |
-| Owner | *To be filled in: the organisation responsible for the Professional Licence Registry*; domain representative: NBÚ |
-| JSON Schema | [`schema.json`](schema.json); id `z3HnfZRoKcq3uWw6rQaJJXu7Qj6amQ7d8FCQbj3vWj4hM` once registered, extends EBSI Verifiable Attestation `zH74MKkYTbQ6ZfTxufi6A3Aw8giS4piGm8dpgxFmkJjmu` |
-| Examples | [`example.json`](example.json) |
+| JSON Schema | `schemas/vcdm1.1/professional-licence-registry/cybersecurity-manager-licence/schema.json` in EBSI's JSON Schema repository; id `zAzgraLwVMbGDBF8NvpwC57AdRCKK3d1tLarxb4BFevTz` once registered. It extends EBSI Verifiable Attestation `zH74MKkYTbQ6ZfTxufi6A3Aw8giS4piGm8dpgxFmkJjmu` and includes the licence status entry schema `z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A` |
+| Examples | `schemas/vcdm1.1/professional-licence-registry/cybersecurity-manager-licence/examples/cybersecurity-manager-licence.json` in EBSI's JSON Schema repository |
 
 The credential is a W3C Verifiable Credential (VCDM 1.1) and an EBSI Verifiable Attestation,
-issued as a JWT (`jwt_vc_json`) with SD-JWT disclosures.
+issued as a JWT (`jwt_vc_json`). It carries every property in clear, so a verifier validates the
+complete licence against the schema.
 
 | Terminology | Description | Type | Other property | Notes |
 |---|---|---|---|---|
@@ -130,10 +130,10 @@ issued as a JWT (`jwt_vc_json`) with SD-JWT disclosures.
 | `issuanceDate` | Start of validity | date-time | | Equal to `validFrom`; the JWT's `nbf` |
 | `issued` | When the credential was signed | date-time | | The JWT's `iat` |
 | `validFrom` | Start of validity | date-time | | The day of issue under the scheme |
-| `expirationDate` | End of validity | date-time | | Three years after issue unless the issuer sets it; the JWT's `exp` |
+| `expirationDate` | End of validity | date-time | | Required; three years after the day of issue, as the certification scheme sets it; the JWT's `exp` |
 | `credentialSubject` | The holder and the licence | object | [Content class](#41-credentialsubject) | |
 | `credentialSchema` | The schemas the credential follows | array of objects | [Content class](#42-credentialschema) | Exactly three |
-| `credentialStatus` | Where the licence's standing is kept | array of objects | [Content class](#43-credentialstatus) | Exactly one `PlrLedgerStatusEntry` |
+| `credentialStatus` | Where the licence's standing is kept | array of objects | [Content class](#43-credentialstatus) | Required; exactly one `PlrLedgerStatusEntry`, beside which other status entries may sit |
 | `termsOfUse` | The issuer's accreditation | array of objects | [Content class](#44-termsofuse) | `IssuanceCertificate` |
 | `evidence` | | | | Not used: the examination's documentation stays with the certification body |
 
@@ -150,7 +150,7 @@ certification scheme and the ECSF.
 |---|---|---|---|---|---|
 | `id` | The holder's DID, bound to a key the holder's wallet holds for this issuer | string | URI (`did:key`) | 1 | Required |
 | `holderName` | Full name with academic titles, as on the licence | string | | 1 | Required; non-empty |
-| `licenceNumber` | Number of the licence, unique in the certification body's register | string | | 1 | Required; non-empty; always disclosed |
+| `licenceNumber` | Number of the licence, unique in the certification body's register | string | | 1 | Required; non-empty |
 | `licenceTitle` | Title of the licence as issued | string | | 0..1 | Non-empty; default `Cybersecurity Manager Licence` |
 | `role` | The role under Act No. 69/2018 Coll. and Decree No. 492/2022 Coll. | string | | 1 | Required; constant `Cybersecurity Manager` |
 | `ecsfRoleProfile` | The ECSF v1 role profile that the role corresponds to (`@ciso` in ENISA's machine-readable framework) | string | | 1 | Required; constant `Chief Information Security Officer (CISO)` |
@@ -169,9 +169,9 @@ certification scheme and the ECSF.
 | `teachingHours` | Number of teaching hours | integer | | 0..1 | At least 1 |
 | `funding` | Funding of the training | string | | 0..1 | Non-empty |
 
-Every property except `id` and `licenceNumber` is selectively disclosable. A presentation may
-withhold any of them, including required ones. The date rules beyond JSON Schema (`examDate`,
-`trainingEnd`) are enforced by the issuer at issuance.
+A licence carries every property it was issued with, and the required ones are always present.
+The date rules beyond JSON Schema (`examDate`, `trainingEnd`) are enforced by the issuer at
+issuance.
 
 ### 4.2 credentialSchema
 
@@ -184,23 +184,31 @@ The schemas in EBSI's Trusted Schemas Registry that the credential follows.
 
 There are three entries: this schema, the schema of the `PlrLedgerStatusEntry`
 (`z42xfynkJ57oPfPEtxWjJ1sb67nWFETyHWBHv8MoNMK3A`), and EBSI's type extension for
-`IssuanceCertificate`.
+`IssuanceCertificate`. The licence schema also includes the status entry schema, so it requires
+the status entry itself.
 
 ### 4.3 credentialStatus
 
 Where a verifier finds the licence's standing: the licence registry contract on the EBSI ledger.
 The verifier computes the record's key from the issuer's DID and the credential's `id`.
 
+`credentialStatus` is required. It contains exactly one `PlrLedgerStatusEntry`, beside which
+other status entries may sit.
+
 | Property | Description | Type | Format | Cardinality | Validation rules |
 |---|---|---|---|---|---|
-| `id` | The contract as a CAIP-10 account | string | URI | 1 | `eip155:<chainId>:<contract>` |
+| `id` | The contract as a CAIP-10 account | string | URI | 1 | `eip155:<chainId>:<contract>`; the verifier checks that it names `chainId` and `contract` |
 | `type` | Kind of entry | string | | 1 | `PlrLedgerStatusEntry` |
-| `chainId` | The EBSI ledger's chain | integer | | 1 | At least 1 |
-| `contract` | The contract's address | string | | 1 | `^0x[0-9a-fA-F]{40}$` |
+| `chainId` | The EBSI ledger's chain | integer | | 1 | At least 1; the verifier checks that it is the EBSI ledger's chain (6179 on Pilot) |
+| `contract` | The contract's address | string | | 1 | `^0x[0-9a-fA-F]{40}$`; the verifier checks that it is the licence registry of the TAO that accredited the issuer |
+
+The schema cannot tie the contract to the issuer, so these checks are the verifier's. A licence
+registry is recognised by EBSI's Proxy Factory, which deployed it from the approved template, and by
+its governance contract, which names the TAO.
 
 ### 4.4 termsOfUse
 
 | Property | Description | Type | Format | Cardinality | Validation rules |
 |---|---|---|---|---|---|
-| `id` | The issuer's accreditation attribute in EBSI's Trusted Issuers Registry | string | URI | 1 | `ebsi:<network>:issuers-registry:/issuers/<issuerDid>/attributes/<attributeId>` |
+| `id` | The issuer's accreditation attribute in EBSI's Trusted Issuers Registry | string | URI | 1 | `ebsi:<network>:issuers-registry:/issuers/<issuerDid>/attributes/<attributeId>`; the attribute ID is written without a `0x` prefix |
 | `type` | Kind of terms | string | | 1 | `IssuanceCertificate` |

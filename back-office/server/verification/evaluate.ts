@@ -192,10 +192,28 @@ export function credentialEvaluator(options: EvaluationOptions) {
           'The credential names no record on the certificate registry',
           'status_available',
         );
+      // What the status entry's schema leaves to the verifier: its id is the CAIP-10 account of
+      // its own chain and contract, the chain is the EBSI ledger's, and (below) the contract is
+      // the registry of the TAO that accredited the issuer.
+      if (
+        String(status.id).toLowerCase() !==
+        `eip155:${status.chainId}:${status.contract}`.toLowerCase()
+      )
+        throw new VerificationStop(
+          'INDETERMINATE',
+          'The status entry does not name its own chain and contract',
+          'status_available',
+        );
       if (!ledger)
         throw new VerificationStop(
           'STATUS_UNAVAILABLE',
           'No certificate registry is configured here',
+          'status_available',
+        );
+      if (status.chainId !== ledger.chainId)
+        throw new VerificationStop(
+          'STATUS_UNAVAILABLE',
+          `The credential names a certificate registry on chain ${status.chainId}, not on the EBSI ledger (${ledger.chainId})`,
           'status_available',
         );
       // The registry is trusted only as the TAO's that accredited the issuer: EBSI's Proxy
