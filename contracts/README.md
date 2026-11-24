@@ -11,11 +11,26 @@ outside this directory.
 
 ```bash
 npm install                        # also the Solidity dependencies (forge soldeer install)
-forge test                         # 210 tests; test/integration/ (5 suites) skips without a deployed chain
+forge test                         # 270 tests; test/integration/ (5 suites) skips without a deployed chain
 node scripts/export-abi.js --check # the generated interface in abi/ is current
+node scripts/storage-layout.js --check  # the storage layout is one an upgrade can read
+npm test                           # all of the above, and the scripts' own tests
 npm run compile                    # compiles, then regenerates it
 make integration                   # deploys everything to a fresh anvil, then runs test/integration/
 ```
+
+Beyond `forge test`:
+
+```bash
+FOUNDRY_PROFILE=deep forge test --match-path "test/{fuzz,invariant}/*"  # fuzz and invariant tests, longer
+FOUNDRY_PROFILE=ffi forge test --match-path test/fuzz/HashesFfi.t.sol   # the hashes against test/vectors/hash.py
+forge test --match-path "test/gas/*" -vv                                # gas of the unbounded loops (docs/gas-report.md)
+halmos --match-contract LibrariesSymbolicTest --loop 9                  # the role and policy rules, proved
+medusa fuzz --config test/medusa/medusa.json                            # the invariants under Medusa, 30 min
+```
+
+Halmos, Medusa and its `crytic-compile` (which comes with Slither) are
+installed apart from the package; Medusa finds `crytic-compile` on `PATH`.
 
 Solidity dependencies (forge-std, OpenZeppelin) are Soldeer's: versions in
 [`foundry.toml`](foundry.toml), pinned in `soldeer.lock`, fetched into
@@ -255,6 +270,19 @@ DID signs with the role, so the key rotates there and not here. The pilot's
 role C is one, the supervisory authority's DID. A cosigner is never the TI's
 own DID, and a DID is a cosigner once. A key that is one of the TI's own
 signers signs with that role only.
+
+**A cosigner's keys must not be the TI's own keys.** To decide whether every
+policy can still be met, the contract counts the roles present
+(`rolesPresentMask`): each signer key's role and each cosigner's role. It
+counts a cosigner's role without asking which keys hold it, since the DID
+Registry decides that and can change it at any time. If the only key of a
+cosigner's DID is also one of the TI's signers, that key signs with its signer
+role only: the cosigner's role is counted but no key can sign with it. A
+removal approved on that count can then leave the TI unable to meet its
+`admin` policy, and only the TAO can restore it, by naming a cosigner whose
+keys can sign (`setCosigners`). The contract does not refuse such a key, so
+whoever runs the TI must not propose a key of a cosigner's DID as a signer, and
+a cosigner must not list a TI signer's key in its DID document.
 
 **A role and a set of roles are different types.** Inside the contract a role
 is a `Role` and a set of roles a `RoleSet` (one bit per role, bit 0 for role

@@ -2,6 +2,8 @@ pragma solidity 0.8.26;
 
 import {Vm} from "forge-std/Test.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {CertificateRegistry} from "../contracts/CertificateRegistry.sol";
 import {ICertificateRegistry} from "../contracts/interfaces/ICertificateRegistry.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
@@ -71,6 +73,62 @@ contract CertificateRegistryTest is GovernanceTest {
         registry.setGovernance(address(this));
         vm.expectRevert(IGovernanceTypes.NotCertificateIssuer.selector);
         registry.applyExecuted(keccak256("other"), key, IGovernanceTypes.ActionType.REVOKE, 1, REASON, tao);
+    }
+
+    /// Any other TI, whichever side of this one its id falls on.
+    function test_RevertWhen_TheOtherTisIdIsBelowOrAboveTheIssuers() public {
+        bytes32 key = _register();
+        vm.prank(tao);
+        registry.setGovernance(address(this));
+        bytes32[2] memory others = [bytes32(0), bytes32(type(uint256).max)];
+        for (uint256 i = 0; i < others.length; i++) {
+            vm.expectRevert(IGovernanceTypes.NotCertificateIssuer.selector);
+            registry.applyExecuted(others[i], key, IGovernanceTypes.ActionType.REVOKE, 1, REASON, tao);
+        }
+    }
+
+    function test_RevertWhen_TheImplementationIsInitialized() public {
+        CertificateRegistry implementation_ = CertificateRegistry(registryBeacon.implementation());
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        implementation_.initialize(tao);
+    }
+
+    /// Before `setGovernance`, nobody can register: the signer check calls
+    /// an address without code, which Solidity refuses instead of treating
+    /// as a silent success. With no record, `suspendNow` has nothing to
+    /// suspend either.
+    function test_RevertWhen_GovernanceIsNotSetYet() public {
+        CertificateRegistry fresh = CertificateRegistry(
+            address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (tao))))
+        );
+        assertEq(fresh.governance(), address(0), "governance unset");
+        vm.prank(outsider);
+        vm.expectRevert(bytes(""));
+        fresh.registerCertificate(ID_HASH, TI_DID, 1, 0, CREDENTIAL_HASH, IGovernanceTypes.Standing.REVOKED);
+    }
+
+    /// The record keeps when it was registered and when its standing last
+    /// changed, past 2106 too, where a uint32 of seconds runs out.
+    function test_RecordsWhenItWasRegisteredAndLastChanged() public {
+        uint64 registered = uint64(type(uint32).max) + 7;
+        vm.warp(registered);
+        bytes32 key = _register();
+        IGovernanceTypes.Certificate memory record = registry.certificateStatus(key);
+        assertEq(record.registeredAt, registered, "registered");
+        assertEq(record.changedAt, registered, "changed at registration");
+
+        skip(DAY);
+        vm.prank(A);
+        registry.suspendNow(key, REASON);
+        record = registry.certificateStatus(key);
+        assertEq(record.registeredAt, registered, "still registered then");
+        assertEq(record.changedAt, registered + DAY, "changed by the suspension");
+
+        skip(DAY);
+        uint256 id = propose(A, key, IGovernanceTypes.ActionType.REINSTATE, REASON_GIVEN);
+        sign(id, B);
+        execute(id, A);
+        assertEq(registry.certificateStatus(key).changedAt, registered + 2 * DAY, "changed by the proposal");
     }
 
     function test_TheTaoOwnsTheRegistry() public view {
