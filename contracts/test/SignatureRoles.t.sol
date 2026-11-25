@@ -36,8 +36,7 @@ contract SignatureRolesTest is GovernanceTest {
         _nameCosigner(ROLE_E);
 
         assertEq(governance.getProposal(id).rolesSignedMask, NONE, "the D signature does not count as E");
-        sign(id, A);
-        assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
     }
 
     /// Audit: a cosigner's signature counted as the TI role its key got later.
@@ -73,8 +72,7 @@ contract SignatureRolesTest is GovernanceTest {
     function test_AQuorumRegainedAfterARoleChangeWaitsAgain() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(id, cosigner);
-        _nameCosigner(ROLE_E);
-        skip(DAY);
+        _becomesATiKey(cosigner);
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
         governance.execute(id);
@@ -86,7 +84,7 @@ contract SignatureRolesTest is GovernanceTest {
     /// One signature per key: a dropped one is not given again in the new role.
     function test_RevertWhen_ADroppedSignerSignsAgain() public {
         uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
-        _nameCosigner(ROLE_E);
+        _becomesATiKey(cosigner);
         vm.prank(cosigner);
         vm.expectRevert(IGovernanceTypes.AlreadySigned.selector);
         governance.signProposal(id);
@@ -107,6 +105,12 @@ contract SignatureRolesTest is GovernanceTest {
         vm.store(address(governance), signedAs, bytes32(0));
         _nameCosigner(ROLE_E);
         assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_E), "counts as its key's role now");
+    }
+
+    /// The cosigner's DID drops the key, and the TI makes it a key of role B.
+    function _becomesATiKey(address key) private {
+        StubDidRegistry(didRegistry).setController(COSIGNER, key, false);
+        applyAdmin(addSigner(A, C, key, ROLE_B));
     }
 
     function _nameCosigner(Role role) private {

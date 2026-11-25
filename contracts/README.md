@@ -306,6 +306,20 @@ A quorum therefore always needs a key of the TI. `CosignersChanged` carries the
 full list of DIDs and roles, at `addTi` and at every change, so a monitor
 follows a TI's cosigners from the events alone.
 
+**A cosigner change ends every open proposal of the TI.** Each TI has a cosigner
+epoch, which `setCosigners` raises whenever the list changes (a cosigner added,
+removed, given another role, or the order changed); the same list again changes
+nothing. A proposal or rule change records the epoch it opened in, and one from
+an earlier epoch is expired: it takes no signature, is not executed or
+cancelled, anyone may expire it, and the next proposal for its certificate
+replaces it. Otherwise the TAO could take the supervisory authority's veto
+from a decision already under way (remove it during a 24 h timelock, execute,
+name it again), or add a DID of its own to complete a decision one TI key
+opened. The consequences are deliberate: by changing cosigners the TAO can end
+any pending decision of the TI, an approved revocation included, and the TAO is
+trusted to change cosigners only when no decision should be cut short. Other
+changes (a new attribute, the TI's own rule changes) leave proposals open.
+
 **A role and a set of roles are different types.** Inside the contract a role
 is a `Role` and a set of roles a `RoleSet` (one bit per role, bit 0 for role
 1), so the compiler refuses to take one for the other. Both are `uint8` in the

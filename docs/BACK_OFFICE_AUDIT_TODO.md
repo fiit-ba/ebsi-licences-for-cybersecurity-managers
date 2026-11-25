@@ -327,3 +327,40 @@ role nobody signed with.
       from its `ProposalSigned` / `AdminProposalSigned` event, and mark a signature whose
       role is missing from the current `rolesSignedMask` as no longer counting, rather than
       inferring roles from the signer's current role.
+
+---
+
+## 7. A cosigner change ends the TI's open proposals
+
+Covers the finding **"The TAO can take the supervisory authority's veto from a pending
+decision"** (MEDIUM). The TAO could remove NBÚ as cosigner while a rule change or a
+revocation waited out its 24 h timelock, execute it, and name NBÚ again.
+
+### What changed in the contracts
+
+- Each TI has a **cosigner epoch**. `setCosigners` raises it whenever the list changes
+  (a cosigner added, removed, given another role, or reordered). Sending the same list
+  again does not.
+- Every status proposal and rule change records the epoch it opened in. One from an
+  earlier epoch is **expired**:
+  - `stateOf`, `getProposal`, `adminStateOf`, `getAdminProposal` report `EXPIRED` (5);
+  - signing, executing and cancelling it revert with `ProposalNotOpen()`;
+  - anyone may call `expireProposal` / `expireAdminProposal` on it at once;
+  - the next `proposeAction` for its certificate expires it (emits `ProposalExpired`).
+- Deliberate and documented: by changing cosigners the TAO ends **every** pending decision
+  of the TI, approved revocations and rule changes included.
+- No ABI change. `CosignersChanged` (with the full list since §3) marks the moment.
+
+### To do
+
+- [ ] **Reconcile ended proposals.** After `CosignersChanged` for a TI, every open case and
+      rule change of that TI reads `EXPIRED` on chain. Close them as expired, and offer to
+      propose them again under the new cosigners (with fresh signatures), instead of
+      retrying the old ids.
+- [ ] **Warn the TAO operator.** Before `setCosigners`, show how many open proposals and
+      rule changes of the TI it will end, approved revocations included, and ask for
+      confirmation.
+- [ ] **Supervisory authority's monitoring.** Alert NBÚ on `CosignersChanged` that removes
+      it or changes its role, and on the proposals that change ended.
+- [ ] **Signer rotation.** A rotation whose rule changes are waiting out their timelock is
+      ended by a cosigner change; the rotation has to be run again.

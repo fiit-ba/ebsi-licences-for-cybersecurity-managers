@@ -53,7 +53,8 @@ contract CosignerKeysApartTest is GovernanceTest {
         vm.prank(tao);
         governance.setCosigners(TI_ID, _one(OTHER));
         vm.warp(governance.getAdminProposal(id).executableAt);
-        vm.expectRevert(IGovernanceTypes.CosignerSharesSignerKey.selector);
+        // The cosigner change ends it before the key check could.
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         executeAdmin(id, A);
     }
 

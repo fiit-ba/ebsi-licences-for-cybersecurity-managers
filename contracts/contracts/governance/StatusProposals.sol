@@ -75,7 +75,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         if (existing != 0) {
             Ballot storage previous = $.proposals[existing].ballot;
             if (_isOpen(previous.state)) {
-                if (!_pastTtl(previous) && !_overtaken($.proposals[existing])) revert ProposalAlreadyOpen(existing);
+                if (!_lapsed(previous) && !_overtaken($.proposals[existing])) revert ProposalAlreadyOpen(existing);
                 previous.state = ProposalState.EXPIRED;
                 emit ProposalExpired(existing, statusKey);
             }

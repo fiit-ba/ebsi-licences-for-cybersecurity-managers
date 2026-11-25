@@ -73,6 +73,7 @@ contract CosignersApartTest is GovernanceTest {
         governance.setCosigners(TI_ID, _oneCosigner(ROLE_A));
     }
 
+    /// Swapping the cosigners ends the ballot: no voice is added to it.
     function test_CosignersSwappedDuringABallotDoNotAddUp() public {
         address first = makeAddr("first cosigner's key");
         address second = makeAddr("second cosigner's key");
@@ -85,15 +86,10 @@ contract CosignersApartTest is GovernanceTest {
         next[0] = IGovernanceTypes.Cosigner("did:ebsi:zCosignerE", ROLE_E);
         vm.prank(tao);
         governance.setCosigners(TI_ID, next);
-        sign(id, second);
-
-        assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
-        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_E), "only the standing cosigner counts");
-        vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
-        execute(id, second);
-
-        sign(id, A);
-        assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        vm.prank(second);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.signProposal(id);
     }
 
     // -----------------------------------------------------------------------
@@ -160,19 +156,21 @@ contract CosignersApartTest is GovernanceTest {
         governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND, 1, NONE, ALL, 0);
     }
 
+    /// The cosigner change ends it before the role check could.
     function test_RevertWhen_AKeyApprovedBeforeACosignerOfItsRoleApplies() public {
         uint256 id = addSigner(A, B, spare, ROLE_D);
         _cosign(ROLE_D);
         vm.warp(governance.getAdminProposal(id).executableAt);
-        vm.expectRevert(IGovernanceTypes.CosignerHoldsSignerRole.selector);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         executeAdmin(id, A);
     }
 
+    /// The cosigner change ends it before the threshold check could.
     function test_RevertWhen_AThresholdApprovedBeforeACosignerIsNamedApplies() public {
         uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(1, NONE, ALL, 0));
         _cosign(ROLE_D);
         vm.warp(governance.getAdminProposal(id).executableAt);
-        vm.expectRevert(IGovernanceTypes.CosignersMeetAQuorum.selector);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         executeAdmin(id, A);
     }
 

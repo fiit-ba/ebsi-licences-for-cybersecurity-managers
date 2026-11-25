@@ -23,6 +23,8 @@ abstract contract Ballots is TiConfiguration {
         /// TTL change neither revives an expired ballot nor cuts an open one
         /// short.
         uint64 expiresAt;
+        /// The TI's cosigner epoch at opening. Fills free bytes: nothing moves.
+        uint64 epoch;
         address[] signatures;
         mapping(address => bool) signed;
         /// The role each signature was given in. Last, to keep the layout.
@@ -35,6 +37,7 @@ abstract contract Ballots is TiConfiguration {
         ballot.proposedAt = uint64(block.timestamp);
         ballot.state = ProposalState.PROPOSED;
         ballot.expiresAt = uint64(block.timestamp) + _proposalTtl(tiId);
+        ballot.epoch = _cosignerEpoch(tiId);
     }
 
     /// @dev Adds the caller's signature; returns the signed roles and
@@ -80,14 +83,14 @@ abstract contract Ballots is TiConfiguration {
     function _expire(Ballot storage ballot, bool overtaken) internal {
         if (ballot.state == ProposalState.NONE) revert UnknownProposal();
         if (!_isOpen(ballot.state)) revert ProposalNotOpen();
-        if (!overtaken && !_pastTtl(ballot)) revert ProposalNotExpirable();
+        if (!overtaken && !_lapsed(ballot)) revert ProposalNotExpirable();
         ballot.state = ProposalState.EXPIRED;
     }
 
     /// @dev The ballot takes signatures and the caller is one of its signers.
     function _requireOpenToSigner(Ballot storage ballot) internal view {
         if (ballot.state == ProposalState.NONE) revert UnknownProposal();
-        if (!_isOpen(ballot.state) || _pastTtl(ballot)) revert ProposalNotOpen();
+        if (!_isOpen(ballot.state) || _lapsed(ballot)) revert ProposalNotOpen();
         _requireSigner(ballot.tiId);
     }
 
@@ -110,8 +113,14 @@ abstract contract Ballots is TiConfiguration {
         return ballot.expiresAt > 0 && block.timestamp >= ballot.expiresAt;
     }
 
+    /// @dev Past its TTL, or opened before the TI's cosigners last changed:
+    ///      the TAO's change must not reach a decision already under way.
+    function _lapsed(Ballot storage ballot) internal view returns (bool) {
+        return _pastTtl(ballot) || ballot.epoch < _cosignerEpoch(ballot.tiId);
+    }
+
     function _effectiveState(Ballot storage ballot) internal view returns (ProposalState) {
-        if (_isOpen(ballot.state) && _pastTtl(ballot)) return ProposalState.EXPIRED;
+        if (_isOpen(ballot.state) && _lapsed(ballot)) return ProposalState.EXPIRED;
         return ballot.state;
     }
 

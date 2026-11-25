@@ -48,6 +48,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         Policy[POLICY_KINDS] policies; // indexed by PolicyKind
         uint64 proposalTtl;
         uint64 version;
+        /// Raised by every cosigner change, which ends the TI's open
+        /// proposals (`Ballots._lapsed`). Last, to keep the layout.
+        uint64 cosignerEpoch;
     }
 
     /// @custom:storage-location erc7201:plr.storage.TiConfiguration
@@ -116,12 +119,25 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
 
     function setCosigners(bytes32 tiId, Cosigner[] calldata cosigners) external onlyTao {
         TiConfig storage ti = _ti(tiId);
+        bool changed = !_sameCosigners(ti.cosigners, cosigners);
         delete ti.cosigners;
         _storeCosigners(ti, cosigners);
         _requireCosignersApart(tiId);
         _requireReachable(tiId, _rolesPresent(tiId));
         ti.version++;
+        if (changed) ti.cosignerEpoch++;
         emit CosignersChanged(tiId, cosigners);
+    }
+
+    /// @dev The same DIDs in the same roles and order: `roleOf` takes the
+    ///      first DID that lists a key, so the order counts too.
+    function _sameCosigners(Cosigner[] storage current, Cosigner[] calldata next) private view returns (bool) {
+        if (current.length != next.length) return false;
+        for (uint256 i = 0; i < next.length; i++) {
+            if (Role.unwrap(current[i].role) != Role.unwrap(next[i].role)) return false;
+            if (keccak256(bytes(current[i].did)) != keccak256(bytes(next[i].did))) return false;
+        }
+        return true;
     }
 
     /// @dev One role per DID, and no DID holding a TI key: `roleOf` gives a
@@ -205,6 +221,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
 
     function _policy(bytes32 tiId, PolicyKind kind) internal view returns (Policy memory) {
         return _configurationStorage().tis[tiId].policies[uint8(kind)];
+    }
+
+    function _cosignerEpoch(bytes32 tiId) internal view returns (uint64) {
+        return _configurationStorage().tis[tiId].cosignerEpoch;
     }
 
     function _proposalTtl(bytes32 tiId) internal view returns (uint64) {
