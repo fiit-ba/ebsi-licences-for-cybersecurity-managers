@@ -104,7 +104,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         Proposal storage p = _openProposal(proposalId);
         bytes32 tiId = p.ballot.tiId;
         _requireActive(tiId);
-        _requireExecutable(p.ballot, _policy(tiId, p.actionType.policyKind()));
+        _requireExecutable(p.ballot, p.actionType.policyKind());
 
         p.ballot.state = ProposalState.EXECUTED;
         delete _statusProposalsStorage().openProposalFor[p.statusKey];
@@ -189,7 +189,6 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     function getProposal(uint256 proposalId) external view returns (ProposalView memory result) {
         Proposal storage p = _statusProposalsStorage().proposals[proposalId];
         if (p.ballot.state == ProposalState.NONE) revert UnknownProposal();
-        Policy memory policy = _policy(p.ballot.tiId, p.actionType.policyKind());
         result.tiId = p.ballot.tiId;
         result.statusKey = p.statusKey;
         result.actionType = p.actionType;
@@ -198,7 +197,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         result.quorumReachedAt = p.ballot.quorumReachedAt;
         result.state = _stateOf(p);
         result.signatures = p.ballot.signatures;
-        result.executableAt = _executableAt(p.ballot, policy);
+        result.executableAt = _executableAt(p.ballot, p.actionType.policyKind());
         result.rolesSignedMask = _rolesSigned(p.ballot);
         result.proposer = p.ballot.proposer;
     }
@@ -225,7 +224,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         emit ProposalSigned(proposalId, msg.sender, roleOf(p.ballot.tiId, msg.sender), signed);
         // Suspension and reinstatement can be executed as soon as quorum is
         // reached; a permanent revocation waits out its timelock (10.4).
-        if (reached) emit QuorumReached(proposalId, p.ballot.quorumReachedAt + policy.timelock);
+        if (reached) emit QuorumReached(proposalId, _executableAt(p.ballot, p.actionType.policyKind()));
     }
 
     /// @dev The certificate's standing moved on (a suspension overtaken by

@@ -97,6 +97,10 @@ contract AdminPolicyCoversTest is GovernanceTest {
         uint256 faster = setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, DAY));
         uint256 slower = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, 2 * DAY));
         applyAdmin(faster);
+        // The faster policy is looser: the other change waits again.
+        uint64 restarted = uint64(vm.getBlockTimestamp()) + DAY;
+        assertEq(governance.getAdminProposal(slower).executableAt, restarted);
+        vm.warp(restarted);
         vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
         executeAdmin(slower, A);
     }

@@ -392,3 +392,43 @@ to a new attribute.
       Close them as expired and let the TI decide again (new proposals, new signatures).
 - [ ] **TAO console.** When moving a TI that is not accredited to a new attribute, warn that
       its open proposals, approved revocations included, will end.
+
+---
+
+## 9. A looser policy restarts the timelock
+
+Covers the finding **"A lost quorum can come back without a signature and keep its old
+timelock"** (MEDIUM). A quorum lost to a stricter policy came back when the policy was
+relaxed, and the decision executed at once on its original `quorumReachedAt`.
+
+### What changed in the contracts
+
+- A rule change that **loosens** a policy (lower threshold, a required or veto role
+  dropped, a shorter timelock, or a mix of stricter and looser) records when it took
+  effect, per policy kind. Every decision of that kind approved before, even one that never
+  lost its quorum, is executable at the earliest one full (new) timelock **after the
+  change**; one pushed past its `expiresAt` expires. `getProposal(...).executableAt` and `getAdminProposal(...).executableAt`
+  already return the moved time.
+- A stricter policy, a change of another kind, of the signers or of the lifetime moves
+  nothing. Decisions without a timelock are not held back.
+- No ABI change and no new event: the `PolicyChanged` event (with `AdminProposalExecuted`)
+  marks the restart. `QuorumReached` / `AdminQuorumReached` are **not** emitted again.
+- The other paths: a cosigner change ends the proposals (§7), a removed key is retired.
+- Not covered, and documented: a key the DID Registry drops and lists again (a lapsed and
+  renewed `capabilityInvocation`, a controller DID removed and re-added) brings its old
+  signature back on the original timelock. A veto still stops it.
+
+### To do
+
+- [ ] **Re-read `executableAt` after a loosening.** Any view or job that caches a
+      proposal's or rule change's `executableAt` (e.g. to schedule `execute` /
+      `executeAdminProposal`) must refresh it for the TI after `PolicyChanged`; otherwise
+      it calls too early and gets `TimelockNotElapsed`.
+- [ ] **Warn before loosening.** When a policy-loosening rule change is proposed or
+      executed, show the TI's approved decisions of that kind it will postpone, and those
+      the postponement would push past their lifetime (they will expire and have to be
+      proposed again).
+- [ ] **Watch DID Registry key validity.** For each open, approved proposal, alert the veto
+      holders when a key that signed it lapses in the DID Registry (its signature stops
+      counting) and again when it is listed again (the signature, and possibly the quorum,
+      returns on the original timelock). The contract cannot see either.

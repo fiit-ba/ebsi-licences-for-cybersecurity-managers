@@ -381,12 +381,33 @@ would be executable 30 minutes after the new approval. A signature that does
 not change whether the policy is met (a third role signing, say) leaves the
 timelock alone.
 
+A quorum can also come back without a signature, and the contract handles
+each way it can see:
+
+- **A looser policy** restarts the timelock of every decision of its kind
+  approved before it, including one that never lost its quorum: it is
+  executable one full timelock (the new one) after the change. A policy is
+  looser unless it is at least as strict in every respect: threshold no
+  lower, every required role and every veto role kept, timelock no shorter.
+  A change that is stricter in one respect and looser in another counts as
+  looser. A stricter policy, a policy of another kind, and a change of the
+  signers or of the lifetime restart nothing. `executableAt` already shows
+  the moved time; no `QuorumReached` is emitted again. If the restart pushes
+  `executableAt` past the proposal's `expiresAt`, the proposal expires and
+  has to be proposed again.
+- **A change of cosigners** ends the TI's open proposals (see below).
+- **A removed key** is retired and never comes back.
+
+A key the DID Registry drops and lists again (a `capabilityInvocation` that
+lapses and is renewed, possibly to the same public key, or a controller DID
+removed and added back) is beyond the contract's sight: its signature returns
+with no transaction, and the decision keeps its original timelock. A veto
+still stops it while it waits.
+
 **A removed key is retired.** It can never be added again, as a new key or as
 a replacement (`SignerRetired`). Re-adding it would revive its old signatures
 without anyone signing, and a quorum regained that way would keep its original
-timelock. A policy change that relaxes the rule again is itself a decision of
-the rule-change quorum, with that policy's timelock and veto, and does not
-restart a proposal's timelock.
+timelock.
 
 ### The veto, and why it is a single signer
 

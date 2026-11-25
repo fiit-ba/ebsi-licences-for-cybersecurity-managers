@@ -31,6 +31,18 @@ library PolicyRules {
         return admin.timelock >= decision.timelock && admin.vetoRoleMask.includesAll(decision.vetoRoleMask);
     }
 
+    /// @dev Every set of roles meeting `next` meets `previous`, each role
+    ///      that could veto still can, and it waits as long. A change mixing
+    ///      stricter and looser is looser.
+    function asStrictAs(IGovernanceTypes.Policy memory next, IGovernanceTypes.Policy memory previous)
+        internal
+        pure
+        returns (bool)
+    {
+        return next.threshold >= previous.threshold && next.requiredRoleMask.includesAll(previous.requiredRoleMask)
+            && next.vetoRoleMask.includesAll(previous.vetoRoleMask) && next.timelock >= previous.timelock;
+    }
+
     function meets(IGovernanceTypes.Policy memory policy, RoleSet signed) internal pure returns (bool) {
         return signed.count() >= policy.threshold && signed.includesAll(policy.requiredRoleMask);
     }

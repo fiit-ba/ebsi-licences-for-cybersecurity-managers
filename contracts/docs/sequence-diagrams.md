@@ -214,7 +214,8 @@ sequenceDiagram
 
 If a signer key is removed or replaced after the quorum and a later signature
 brings the quorum back, `quorumReachedAt` restarts and `QuorumReached` is
-emitted again.
+emitted again. A looser policy of the proposal's kind, adopted after the
+quorum, moves `executableAt` to a full timelock after the change.
 
 ## 6. Veto, withdrawal and expiry
 

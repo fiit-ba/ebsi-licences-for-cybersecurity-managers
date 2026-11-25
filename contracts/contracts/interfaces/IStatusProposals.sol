@@ -21,8 +21,9 @@ interface IStatusProposals is IGovernanceTypes {
         address indexed proposer
     );
     event ProposalSigned(uint256 indexed proposalId, address indexed signer, Role role, RoleSet rolesSignedMask);
-    /// @notice Emitted when a proposal reaches its quorum, and again when it
-    ///         regains a quorum it had lost; `executableAt` restarts then.
+    /// @notice Emitted when a proposal reaches its quorum, and again when a
+    ///         signature regains a quorum it had lost; `executableAt` restarts
+    ///         then. A looser policy moves it without an event: read it again.
     event QuorumReached(uint256 indexed proposalId, uint64 executableAt);
     event ProposalExecuted(uint256 indexed proposalId, bytes32 indexed statusKey, ActionType actionType);
     /// @param reasonHash A digest of the off-chain record of why, or zero.

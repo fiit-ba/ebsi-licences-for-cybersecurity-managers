@@ -41,15 +41,10 @@ abstract contract Ballots is TiConfiguration {
     }
 
     /// @dev Adds the caller's signature; returns the signed roles and
-    ///      whether this completed the quorum. The timelock restarts
-    ///      whenever a lost quorum (key removed/replaced, stricter policy)
-    ///      is regained: to the contract that's a new decision, and 10.4
-    ///      gives every decision the full veto delay - otherwise a quorum
-    ///      lost at t0+47h and regained at t0+47.5h would be near-unopposable
-    ///      half an hour later. A signature is the only way a lost quorum
-    ///      comes back (a removed key stays retired, never revives). A
-    ///      policy relaxation is itself a rule-change decision and doesn't
-    ///      restart this timelock.
+    ///      whether this completed the quorum. A lost quorum (key removed or
+    ///      replaced, stricter policy) regained by a signature is a new
+    ///      decision with the full veto delay (10.4). A signature is not the
+    ///      only way back: see `_requireExecutable`.
     function _sign(Ballot storage ballot, Policy memory policy) internal returns (RoleSet signed, bool reached) {
         if (ballot.signed[msg.sender]) revert AlreadySigned();
         ballot.signed[msg.sender] = true;
@@ -95,11 +90,19 @@ abstract contract Ballots is TiConfiguration {
     }
 
     /// @dev The quorum is checked again with today's signers and policy: a
-    ///      signature whose key was removed no longer counts.
-    function _requireExecutable(Ballot storage ballot, Policy memory policy) internal view {
+    ///      signature whose key was removed no longer counts. The timelock
+    ///      runs from the quorum or a later loosening of the policy, whichever
+    ///      is later, for every decision of that kind, even one that never
+    ///      lost its quorum; pushed past `expiresAt`, the decision expires and
+    ///      is proposed again. A stricter policy or another rule change moves
+    ///      nothing, and a cosigner change ends the ballot (`_lapsed`). A key
+    ///      the DID Registry drops and lists again brings its signature back
+    ///      unseen, and the quorum keeps its original start.
+    function _requireExecutable(Ballot storage ballot, PolicyKind kind) internal view {
+        Policy memory policy = _policy(ballot.tiId, kind);
         if (ballot.state != ProposalState.APPROVED) revert QuorumNotReached();
         if (!policy.meets(_rolesSigned(ballot))) revert QuorumNotReached();
-        uint64 executableAt = ballot.quorumReachedAt + policy.timelock;
+        uint64 executableAt = _timelockStartsAt(ballot, kind) + policy.timelock;
         if (block.timestamp < executableAt) revert TimelockNotElapsed(executableAt);
     }
 
@@ -124,9 +127,15 @@ abstract contract Ballots is TiConfiguration {
         return ballot.state;
     }
 
-    function _executableAt(Ballot storage ballot, Policy memory policy) internal view returns (uint64) {
+    function _executableAt(Ballot storage ballot, PolicyKind kind) internal view returns (uint64) {
         if (ballot.quorumReachedAt == 0) return 0;
-        return ballot.quorumReachedAt + policy.timelock;
+        return _timelockStartsAt(ballot, kind) + _policy(ballot.tiId, kind).timelock;
+    }
+
+    /// @dev The quorum, or a later loosening of its policy.
+    function _timelockStartsAt(Ballot storage ballot, PolicyKind kind) private view returns (uint64) {
+        uint64 loosened = _loosenedAt(ballot.tiId, kind);
+        return loosened > ballot.quorumReachedAt ? loosened : ballot.quorumReachedAt;
     }
 
     /// @dev Each signature in the role it was given in, while its key still

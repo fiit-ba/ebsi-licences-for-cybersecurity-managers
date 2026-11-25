@@ -91,7 +91,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
 
     function executeAdminProposal(uint256 adminProposalId) external {
         AdminProposal storage p = _openAdmin(adminProposalId);
-        _requireExecutable(p.ballot, _adminPolicy(p.ballot.tiId));
+        _requireExecutable(p.ballot, PolicyKind.ADMIN);
         _executeAdmin(adminProposalId, p);
     }
 
@@ -128,7 +128,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         result.quorumReachedAt = p.ballot.quorumReachedAt;
         result.state = _effectiveState(p.ballot);
         result.signatures = p.ballot.signatures;
-        result.executableAt = _executableAt(p.ballot, _adminPolicy(p.ballot.tiId));
+        result.executableAt = _executableAt(p.ballot, PolicyKind.ADMIN);
         result.rolesSignedMask = _rolesSigned(p.ballot);
         result.proposer = p.ballot.proposer;
     }
@@ -162,7 +162,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         (RoleSet signed, bool reached) = _sign(p.ballot, policy);
         emit AdminProposalSigned(adminProposalId, msg.sender, roleOf(p.ballot.tiId, msg.sender), signed);
         if (reached) {
-            emit AdminQuorumReached(adminProposalId, p.ballot.quorumReachedAt + policy.timelock);
+            emit AdminQuorumReached(adminProposalId, _executableAt(p.ballot, PolicyKind.ADMIN));
             // No delay: apply now. Only when no status policy has one either.
             if (policy.timelock == 0) _executeAdmin(adminProposalId, p);
         }
@@ -224,7 +224,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
             Role role = _replaceSigner(tiId, change.subject, change.replacement);
             emit SignerReplaced(tiId, change.subject, change.replacement, role);
         } else if (action == AdminAction.SET_POLICY) {
-            _setPolicy(tiId, change.kind, change.policy);
+            _changePolicy(tiId, change.kind, change.policy);
         } else {
             // SET_PROPOSAL_TTL
             _setProposalTtl(tiId, change.ttl);

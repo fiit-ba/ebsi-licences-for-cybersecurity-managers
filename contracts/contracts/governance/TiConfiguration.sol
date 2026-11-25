@@ -50,7 +50,11 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         uint64 version;
         /// Raised by a cosigner change or a restored accreditation, which ends
         /// the TI's open proposals (`Ballots._lapsed`). Last, to keep the layout.
+        /// 8 bytes of this slot are still free (e.g. for an `accreditedUntil`).
         uint64 epoch;
+        /// When a rule change last loosened each policy (`_changePolicy`).
+        /// Last, to keep the layout.
+        uint64[POLICY_KINDS] loosenedAt;
     }
 
     /// @custom:storage-location erc7201:plr.storage.TiConfiguration
@@ -227,6 +231,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         return _configurationStorage().tis[tiId].policies[uint8(kind)];
     }
 
+    function _loosenedAt(bytes32 tiId, PolicyKind kind) internal view returns (uint64) {
+        return _configurationStorage().tis[tiId].loosenedAt[uint8(kind)];
+    }
+
     function _epoch(bytes32 tiId) internal view returns (uint64) {
         return _configurationStorage().tis[tiId].epoch;
     }
@@ -401,6 +409,16 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         for (uint8 kind = 0; kind < uint8(PolicyKind.ADMIN); kind++) {
             if (!admin.covers(policies[kind])) revert AdminPolicyTooWeak();
         }
+    }
+
+    /// @dev How a rule change sets a policy; `addTi` sets them directly. A
+    ///      looser policy may meet again a quorum it had lost, with no
+    ///      signature, or shorten a delay already running: every decision of
+    ///      its kind approved before waits a full timelock from now.
+    function _changePolicy(bytes32 tiId, PolicyKind kind, Policy memory policy) internal {
+        TiConfig storage ti = _configurationStorage().tis[tiId];
+        if (!policy.asStrictAs(ti.policies[uint8(kind)])) ti.loosenedAt[uint8(kind)] = uint64(block.timestamp);
+        _setPolicy(tiId, kind, policy);
     }
 
     function _setPolicy(bytes32 tiId, PolicyKind kind, Policy memory policy) internal {
