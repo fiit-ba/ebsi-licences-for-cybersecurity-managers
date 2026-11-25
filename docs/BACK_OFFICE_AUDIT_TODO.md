@@ -302,3 +302,28 @@ Covers two MEDIUM findings:
 
 - [ ] **Reinstatement UI.** Offer a reinstatement only for a suspended licence, and a
       suspension only for a valid one.
+
+---
+
+## 6. A signature counts only in the role it was given in
+
+Covers the finding **"Past signatures are reread under the role their key resolves to
+now"** (MEDIUM). A removed TI key that a cosigner's DID listed, a cosigner whose role the
+TAO changed, or a cosigner key that became a TI key had its old signatures counted in a
+role nobody signed with.
+
+### What changed in the contracts
+
+- Each ballot records the role a signature was given in (the role `ProposalSigned` and
+  `AdminProposalSigned` already carry). A signature counts only while its key still
+  resolves to that same role; otherwise it is dropped, never counted as another role.
+- `rolesSignedMask` in `getProposal` / `getAdminProposal` reflects that. No ABI change.
+- Ballots stored before the upgrade have no recorded roles; their signatures count as
+  their key's role now, as before, until those ballots close or expire.
+
+### To do
+
+- [ ] **Signature lists in the UI and audit exports.** Show each signature with the role
+      from its `ProposalSigned` / `AdminProposalSigned` event, and mark a signature whose
+      role is missing from the current `rolesSignedMask` as no longer counting, rather than
+      inferring roles from the signer's current role.

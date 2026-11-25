@@ -336,9 +336,11 @@ execute(id)                              quorum checked again → ProposalExecut
 
 `execute` is called by a signer of the TI, and three checks happen there. The
 TI must still be accredited. The quorum is checked again under the policy then
-in force, and only signatures from keys that still hold a role count, so the
-signature of a key that was removed, or that the DID Registry no longer shows,
-stops counting. And a proposal past the time to live can no longer be signed
+in force, and a signature counts only in the role it was given in, while its
+key still holds that role: the signature of a key that was removed, that the
+DID Registry no longer shows, or that now resolves to another role (a cosigner
+whose role the TAO changed, a removed key a cosigner's DID lists) stops
+counting, and is never reread as another role. And a proposal past the time to live can no longer be signed
 or executed. A stale proposal for the same certificate is expired when a new
 one is opened, instead of blocking it.
 

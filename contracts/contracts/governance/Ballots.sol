@@ -1,7 +1,7 @@
 pragma solidity 0.8.26;
 
 import {PolicyRules} from "../libraries/PolicyRules.sol";
-import {RoleSet} from "../libraries/Roles.sol";
+import {Role, RoleSet} from "../libraries/Roles.sol";
 import {TiConfiguration} from "./TiConfiguration.sol";
 
 /**
@@ -25,6 +25,8 @@ abstract contract Ballots is TiConfiguration {
         uint64 expiresAt;
         address[] signatures;
         mapping(address => bool) signed;
+        /// The role each signature was given in. Last, to keep the layout.
+        mapping(address => Role) signedAs;
     }
 
     function _open(Ballot storage ballot, bytes32 tiId) internal {
@@ -50,8 +52,10 @@ abstract contract Ballots is TiConfiguration {
         ballot.signed[msg.sender] = true;
 
         RoleSet before = _rolesSigned(ballot);
+        Role role = roleOf(ballot.tiId, msg.sender);
         ballot.signatures.push(msg.sender);
-        signed = before.with(roleOf(ballot.tiId, msg.sender));
+        ballot.signedAs[msg.sender] = role;
+        signed = before.with(role);
 
         reached = policy.meets(signed) && (ballot.state == ProposalState.PROPOSED || !policy.meets(before));
         if (reached) {
@@ -116,11 +120,14 @@ abstract contract Ballots is TiConfiguration {
         return ballot.quorumReachedAt + policy.timelock;
     }
 
-    /// @dev The roles among a ballot's signatures whose keys still hold one.
+    /// @dev Each signature in the role it was given in, while its key still
+    ///      holds it. One from before roles were recorded: its key's role now.
     function _rolesSigned(Ballot storage ballot) internal view returns (RoleSet roles) {
         address[] storage signatures = ballot.signatures;
         for (uint256 i = 0; i < signatures.length; i++) {
-            roles = roles.with(roleOf(ballot.tiId, signatures[i]));
+            Role current = roleOf(ballot.tiId, signatures[i]);
+            Role given = ballot.signedAs[signatures[i]];
+            if (Role.unwrap(given) == 0 || Role.unwrap(given) == Role.unwrap(current)) roles = roles.with(current);
         }
     }
 }
