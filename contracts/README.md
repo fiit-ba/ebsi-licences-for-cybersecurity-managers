@@ -191,6 +191,18 @@ in an emergency, when one of the TI's signers suspends it at once (`suspendNow`:
 reversible, and a revocation still needs the quorum). The contract proves that a
 quorum approved a change before it happened.
 
+**An action must change the standing** (`PolicyRules.changes`): a suspension
+only of a valid certificate, a reinstatement only of a suspended one, a
+revocation of either. Checked when proposed and again by the registry when
+executed (`CertificateNotValid`, `CertificateNotSuspended`), so no reinstatement
+approved while a certificate was valid can later undo an emergency suspension.
+A proposal the standing has overtaken (a suspension after `suspendNow`) reads as
+expired, takes no signature, and gives way to the next proposal; anyone may
+expire it at once. A reinstatement lifts only a suspension it postdates, so one
+opened before this rule on a valid certificate never lifts a later emergency
+suspension. A record's `changedAt` and `CertificateStandingChanged` therefore
+mark only real changes.
+
 Two consequences follow, and both are load-bearing:
 
 - **Executing is applying.** `execute` writes the new standing to the record in

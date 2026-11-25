@@ -217,6 +217,8 @@ interface IGovernanceTypes {
     error UnknownCertificate();
     /// @notice Only a valid certificate can be suspended at once.
     error CertificateNotValid();
+    /// @notice Only a suspended certificate can be reinstated.
+    error CertificateNotSuspended();
     /// @notice A revoked certificate stays revoked.
     error CertificateRevoked();
     error InvalidTaoDid();

@@ -72,10 +72,11 @@ abstract contract Ballots is TiConfiguration {
         ballot.state = ProposalState.CANCELLED;
     }
 
-    function _expire(Ballot storage ballot) internal {
+    /// @dev Past its TTL, or `overtaken`: it could no longer change anything.
+    function _expire(Ballot storage ballot, bool overtaken) internal {
         if (ballot.state == ProposalState.NONE) revert UnknownProposal();
         if (!_isOpen(ballot.state)) revert ProposalNotOpen();
-        if (!_pastTtl(ballot)) revert ProposalNotExpirable();
+        if (!overtaken && !_pastTtl(ballot)) revert ProposalNotExpirable();
         ballot.state = ProposalState.EXPIRED;
     }
 

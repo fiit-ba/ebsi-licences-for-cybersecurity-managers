@@ -40,6 +40,11 @@
     },
     {
       "inputs": [],
+      "name": "CertificateNotSuspended",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "CertificateNotValid",
       "type": "error"
     },
@@ -2122,6 +2127,11 @@
     },
     {
       "inputs": [],
+      "name": "CertificateNotSuspended",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "CertificateNotValid",
       "type": "error"
     },
@@ -2701,6 +2711,11 @@
           "internalType": "bytes32",
           "name": "tiId",
           "type": "bytes32"
+        },
+        {
+          "internalType": "enum IGovernanceTypes.ActionType",
+          "name": "actionType",
+          "type": "uint8"
         }
       ],
       "name": "requireChangeableBy",

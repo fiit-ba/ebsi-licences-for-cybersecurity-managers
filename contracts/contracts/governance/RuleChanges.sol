@@ -111,7 +111,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function expireAdminProposal(uint256 adminProposalId) external {
-        _expire(_ruleChangesStorage().adminProposals[adminProposalId].ballot);
+        _expire(_ruleChangesStorage().adminProposals[adminProposalId].ballot, false);
         emit AdminProposalExpired(adminProposalId);
     }
 

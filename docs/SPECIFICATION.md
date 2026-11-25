@@ -441,7 +441,7 @@ statusKey         = SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certific
 
 - `registerCertificate(certificateIdHash, issuerDid, validFrom, validUntil, credentialHash, standing)` — one signature (the TI's role A key), once the holder collects the license. A license suspended or revoked before registration is registered in that standing. The contract checks in the TIR that the TI is accredited by the TAO that owns the registry.
 - `suspendNow(statusKey, reasonHash)` — immediate suspension by one signature of a TI signer; suspends only a valid license and requires a reason (component 10.6).
-- An executed proposal (component 10.5) sets the standing in the same transaction (`applyExecuted`): suspension gives `SUSPENDED`, reinstatement `VALID`, revocation `REVOKED` for good. Nothing is proposed for a revoked license.
+- An executed proposal (component 10.5) sets the standing in the same transaction (`applyExecuted`): suspension gives `SUSPENDED`, reinstatement `VALID`, revocation `REVOKED` for good. An action is proposed and executed only if it changes the standing: suspension of a valid license, reinstatement of a suspended one, revocation of either. Nothing is proposed for a revoked license, and a proposal the standing has overtaken (a suspension after `suspendNow`) counts as expired.
 - The back-office writes asynchronously right after collection, an immediate suspension or a change of status. A periodic check catches up with anything not written. A change to a record made outside the back-office is not reverted, only logged.
 
 ### 4.3 Reading

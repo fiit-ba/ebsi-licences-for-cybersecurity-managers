@@ -315,6 +315,8 @@ contract ProposingTest is GovernanceTest {
     }
 
     function test_LetsAReinstatementGoWithoutOne() public {
+        vm.prank(A);
+        registry.suspendNow(CERTIFICATE, REASON_GIVEN);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, NO_REASON);
         assertEq(governance.getProposal(1).reasonHash, NO_REASON);
     }
@@ -1019,6 +1021,8 @@ contract ReasonTest is GovernanceTest {
     }
 
     function test_AReinstatementThatGaveNoneVerifiesAgainstNothing() public {
+        vm.prank(A);
+        registry.suspendNow(CERTIFICATE, REASON_GIVEN);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, NO_REASON);
         assertFalse(governance.verifyProposalReason(1, "", "", bytes32(0)));
     }

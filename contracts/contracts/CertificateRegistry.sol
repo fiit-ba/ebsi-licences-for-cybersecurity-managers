@@ -6,6 +6,7 @@ import {ICertificateRegistry} from "./interfaces/ICertificateRegistry.sol";
 import {IStatusProposals} from "./interfaces/IStatusProposals.sol";
 import {ITiConfiguration} from "./interfaces/ITiConfiguration.sol";
 import {Hashes} from "./libraries/Hashes.sol";
+import {PolicyRules} from "./libraries/PolicyRules.sol";
 
 /**
  * @title CertificateRegistry
@@ -34,6 +35,8 @@ import {Hashes} from "./libraries/Hashes.sol";
  *      own certificates.
  */
 contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165 {
+    using PolicyRules for ActionType;
+
     /// @dev `bytes4(keccak256("getImplementationInitSelector()"))`, EBSI's
     ///      Contracts Factory interface id for a beacon implementation that
     ///      advertises its own initializer selector.
@@ -169,7 +172,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         bytes32 reasonHash,
         address by
     ) external onlyGovernance {
-        Certificate storage certificate = _changeableRecord(statusKey, tiId);
+        Certificate storage certificate = _changeableRecord(statusKey, tiId, actionType);
         Standing next = actionType == ActionType.REVOKE
             ? Standing.REVOKED
             : actionType == ActionType.SUSPEND ? Standing.SUSPENDED : Standing.VALID;
@@ -177,8 +180,8 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
     }
 
     /// @inheritdoc ICertificateRegistry
-    function requireChangeableBy(bytes32 statusKey, bytes32 tiId) external view {
-        _changeableRecord(statusKey, tiId);
+    function requireChangeableBy(bytes32 statusKey, bytes32 tiId, ActionType actionType) external view {
+        _changeableRecord(statusKey, tiId, actionType);
     }
 
     function certificateStatus(bytes32 statusKey) external view returns (Certificate memory) {
@@ -193,13 +196,21 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         return Hashes.statusKey(issuerDid, Hashes.certificateIdHash(certificateId));
     }
 
-    /// @dev A TI proposes only for a recorded certificate of its own, and
-    ///      nothing for a revoked one: it stays revoked.
-    function _changeableRecord(bytes32 statusKey, bytes32 tiId) private view returns (Certificate storage certificate) {
+    /// @dev A recorded certificate of the TI's own, whose standing `actionType`
+    ///      changes. Asked when proposed and again when executed.
+    function _changeableRecord(bytes32 statusKey, bytes32 tiId, ActionType actionType)
+        private
+        view
+        returns (Certificate storage certificate)
+    {
         certificate = _registryStorage().certificates[statusKey];
         if (certificate.standing == Standing.NONE) revert UnknownCertificate();
         if (_tiId(certificate.issuerDid) != tiId) revert NotCertificateIssuer();
         if (certificate.standing == Standing.REVOKED) revert CertificateRevoked();
+        if (!actionType.changes(certificate.standing)) {
+            if (actionType == ActionType.SUSPEND) revert CertificateNotValid();
+            revert CertificateNotSuspended();
+        }
     }
 
     /// @dev `computeTiId` of the governance contract.

@@ -86,6 +86,18 @@ contract CertificateRegistryTest is GovernanceTest {
         registry.applyExecuted(keccak256("other"), key, IGovernanceTypes.ActionType.REVOKE, 1, REASON, tao);
     }
 
+    /// Even governance cannot apply an action that would not change the standing.
+    function test_RevertWhen_AGovernanceAppliesAnActionThatChangesNothing() public {
+        bytes32 key = _register();
+        vm.startPrank(address(governance));
+        vm.expectRevert(IGovernanceTypes.CertificateNotSuspended.selector);
+        registry.applyExecuted(TI_ID, key, IGovernanceTypes.ActionType.REINSTATE, 1, REASON, tao);
+        registry.applyExecuted(TI_ID, key, IGovernanceTypes.ActionType.SUSPEND, 1, REASON, tao);
+        vm.expectRevert(IGovernanceTypes.CertificateNotValid.selector);
+        registry.applyExecuted(TI_ID, key, IGovernanceTypes.ActionType.SUSPEND, 2, REASON, tao);
+        vm.stopPrank();
+    }
+
     function test_ALinkedRegistryHasNoOwner() public view {
         assertEq(registry.owner(), address(0));
         assertEq(registry.governance(), address(governance));

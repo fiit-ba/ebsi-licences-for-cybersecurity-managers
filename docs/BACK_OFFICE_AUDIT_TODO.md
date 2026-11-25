@@ -246,3 +246,59 @@ nobody could sign or veto as C any more.
 - [ ] **TIs that already exist** (if any). After the beacon upgrade nothing re-checks
       them. Check once that no TI key is listed in any of its cosigners' DIDs; if one
       is, rotate it out with `proposeReplaceSigner`.
+
+---
+
+## 5. An action must change the certificate's standing
+
+Covers two MEDIUM findings:
+
+- **A reinstatement approved before an emergency suspension undoes it.** A REINSTATE
+  could be opened and approved while a licence was still VALID, then executed days later
+  to undo a `suspendNow` made for a key compromise.
+- **`applyExecuted` records changes that did not happen.** A SUSPEND on a suspended
+  certificate or a REINSTATE on a valid one moved `changedAt` and emitted
+  `CertificateStandingChanged`. Now `changedAt` and that event mark only real changes.
+
+### What changed in the contracts
+
+- `proposeAction` accepts an action only if it changes the standing:
+  **SUSPEND only a VALID certificate, REINSTATE only a SUSPENDED one, REVOKE either**.
+  Otherwise it reverts with `CertificateNotValid()` (suspension) or the new
+  **`CertificateNotSuspended()`** (reinstatement). A revoked certificate still gives
+  `CertificateRevoked()`.
+- The registry checks the same again in `applyExecuted`.
+- **An overtaken proposal** (its action no longer changes the standing, e.g. a SUSPEND
+  overtaken by `suspendNow`):
+  - `stateOf` / `getProposal` report it as **`EXPIRED`** (5);
+  - `signProposal`, `execute` and `cancelProposal` revert with `ProposalNotOpen()`;
+  - the next `proposeAction` for the certificate expires it (emits `ProposalExpired`);
+  - anyone may call `expireProposal` on it before its TTL.
+  A REINSTATE is also overtaken when the certificate's standing changed after it was opened,
+  so one opened on a VALID certificate before the upgrade never lifts a later suspension.
+- **Registry ABI change:** `requireChangeableBy(statusKey, tiId)` →
+  `requireChangeableBy(statusKey, tiId, actionType)`. The back-office does not call it.
+
+### To do
+
+- [ ] **Translate the new error.**
+      [`web/src/blockchain/governance.ts:679`](../back-office/web/src/blockchain/governance.ts#L679).
+      Suggested text for `CertificateNotSuspended`: "Obnoviť možno iba pozastavený
+      certifikát." Check that `CertificateNotValid` also reads well for a proposal ("Pozastaviť
+      možno iba platný certifikát.").
+
+- [ ] **Propose only when the action fits.**
+      [`server/lifecycle/governance.ts`](../back-office/server/lifecycle/governance.ts)
+      `advance()` reads `certificateStatus` before `proposeAction`. Compare the standing with
+      the case's action, and leave the case waiting instead of failing: a reinstatement case
+      waits until its suspension is confirmed on chain (standing 2). Before, a reinstatement
+      that reached the ledger first was a harmless no-op; now it reverts. **Decisions on one
+      certificate must reach the ledger in order.**
+
+- [ ] **Reconcile overtaken proposals.** A suspension case whose certificate was meanwhile
+      suspended with `suspendNow` now reads `EXPIRED` on chain. Close it as already done
+      (the certificate is suspended), not as failed, and don't retry it. Watch for
+      `ProposalExpired` emitted by a later `proposeAction` or `expireProposal`.
+
+- [ ] **Reinstatement UI.** Offer a reinstatement only for a suspended licence, and a
+      suspension only for a valid one.

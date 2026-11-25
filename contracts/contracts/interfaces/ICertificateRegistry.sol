@@ -53,9 +53,9 @@ interface ICertificateRegistry is IGovernanceTypes {
     /// @notice Link governance once; ends the ownership.
     function setGovernance(address governance_) external;
 
-    /// @notice Refuses a certificate a TI may not propose for: an unknown one,
-    ///         another TI's, or a revoked one.
-    function requireChangeableBy(bytes32 statusKey, bytes32 tiId) external view;
+    /// @notice Refuses an action a TI may not propose: on an unknown
+    ///         certificate, another TI's, or one whose standing it would not change.
+    function requireChangeableBy(bytes32 statusKey, bytes32 tiId, ActionType actionType) external view;
 
     /// @notice Set a certificate's standing from an executed proposal.
     ///         Governance only.

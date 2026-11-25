@@ -59,22 +59,23 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     ///      is expired here instead of blocking the new one. The reason travels
     ///      as a salted commitment (`computeReasonHash`, 10.3): fixed once
     ///      signed, unreadable on-chain; checked later via
-    ///      `verifyProposalReason`. Nothing is proposed for a revoked
-    ///      certificate; any other standing admits any action.
+    ///      `verifyProposalReason`. The action must change the certificate's
+    ///      standing (`PolicyRules.changes`); an open proposal that no longer
+    ///      can is expired here too.
     function proposeAction(bytes32 tiId, bytes32 statusKey, ActionType actionType, bytes32 reasonHash)
         external
         returns (uint256 proposalId)
     {
         requireActiveSigner(tiId, msg.sender);
         if (reasonHash == bytes32(0) && actionType != ActionType.REINSTATE) revert ReasonRequired();
-        _certificateRegistry().requireChangeableBy(statusKey, tiId);
+        _certificateRegistry().requireChangeableBy(statusKey, tiId, actionType);
 
         StatusProposalsStorage storage $ = _statusProposalsStorage();
         uint256 existing = $.openProposalFor[statusKey];
         if (existing != 0) {
             Ballot storage previous = $.proposals[existing].ballot;
             if (_isOpen(previous.state)) {
-                if (!_pastTtl(previous)) revert ProposalAlreadyOpen(existing);
+                if (!_pastTtl(previous) && !_overtaken($.proposals[existing])) revert ProposalAlreadyOpen(existing);
                 previous.state = ProposalState.EXPIRED;
                 emit ProposalExpired(existing, statusKey);
             }
@@ -129,11 +130,11 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
 
     /// @dev Permissionless: expiry is a mechanical consequence of the clock,
     ///      not a decision, and leaving it to signers would let a certificate
-    ///      stay blocked indefinitely.
+    ///      stay blocked indefinitely. So is an overtaken proposal.
     function expireProposal(uint256 proposalId) external {
         StatusProposalsStorage storage $ = _statusProposalsStorage();
         Proposal storage p = $.proposals[proposalId];
-        _expire(p.ballot);
+        _expire(p.ballot, _isOpen(p.ballot.state) && _overtaken(p));
         delete $.openProposalFor[p.statusKey];
         emit ProposalExpired(proposalId, p.statusKey);
     }
@@ -195,7 +196,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         result.reasonHash = p.reasonHash;
         result.proposedAt = p.ballot.proposedAt;
         result.quorumReachedAt = p.ballot.quorumReachedAt;
-        result.state = _effectiveState(p.ballot);
+        result.state = _stateOf(p);
         result.signatures = p.ballot.signatures;
         result.executableAt = _executableAt(p.ballot, policy);
         result.rolesSignedMask = _rolesSigned(p.ballot);
@@ -207,7 +208,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     }
 
     function stateOf(uint256 proposalId) external view returns (ProposalState) {
-        return _effectiveState(_statusProposalsStorage().proposals[proposalId].ballot);
+        return _stateOf(_statusProposalsStorage().proposals[proposalId]);
     }
 
     // -----------------------------------------------------------------------
@@ -227,8 +228,25 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         if (reached) emit QuorumReached(proposalId, p.ballot.quorumReachedAt + policy.timelock);
     }
 
+    /// @dev The certificate's standing moved on (a suspension overtaken by
+    ///      `suspendNow`): the proposal can change nothing, so it blocks nothing.
+    ///      A reinstatement lifts only a suspension it postdates, so one opened
+    ///      before this rule, on a valid certificate, never lifts a later one.
+    function _overtaken(Proposal storage p) private view returns (bool) {
+        Certificate memory certificate = _certificateRegistry().certificateStatus(p.statusKey);
+        if (!p.actionType.changes(certificate.standing)) return true;
+        return p.actionType == ActionType.REINSTATE && certificate.changedAt > p.ballot.proposedAt;
+    }
+
+    /// @dev An open proposal overtaken by the standing reads as expired.
+    function _stateOf(Proposal storage p) private view returns (ProposalState state) {
+        state = _effectiveState(p.ballot);
+        if (_isOpen(state) && _overtaken(p)) state = ProposalState.EXPIRED;
+    }
+
     function _openProposal(uint256 proposalId) private view returns (Proposal storage p) {
         p = _statusProposalsStorage().proposals[proposalId];
         _requireOpenToSigner(p.ballot);
+        if (_overtaken(p)) revert ProposalNotOpen();
     }
 }

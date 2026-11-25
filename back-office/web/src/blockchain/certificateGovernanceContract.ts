@@ -47,6 +47,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "CertificateNotSuspended",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "CertificateNotValid",
     "type": "error"
   },
@@ -2130,6 +2135,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "CertificateNotSuspended",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "CertificateNotValid",
     "type": "error"
   },
@@ -2709,6 +2719,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
         "internalType": "bytes32",
         "name": "tiId",
         "type": "bytes32"
+      },
+      {
+        "internalType": "enum IGovernanceTypes.ActionType",
+        "name": "actionType",
+        "type": "uint8"
       }
     ],
     "name": "requireChangeableBy",

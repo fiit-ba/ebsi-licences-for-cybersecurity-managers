@@ -309,13 +309,15 @@ contract ExecutedProposalSetsStandingTest is CertificateStatusTest {
         assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.REVOKED));
     }
 
-    function test_AReinstatementThatReachesTheLedgerBeforeItsSuspensionLeavesItValid() public {
-        // The back-office sends both; nothing orders them on the ledger.
+    /// A reinstatement ahead of its suspension, or a second suspension, is refused.
+    function test_RevertWhen_AnActionWouldNotChangeTheStanding() public {
+        vm.expectRevert(IGovernanceTypes.CertificateNotSuspended.selector);
+        propose(A, KEY, IGovernanceTypes.ActionType.REINSTATE, NO_REASON);
+        execute(_decide(IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN), C);
+        vm.expectRevert(IGovernanceTypes.CertificateNotValid.selector);
+        propose(A, KEY, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         execute(_decide(IGovernanceTypes.ActionType.REINSTATE, NO_REASON), C);
         assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.VALID));
-        execute(_decide(IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN), C);
-        execute(_decide(IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN), C);
-        assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.SUSPENDED));
     }
 }
 

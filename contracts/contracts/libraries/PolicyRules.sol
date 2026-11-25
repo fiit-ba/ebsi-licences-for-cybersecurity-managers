@@ -10,8 +10,8 @@ import {RoleSet} from "./Roles.sol";
 library PolicyRules {
     /// @dev The policy says something coherent, and the roles present can meet it.
     function wellFormed(IGovernanceTypes.Policy memory policy, RoleSet present) internal pure returns (bool) {
-        return policy.threshold != 0 && policy.requiredRoleMask.count() <= policy.threshold
-            && reachable(policy, present);
+        return
+            policy.threshold != 0 && policy.requiredRoleMask.count() <= policy.threshold && reachable(policy, present);
     }
 
     /// @dev Whether the roles present can meet a policy, and veto under it:
@@ -33,6 +33,19 @@ library PolicyRules {
 
     function meets(IGovernanceTypes.Policy memory policy, RoleSet signed) internal pure returns (bool) {
         return signed.count() >= policy.threshold && signed.includesAll(policy.requiredRoleMask);
+    }
+
+    /// @dev Whether `action` changes a certificate of `standing`: a suspension
+    ///      only of a valid one, a reinstatement only of a suspended one, a
+    ///      revocation of either.
+    function changes(IGovernanceTypes.ActionType action, IGovernanceTypes.Standing standing)
+        internal
+        pure
+        returns (bool)
+    {
+        if (action == IGovernanceTypes.ActionType.SUSPEND) return standing == IGovernanceTypes.Standing.VALID;
+        if (action == IGovernanceTypes.ActionType.REINSTATE) return standing == IGovernanceTypes.Standing.SUSPENDED;
+        return standing == IGovernanceTypes.Standing.VALID || standing == IGovernanceTypes.Standing.SUSPENDED;
     }
 
     /// @dev The policy that governs an action: the two enums share their indexes.

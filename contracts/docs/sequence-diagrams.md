@@ -187,15 +187,15 @@ sequenceDiagram
 
     A->>G: proposeAction(tiId, statusKey, actionType, reasonHash)
     Note over G: requireActiveSigner (diagram 1)<br/>reasonHash required unless REINSTATE
-    G->>R: requireChangeableBy(statusKey, tiId)
-    Note over R: record exists, is this TI's, is not REVOKED
+    G->>R: requireChangeableBy(statusKey, tiId, actionType)
+    Note over R: record exists, is this TI's, is not REVOKED,<br/>and the action changes its standing
     R-->>G: ok
-    Note over G: one open proposal per certificate,<br/>an open one past its TTL is expired here
+    Note over G: one open proposal per certificate,<br/>an open one past its TTL or overtaken is expired here
     G-->>A: ProposalCreated(id, tiId, statusKey, actionType, reasonHash, A)
     G-->>A: ProposalSigned(id, A, role A, {A})
 
     B->>G: signProposal(id)
-    Note over G: open, within TTL, caller holds a role
+    Note over G: open, within TTL, not overtaken, caller holds a role
     G-->>B: ProposalSigned(id, B, role B, {A, B})
     Note over G: policy met → state APPROVED,<br/>quorumReachedAt = now
     G-->>B: QuorumReached(id, executableAt = quorumReachedAt + timelock)
@@ -208,7 +208,7 @@ sequenceDiagram
     Note over G: open, within TTL, caller is a signer, TI still accredited (TIR),<br/>state APPROVED, quorum met again with today's keys and policy,<br/>now >= executableAt
     G-->>A: ProposalExecuted(id, statusKey, actionType)
     G->>R: applyExecuted(tiId, statusKey, actionType, id, reasonHash, A)
-    Note over R: only governance may call, same checks as requireChangeableBy
+    Note over R: only governance may call, same checks as requireChangeableBy<br/>(the standing may have moved since the proposal)
     R-->>A: CertificateStandingChanged(statusKey, SUSPENDED / REVOKED / VALID, id, reasonHash, A)
 ```
 
