@@ -280,7 +280,15 @@ applied:
 - the cosigners' roles together meet no policy's threshold
   (`CosignersMeetAQuorum`), so a TI with cosigners cannot lower a threshold to
   their number either. With the pilot's one supervisory cosigner, no policy
-  can be 1 of N.
+  can be 1 of N;
+- no key is both a TI key and a key of a cosigner's DID
+  (`CosignerSharesSignerKey`). A key resolves to one role, its TI role first,
+  so otherwise the TI could list the supervisor's key in its own DID, adopt
+  it, and keep role C counted as present with nobody able to sign or veto as
+  C. Asked again when a key change executes, since the DID Registry may
+  change meanwhile. Only the cosigner can still list a TI key in its own DID
+  later; that costs it only that key's voice as C, so a cosigner adding a key
+  first checks with `roleOf` that it is no TI key.
 
 A quorum therefore always needs a key of the TI. `CosignersChanged` carries the
 full list of DIDs and roles, at `addTi` and at every change, so a monitor

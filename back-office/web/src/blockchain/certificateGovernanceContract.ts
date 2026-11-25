@@ -62,6 +62,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "CosignerSharesSignerKey",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "CosignersMeetAQuorum",
     "type": "error"
   },
@@ -2136,6 +2141,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
   {
     "inputs": [],
     "name": "CosignerHoldsSignerRole",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CosignerSharesSignerKey",
     "type": "error"
   },
   {

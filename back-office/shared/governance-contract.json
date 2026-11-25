@@ -55,6 +55,11 @@
     },
     {
       "inputs": [],
+      "name": "CosignerSharesSignerKey",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "CosignersMeetAQuorum",
       "type": "error"
     },
@@ -2128,6 +2133,11 @@
     {
       "inputs": [],
       "name": "CosignerHoldsSignerRole",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CosignerSharesSignerKey",
       "type": "error"
     },
     {

@@ -59,6 +59,15 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     address internal outsider;
     address internal spare;
 
+    string[6] internal COSIGNER_DIDS = [
+        "did:ebsi:zSupervisor",
+        "did:ebsi:zCosigner",
+        "did:ebsi:zCosignerD",
+        "did:ebsi:zCosignerE",
+        "did:ebsi:zCosignerF",
+        "did:ebsi:zTaoSecond"
+    ];
+
     /// The pilot's policies, by PolicyKind, and its proposal lifetime.
     IGovernanceTypes.Policy[4] internal pilot;
     uint64 internal pilotTtl;
@@ -105,6 +114,10 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         tao = makeAddr("tao");
         // The TAO's DID lists only the TAO's key.
         StubDidRegistry(didRegistry).setController(taoDid, tao, true);
+        // Each cosigner DID the tests name lists its own key alone, not the TI's.
+        for (uint256 i = 0; i < COSIGNER_DIDS.length; i++) {
+            StubDidRegistry(didRegistry).setController(COSIGNER_DIDS[i], cosignerKey(COSIGNER_DIDS[i]), true);
+        }
         _accredit(ROOT_DID, ROOT_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.RootTAO, ROOT_DID, bytes32(0));
         _accredit(taoDid, TAO_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TAO, ROOT_DID, ROOT_ATTRIBUTE);
         accreditTi(TI_DID);
@@ -173,6 +186,11 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         return IGovernanceTypes.TiSetup(
             did, TI_ATTRIBUTE, signers, signerRoles, new IGovernanceTypes.Cosigner[](0), policies, ttl
         );
+    }
+
+    /// The key a cosigner DID of `COSIGNER_DIDS` lists.
+    function cosignerKey(string memory did) internal returns (address) {
+        return makeAddr(string.concat(did, " key"));
     }
 
     /// A TI accredited by this contract's TAO.

@@ -124,8 +124,8 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         emit CosignersChanged(tiId, cosigners);
     }
 
-    /// @dev One role per DID: `roleOf` answers with a DID's first entry, so a
-    ///      second would count a role as present that nobody can sign with.
+    /// @dev One role per DID, and no DID holding a TI key: `roleOf` gives a
+    ///      key one role, so a role nobody can sign with would count as present.
     function _storeCosigners(TiConfig storage ti, Cosigner[] calldata cosigners) private {
         for (uint256 i = 0; i < cosigners.length; i++) {
             bytes32 did = keccak256(bytes(cosigners[i].did));
@@ -134,6 +134,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
                 if (keccak256(bytes(cosigners[j].did)) == did) revert InvalidCosigner();
             }
             if (Role.unwrap(cosigners[i].role) == 0 || Role.unwrap(cosigners[i].role) > MAX_ROLE) revert InvalidRole();
+            for (uint256 j = 0; j < ti.signers.length; j++) {
+                if (_controls(cosigners[i].did, ti.signers[j])) revert CosignerSharesSignerKey();
+            }
             ti.cosigners.push(cosigners[i]);
         }
     }
@@ -236,6 +239,8 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     // Signers
     // -----------------------------------------------------------------------
 
+    /// @dev Nor a key of a cosigner's DID, which the DID Registry may change, so
+    ///      it is asked again when a rule change executes.
     function _requireNewSigner(bytes32 tiId, address signer, Role role) internal view {
         TiConfigurationStorage storage $ = _configurationStorage();
         if (signer == address(0)) revert InvalidSigner();
@@ -243,6 +248,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         if ($.retired[tiId][signer]) revert SignerRetired();
         if (Role.unwrap(role) == 0 || Role.unwrap(role) > MAX_ROLE) revert InvalidRole();
         if (!_controls($.tis[tiId].did, signer)) revert NotDidController();
+        Cosigner[] storage cosigners = $.tis[tiId].cosigners;
+        for (uint256 i = 0; i < cosigners.length; i++) {
+            if (_controls(cosigners[i].did, signer)) revert CosignerSharesSignerKey();
+        }
     }
 
     /// @dev The stored role, whatever the DID Registry says of the key now.

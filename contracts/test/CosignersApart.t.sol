@@ -60,7 +60,7 @@ contract CosignersApartTest is GovernanceTest {
         list[0] = IGovernanceTypes.Cosigner("did:ebsi:zSupervisor", ROLE_C);
         vm.prank(tao);
         governance.setCosigners(TI_ID, list);
-        assertEq(Role.unwrap(governance.roleOf(TI_ID, makeAddr("a supervisor key"))), Role.unwrap(ROLE_C));
+        assertEq(Role.unwrap(governance.roleOf(TI_ID, cosignerKey("did:ebsi:zSupervisor"))), Role.unwrap(ROLE_C));
     }
 
     function test_RevertWhen_TheTaoTakesTheRoleOfAKeyTheDidRegistryDropped() public {

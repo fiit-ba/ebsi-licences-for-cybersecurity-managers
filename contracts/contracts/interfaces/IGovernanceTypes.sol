@@ -232,6 +232,8 @@ interface IGovernanceTypes {
     error CosignerHoldsSignerRole();
     /// @notice The cosigners alone would meet a policy's threshold.
     error CosignersMeetAQuorum();
+    /// @notice A key would be both a TI key and a key of one of its cosigners.
+    error CosignerSharesSignerKey();
     /// @notice The certificate is another TI's.
     error NotCertificateIssuer();
     /// @notice A registry address has no contract behind it.

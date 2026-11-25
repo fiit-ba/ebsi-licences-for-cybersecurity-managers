@@ -631,6 +631,147 @@ contract IsolationTest is GovernanceFixture {
     }
 }
 
+/// Audit: against the real DID Registry, the TI listed NBÚ's key in its own
+/// DID document and made it a TI key, leaving role C with nobody to sign as it.
+contract CosignerKeyCaptureTest is GovernanceFixture {
+    function setUp() public override {
+        super.setUp();
+        _addTi(_setup());
+    }
+
+    function test_RevertWhen_TheTiAdoptsNbusKeyThroughItsOwnDid() public {
+        _addKey(tiKey, TI, "#nbu", nbuKey);
+        assertTrue(didr.checkController(bytes(TI), nbuKey.addr), "the TI's DID lists NBU's key");
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.CosignerSharesSignerKey.selector);
+        governance.proposeAddSigner(tiId, nbuKey.addr, ROLE_B);
+        assertEq(Role.unwrap(governance.roleOf(tiId, nbuKey.addr)), Role.unwrap(ROLE_C));
+    }
+
+    function test_RevertWhen_TheTaoNamesACosignerWhoseDidListsATiKey() public {
+        _addKey(ti2Key, TI2, "#ti", secondKey);
+        IGovernanceTypes.Cosigner[] memory cosigners = new IGovernanceTypes.Cosigner[](1);
+        cosigners[0] = IGovernanceTypes.Cosigner(TI2, ROLE_C);
+        vm.prank(taoKey.addr);
+        vm.expectRevert(IGovernanceTypes.CosignerSharesSignerKey.selector);
+        governance.setCosigners(tiId, cosigners);
+    }
+
+    /// Documented: NBÚ listing a TI key in its own DID costs only that key's voice as C.
+    function test_NbuListingATiKeyCostsItOnlyThatKeysVoice() public {
+        _addKey(nbuKey, NBU, "#ti", secondKey);
+        assertEq(Role.unwrap(governance.roleOf(tiId, secondKey.addr)), Role.unwrap(ROLE_B));
+        assertEq(Role.unwrap(governance.roleOf(tiId, nbuKey.addr)), Role.unwrap(ROLE_C));
+    }
+}
+
+/// Only a capabilityInvocation key, valid right now, acts for a DID: a key the
+/// document lists for anything else, or outside that window, acts for nobody.
+contract KeyRelationshipTest is GovernanceFixture {
+    function setUp() public override {
+        super.setUp();
+        _addTi(_setup());
+    }
+
+    function test_RevertWhen_ATiKeyWithoutCapabilityInvocationIsAdded() public {
+        Vm.Wallet memory key = vm.createWallet("ti key, other relationships");
+        string memory id = _addMethod(tiKey, TI, "#other", key);
+        string[4] memory names = ["authentication", "assertionMethod", "keyAgreement", "capabilityDelegation"];
+        for (uint256 i = 0; i < names.length; i++) {
+            _relate(tiKey, TI, names[i], id, block.timestamp, block.timestamp + 365 days);
+        }
+        assertFalse(didr.checkController(bytes(TI), key.addr));
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.proposeAddSigner(tiId, key.addr, ROLE_B);
+    }
+
+    function test_RevertWhen_ATaoKeyWithoutCapabilityInvocationActsAsTheTao() public {
+        Vm.Wallet memory key = vm.createWallet("tao key, authentication only");
+        string memory method = _addMethod(taoKey, TAO, "#auth", key);
+        _relate(taoKey, TAO, "authentication", method, block.timestamp, block.timestamp + 365 days);
+        vm.prank(key.addr);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setTiAttribute(tiId, tiAttr);
+    }
+
+    function test_ACosignerKeyWithoutCapabilityInvocationDoesNotSign() public {
+        Vm.Wallet memory key = vm.createWallet("nbu key, authentication only");
+        string memory method = _addMethod(nbuKey, NBU, "#auth", key);
+        _relate(nbuKey, NBU, "authentication", method, block.timestamp, block.timestamp + 365 days);
+        assertEq(Role.unwrap(governance.roleOf(tiId, key.addr)), 0);
+        uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
+        vm.prank(key.addr);
+        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        governance.signProposal(id);
+    }
+
+    /// Its capabilityInvocation lapses while authentication stays: the key
+    /// stops signing, and its signature stops counting.
+    function test_AKeyWhoseCapabilityInvocationLapsesStopsSigning() public {
+        Vm.Wallet memory key = vm.createWallet("ti key, short capabilityInvocation");
+        string memory method = _addMethod(tiKey, TI, "#short", key);
+        _relate(tiKey, TI, "capabilityInvocation", method, block.timestamp, block.timestamp + 1 days);
+        _relate(tiKey, TI, "authentication", method, block.timestamp, block.timestamp + 365 days);
+        _addSigner(key.addr);
+        uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
+        _sign(key.addr, id);
+        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.APPROVED));
+
+        vm.warp(block.timestamp + 1 days + 1);
+        assertFalse(didr.checkController(bytes(TI), key.addr));
+        assertEq(Role.unwrap(governance.roleOf(tiId, key.addr)), 0);
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
+        governance.execute(id);
+        vm.prank(key.addr);
+        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        governance.proposeAction(tiId, KEY, IGovernanceTypes.ActionType.SUSPEND, REASON);
+    }
+
+    function test_AKeyActsOnlyOnceItsCapabilityInvocationBegins() public {
+        Vm.Wallet memory key = vm.createWallet("ti key, later capabilityInvocation");
+        uint256 begins = block.timestamp + 1 days;
+        _relate(tiKey, TI, "capabilityInvocation", _addMethod(tiKey, TI, "#later", key), begins, begins + 365 days);
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.proposeAddSigner(tiId, key.addr, ROLE_B);
+
+        vm.warp(begins);
+        _addSigner(key.addr);
+        assertEq(Role.unwrap(governance.roleOf(tiId, key.addr)), Role.unwrap(ROLE_B));
+    }
+
+    /// A backup key of role B, through the TI's quorum (ADMIN has no timelock here).
+    function _addSigner(address key) private {
+        vm.prank(tiKey.addr);
+        uint256 id = governance.proposeAddSigner(tiId, key, ROLE_B);
+        vm.prank(nbuKey.addr);
+        governance.signAdminProposal(id);
+    }
+
+    function _addMethod(Vm.Wallet memory by, string memory did, string memory suffix, Vm.Wallet memory key)
+        private
+        returns (string memory id)
+    {
+        id = string.concat(did, suffix);
+        vm.prank(by.addr);
+        didr.addVerificationMethod(did, id, abi.encodePacked(bytes1(0x04), key.publicKeyX, key.publicKeyY), true);
+    }
+
+    function _relate(
+        Vm.Wallet memory by,
+        string memory did,
+        string memory name,
+        string memory id,
+        uint256 from,
+        uint256 until
+    ) private {
+        vm.prank(by.addr);
+        didr.addVerificationRelationship(did, name, id, from, until);
+    }
+}
+
 /// The registries are fixed: on EBSI their addresses never change, so the
 /// contract offers no way to repoint it, not even to the TAO. They are
 /// immutables of the implementation; only a new implementation changes them.

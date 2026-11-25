@@ -200,3 +200,49 @@ keys. Two DIDs the TAO controlled could meet a 2-of-3 policy alone.
 - [ ] **Monitoring (optional).** If the back-office or an auditor's dashboard should alert
       on cosigner changes, subscribe to the new `CosignersChanged` event. It now carries
       the full list of DIDs and roles.
+
+---
+
+## 4. No key is both a TI key and a cosigner's key
+
+Covers the finding **"Reachability counts a cosigner role that no key can sign with"**.
+A TI could list the supervisory authority's key in its own DID document, add it as a key
+of role B, and then give the veto to role C alone. Role C still counted as present, but
+nobody could sign or veto as C any more.
+
+### What changed in the contracts
+
+- A key that the DID Registry lists for one of the TI's cosigner DIDs cannot become a TI
+  key: `addTi`, `proposeAddSigner` and `proposeReplaceSigner` refuse it, and a rule
+  change that adds or replaces a key is refused again at execution if that changed in
+  the meantime.
+- `setCosigners` and `addTi` refuse a cosigner DID that lists one of the TI's keys
+  (including a key the TI's DID no longer lists).
+- Both revert with the new error **`CosignerSharesSignerKey()`**, already in the
+  regenerated ABIs.
+- Accepted and documented: the supervisory authority can still list a TI key in its own
+  DID document later. Only it can do that, and it only loses that key's voice as C.
+
+### To do
+
+- [ ] **Translate the new error.**
+      [`web/src/blockchain/governance.ts:679`](../back-office/web/src/blockchain/governance.ts#L679).
+      Suggested text: "Kľúč nemôže byť zároveň kľúčom TI a kľúčom spolupodpisovateľa."
+
+- [ ] **Signer forms and rotation.** Where an operator enters a new or replacement key
+      for a TI (rule-change form, signer rotation), show this error if the contract
+      refuses it. Optionally check up front with `checkController(cosignerDid, key)` on
+      the DID Registry for each cosigner of the TI.
+
+- [ ] **Development seed and bootstrap.** Make sure no seeded TI key is also listed in
+      the supervisory authority's DID (`scripts/seed-development.ts`). Otherwise
+      `addTi` reverts.
+
+- [ ] **Supervisory authority's key changes.** Before NBÚ adds a key to its DID document,
+      check with `roleOf(tiId, key)` for each TI it cosigns that the key is no TI key (a
+      TI could have registered a key whose public key leaked). If it is, NBÚ loses that
+      key's voice as C.
+
+- [ ] **TIs that already exist** (if any). After the beacon upgrade nothing re-checks
+      them. Check once that no TI key is listed in any of its cosigners' DIDs; if one
+      is, rotate it out with `proposeReplaceSigner`.
