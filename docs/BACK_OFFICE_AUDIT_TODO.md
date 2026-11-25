@@ -338,7 +338,7 @@ revocation waited out its 24 h timelock, execute it, and name NBÚ again.
 
 ### What changed in the contracts
 
-- Each TI has a **cosigner epoch**. `setCosigners` raises it whenever the list changes
+- Each TI has an **epoch**. `setCosigners` raises it whenever the list changes
   (a cosigner added, removed, given another role, or reordered). Sending the same list
   again does not.
 - Every status proposal and rule change records the epoch it opened in. One from an
@@ -364,3 +364,31 @@ revocation waited out its 24 h timelock, execute it, and name NBÚ again.
       it or changes its role, and on the proposals that change ended.
 - [ ] **Signer rotation.** A rotation whose rule changes are waiting out their timelock is
       ended by a cosigner change; the rotation has to be run again.
+
+---
+
+## 8. A TI accredited again starts over
+
+Covers the finding **"A decision approved before a TI lost its accreditation executes
+after it is accredited again"** (MEDIUM). A revocation approved just before the TI's
+accreditation was revoked stayed `APPROVED` and executed at once when the TAO moved the TI
+to a new attribute.
+
+### What changed in the contracts
+
+- `setTiAttribute` raises the TI's epoch (the one from §7) when the TI was **not**
+  accredited under its previous attribute. Every proposal and rule change opened before is
+  then expired, exactly as after a cosigner change (§7).
+- Moving a TI that is still accredited ends nothing.
+- Not covered, and documented: a revoked TAO whose chain the registry repairs under the
+  same attributes brings its TIs back with no call to the contract; their open proposals go
+  on. A veto still stops them.
+- No ABI change.
+
+### To do
+
+- [ ] **Reconcile after a reaccreditation.** After `TiAttributeChanged` for a TI that had
+      lost its accreditation, its open cases and rule changes read `EXPIRED` on chain.
+      Close them as expired and let the TI decide again (new proposals, new signatures).
+- [ ] **TAO console.** When moving a TI that is not accredited to a new attribute, warn that
+      its open proposals, approved revocations included, will end.

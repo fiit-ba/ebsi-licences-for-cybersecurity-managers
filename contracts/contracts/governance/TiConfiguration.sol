@@ -48,9 +48,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         Policy[POLICY_KINDS] policies; // indexed by PolicyKind
         uint64 proposalTtl;
         uint64 version;
-        /// Raised by every cosigner change, which ends the TI's open
-        /// proposals (`Ballots._lapsed`). Last, to keep the layout.
-        uint64 cosignerEpoch;
+        /// Raised by a cosigner change or a restored accreditation, which ends
+        /// the TI's open proposals (`Ballots._lapsed`). Last, to keep the layout.
+        uint64 epoch;
     }
 
     /// @custom:storage-location erc7201:plr.storage.TiConfiguration
@@ -109,11 +109,15 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         emit TiConfigured(tiId, setup.did, setup.attributeId);
     }
 
+    /// @dev A TI restored after losing its accreditation starts a new epoch:
+    ///      nothing decided before takes effect without being decided again.
     function setTiAttribute(bytes32 tiId, bytes32 attributeId) external onlyTao {
         TiConfig storage ti = _ti(tiId);
         if (!isActiveTi(ti.did, attributeId)) revert TiNotActive();
+        bool restored = !isActiveTi(ti.did, ti.attributeId);
         ti.attributeId = attributeId;
         ti.version++;
+        if (restored) ti.epoch++;
         emit TiAttributeChanged(tiId, attributeId);
     }
 
@@ -125,7 +129,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         _requireCosignersApart(tiId);
         _requireReachable(tiId, _rolesPresent(tiId));
         ti.version++;
-        if (changed) ti.cosignerEpoch++;
+        if (changed) ti.epoch++;
         emit CosignersChanged(tiId, cosigners);
     }
 
@@ -223,8 +227,8 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         return _configurationStorage().tis[tiId].policies[uint8(kind)];
     }
 
-    function _cosignerEpoch(bytes32 tiId) internal view returns (uint64) {
-        return _configurationStorage().tis[tiId].cosignerEpoch;
+    function _epoch(bytes32 tiId) internal view returns (uint64) {
+        return _configurationStorage().tis[tiId].epoch;
     }
 
     function _proposalTtl(bytes32 tiId) internal view returns (uint64) {

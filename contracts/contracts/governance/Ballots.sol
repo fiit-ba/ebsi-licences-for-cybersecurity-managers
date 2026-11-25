@@ -23,7 +23,7 @@ abstract contract Ballots is TiConfiguration {
         /// TTL change neither revives an expired ballot nor cuts an open one
         /// short.
         uint64 expiresAt;
-        /// The TI's cosigner epoch at opening. Fills free bytes: nothing moves.
+        /// The TI's epoch at opening. Fills free bytes: nothing moves.
         uint64 epoch;
         address[] signatures;
         mapping(address => bool) signed;
@@ -37,7 +37,7 @@ abstract contract Ballots is TiConfiguration {
         ballot.proposedAt = uint64(block.timestamp);
         ballot.state = ProposalState.PROPOSED;
         ballot.expiresAt = uint64(block.timestamp) + _proposalTtl(tiId);
-        ballot.epoch = _cosignerEpoch(tiId);
+        ballot.epoch = _epoch(tiId);
     }
 
     /// @dev Adds the caller's signature; returns the signed roles and
@@ -113,10 +113,10 @@ abstract contract Ballots is TiConfiguration {
         return ballot.expiresAt > 0 && block.timestamp >= ballot.expiresAt;
     }
 
-    /// @dev Past its TTL, or opened before the TI's cosigners last changed:
-    ///      the TAO's change must not reach a decision already under way.
+    /// @dev Past its TTL, or opened in an earlier epoch of the TI (before a
+    ///      cosigner change or a restored accreditation).
     function _lapsed(Ballot storage ballot) internal view returns (bool) {
-        return _pastTtl(ballot) || ballot.epoch < _cosignerEpoch(ballot.tiId);
+        return _pastTtl(ballot) || ballot.epoch < _epoch(ballot.tiId);
     }
 
     function _effectiveState(Ballot storage ballot) internal view returns (ProposalState) {

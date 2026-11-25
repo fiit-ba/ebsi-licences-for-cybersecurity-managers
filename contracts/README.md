@@ -306,10 +306,11 @@ A quorum therefore always needs a key of the TI. `CosignersChanged` carries the
 full list of DIDs and roles, at `addTi` and at every change, so a monitor
 follows a TI's cosigners from the events alone.
 
-**A cosigner change ends every open proposal of the TI.** Each TI has a cosigner
-epoch, which `setCosigners` raises whenever the list changes (a cosigner added,
-removed, given another role, or the order changed); the same list again changes
-nothing. A proposal or rule change records the epoch it opened in, and one from
+**A cosigner change or a restored accreditation ends every open proposal of
+the TI.** Each TI has an epoch, which `setCosigners` raises whenever the list
+changes (a cosigner added, removed, given another role, or the order changed;
+the same list again changes nothing), and `setTiAttribute` raises when it
+restores a TI that was not accredited under its previous attribute. A proposal or rule change records the epoch it opened in, and one from
 an earlier epoch is expired: it takes no signature, is not executed or
 cancelled, anyone may expire it, and the next proposal for its certificate
 replaces it. Otherwise the TAO could take the supervisory authority's veto
@@ -317,8 +318,14 @@ from a decision already under way (remove it during a 24 h timelock, execute,
 name it again), or add a DID of its own to complete a decision one TI key
 opened. The consequences are deliberate: by changing cosigners the TAO can end
 any pending decision of the TI, an approved revocation included, and the TAO is
-trusted to change cosigners only when no decision should be cut short. Other
-changes (a new attribute, the TI's own rule changes) leave proposals open.
+trusted to change cosigners only when no decision should be cut short. A TI
+accredited again starts over likewise: a revocation approved just before it
+lost its accreditation, possibly for the conduct that cost it, does not take
+effect on its old signatures once the TAO moves it to a new attribute. Moving a
+TI that is still accredited, and the TI's own rule changes, leave proposals
+open. Not covered: a revoked TAO whose chain the registry repairs under the same
+attributes brings its TIs back without any call to this contract, so their
+proposals go on; a veto still stops them.
 
 **A role and a set of roles are different types.** Inside the contract a role
 is a `Role` and a set of roles a `RoleSet` (one bit per role, bit 0 for role

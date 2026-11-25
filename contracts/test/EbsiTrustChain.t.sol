@@ -475,6 +475,26 @@ contract AddTiTest is GovernanceFixture {
         _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
     }
 
+    /// Audit: a revocation approved before the TI lost its accreditation does
+    /// not outlive its reaccreditation.
+    function test_AProposalFromBeforeTheTisReaccreditationEnds() public {
+        _addTi(_setup());
+        uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.REVOKE);
+        _sign(secondKey.addr, id);
+        _revoke(taoKey, TI, tiAttr, TAO, taoAttr);
+        bytes32 salt = keccak256("another salt");
+        vm.prank(taoKey.addr);
+        tir.setAttributeMetadata(TI, salt, TIR.IssuerType.TI, TAO, taoAttr);
+        bytes32 renewed = sha256(abi.encode(TI, salt, uint256(0), bytes("")));
+        vm.prank(taoKey.addr);
+        governance.setTiAttribute(tiId, renewed);
+
+        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.EXPIRED));
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.execute(id);
+    }
+
     function test_RevertWhen_ChangingCosignersLeavesAPolicyOutOfReach() public {
         IGovernanceTypes.TiSetup memory setup = _setup();
         setup.policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask = RoleSet.wrap(4); // role C, NBÚ
