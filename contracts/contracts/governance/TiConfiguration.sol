@@ -99,6 +99,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
             _requirePolicy(setup.policies[kind], present);
             _setPolicy(tiId, PolicyKind(kind), setup.policies[kind]);
         }
+        _requireAdminCovers(setup.policies);
         _setProposalTtl(tiId, setup.proposalTtl);
         emit TiConfigured(tiId, setup.did, setup.attributeId);
     }
@@ -305,6 +306,29 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     function _requireReachable(bytes32 tiId, RoleSet present) internal view {
         for (uint8 kind = 0; kind < POLICY_KINDS; kind++) {
             if (!_policy(tiId, PolicyKind(kind)).reachable(present)) revert Unsatisfiable();
+        }
+    }
+
+    /// @dev The TI's policies with `kind` replaced by `policy`, as a change
+    ///      to it would leave them.
+    function _policiesWith(bytes32 tiId, PolicyKind kind, Policy memory policy)
+        internal
+        view
+        returns (Policy[POLICY_KINDS] memory policies)
+    {
+        policies = _configurationStorage().tis[tiId].policies;
+        policies[uint8(kind)] = policy;
+    }
+
+    /// @dev Rule changes are at least as strict as the decisions they govern
+    ///      (`PolicyRules.covers`), checked on the whole set, so neither side
+    ///      can be moved past the other: lowering ADMIN's timelock or veto
+    ///      roles below a status policy's, or raising a status policy's above
+    ///      ADMIN's, is refused alike.
+    function _requireAdminCovers(Policy[POLICY_KINDS] memory policies) internal pure {
+        Policy memory admin = policies[uint8(PolicyKind.ADMIN)];
+        for (uint8 kind = 0; kind < uint8(PolicyKind.ADMIN); kind++) {
+            if (!admin.covers(policies[kind])) revert AdminPolicyTooWeak();
         }
     }
 

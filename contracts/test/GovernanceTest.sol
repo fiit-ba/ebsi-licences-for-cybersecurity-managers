@@ -268,6 +268,17 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         governance.cancelAdminProposal(id);
     }
 
+    /// Waits out an approved rule change's timelock, which under the pilot's
+    /// rules is as long as a revocation's, and applies it as `by`.
+    function applyAdmin(uint256 id, address by) internal {
+        vm.warp(governance.getAdminProposal(id).executableAt);
+        executeAdmin(id, by);
+    }
+
+    function applyAdmin(uint256 id) internal {
+        applyAdmin(id, A);
+    }
+
     // Rule changes, proposed by `by` and signed by `cosigner`; each returns
     // the change's id.
 

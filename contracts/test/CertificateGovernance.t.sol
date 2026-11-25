@@ -401,7 +401,7 @@ contract QuorumTest is GovernanceTest {
     function test_StopsCountingASignatureOnceItsKeyIsRemoved() public {
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         sign(1, B);
-        removeSigner(A, C, B);
+        applyAdmin(removeSigner(A, C, B));
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
         execute(1, A);
         sign(1, C);
@@ -570,12 +570,15 @@ contract ExpiryTest is GovernanceTest {
 contract QuorumRegainedTest is GovernanceTest {
     function test_RestartsTheTimelockWhenAReplacedKeysSuccessorSigns() public {
         // The review's scenario: B's key is rotated an hour before the end of
-        // the timelock, and the new B key signs half an hour later.
+        // the timelock, and the new B key signs half an hour later. A rotation
+        // waits as long as a revocation, so it was proposed an hour before it.
+        uint256 rotation = replaceSigner(A, C, B, spare);
+        skip(HOUR);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
         IGovernanceTypes.ProposalView memory first = governance.getProposal(1);
-        vm.warp(first.quorumReachedAt + DAY - HOUR);
-        replaceSigner(A, C, B, spare);
+        applyAdmin(rotation);
+        assertEq(block.timestamp, first.quorumReachedAt + DAY - HOUR);
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
         execute(1, A);
 
@@ -597,11 +600,12 @@ contract QuorumRegainedTest is GovernanceTest {
     }
 
     function test_RestartsItWhenARemovedKeysSignatureIsMadeUpByAnotherRole() public {
+        uint256 removal = removeSigner(A, C, B);
+        skip(HOUR);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
         IGovernanceTypes.ProposalView memory first = governance.getProposal(1);
-        skip(DAY - HOUR);
-        removeSigner(A, C, B);
+        applyAdmin(removal);
         sign(1, C);
         IGovernanceTypes.ProposalView memory again = governance.getProposal(1);
         assertGt(again.quorumReachedAt, first.quorumReachedAt);
@@ -612,10 +616,12 @@ contract QuorumRegainedTest is GovernanceTest {
     }
 
     function test_RestartsItWhenAStricterPolicyIsMetLateInTheTimelock() public {
+        uint256 stricter = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), ALL, DAY));
+        skip(HOUR);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
         IGovernanceTypes.ProposalView memory first = governance.getProposal(1);
-        setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), ALL, DAY));
+        applyAdmin(stricter);
         vm.warp(first.executableAt - 60);
         sign(1, C);
         IGovernanceTypes.ProposalView memory again = governance.getProposal(1);
@@ -674,7 +680,7 @@ contract RetiredKeyTest is GovernanceTest {
     function test_CannotBeAddedAgainSoItsOldSignaturesCannotCountAgain() public {
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
-        removeSigner(A, C, B);
+        applyAdmin(removeSigner(A, C, B));
         assertTrue(governance.retired(TI_ID, B));
         vm.expectRevert(IGovernanceTypes.SignerRetired.selector);
         vm.prank(A);
@@ -683,7 +689,7 @@ contract RetiredKeyTest is GovernanceTest {
     }
 
     function test_CannotComeBackAsAReplacementEither() public {
-        replaceSigner(A, C, B, spare);
+        applyAdmin(replaceSigner(A, C, B, spare));
         assertTrue(governance.retired(TI_ID, B));
         assertFalse(governance.retired(TI_ID, spare));
         vm.expectRevert(IGovernanceTypes.SignerRetired.selector);
@@ -736,13 +742,14 @@ contract SupervisorOnRevocationsTest is GovernanceTest {
 contract SelfAdministrationTest is GovernanceTest {
     function test_AddsABackupKeyToARoleThroughTheQuorum() public {
         uint256 id = addSigner(A, B, spare, ROLE_B);
+        applyAdmin(id);
         assertAdminState(id, IGovernanceTypes.ProposalState.EXECUTED);
         assertEq(Role.unwrap(governance.roleOf(TI_ID, spare)), Role.unwrap(ROLE_B));
         assertEq(governance.getTi(TI_ID).version, 1);
     }
 
     function test_RotatesAKeyInOneStepKeepingItsRole() public {
-        replaceSigner(A, C, B, spare);
+        applyAdmin(replaceSigner(A, C, B, spare));
         assertFalse(governance.isSigner(TI_ID, B));
         assertEq(Role.unwrap(governance.roleOf(TI_ID, spare)), Role.unwrap(ROLE_B));
         Role[] memory signerRoles = governance.getTi(TI_ID).roles;
@@ -756,7 +763,7 @@ contract SelfAdministrationTest is GovernanceTest {
 
     function test_ChangesAPolicy() public {
         // The supervisory authority required on revocations.
-        setPolicy(C, A, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), ALL, DAY));
+        applyAdmin(setPolicy(C, A, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), ALL, DAY)));
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
         assertState(1, IGovernanceTypes.ProposalState.PROPOSED);
@@ -780,7 +787,7 @@ contract SelfAdministrationTest is GovernanceTest {
     }
 
     function test_ChangesHowLongProposalsStayOpen() public {
-        setTtl(A, B, 7 * DAY);
+        applyAdmin(setTtl(A, B, 7 * DAY));
         assertEq(governance.getTi(TI_ID).proposalTtl, 7 * DAY);
     }
 
@@ -792,17 +799,19 @@ contract SelfAdministrationTest is GovernanceTest {
         vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
         governance.proposeProposalTtl(TI_ID, shortest - 1);
         vm.stopPrank();
-        setTtl(A, B, shortest);
+        applyAdmin(setTtl(A, B, shortest));
         assertEq(governance.getTi(TI_ID).proposalTtl, shortest);
     }
 
+    /// ADMIN's timelock is the longest (it covers every status policy's), so
+    /// it is the one the lifetime bounds first.
     function test_RevertWhen_ATimelockWouldLeaveNoTimeWithinTheLifetime() public {
         uint64 longest = pilotTtl - governance.MIN_SIGNING_WINDOW();
         vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
         vm.prank(A);
-        governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE, 2, NONE, ALL, longest + 1);
-        setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, longest));
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).timelock, longest);
+        governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN, 2, NONE, ALL, longest + 1);
+        applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, longest)));
+        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN).timelock, longest);
     }
 
     function test_RevertWhen_TheCallerIsNotASigner() public {
@@ -823,7 +832,7 @@ contract SelfAdministrationTimelockTest is GovernanceTest {
     /// together: the second is checked again when it would apply.
     function test_RevertWhen_TwoApprovedChangesTogetherLeaveATimelockNoTime() public {
         uint256 shorter = setTtl(A, B, 10 * DAY);
-        uint256 slower = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, 20 * DAY));
+        uint256 slower = setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 20 * DAY));
         vm.warp(governance.getAdminProposal(slower).executableAt);
         executeAdmin(shorter, A);
         assertEq(governance.getTi(TI_ID).proposalTtl, 10 * DAY);
@@ -857,8 +866,13 @@ contract SelfAdministrationTimelockTest is GovernanceTest {
     }
 
     function test_OnlyByTheRolesTheRuleChangePolicyGivesTheVeto() public {
-        governance = deploy(pilotWith(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, only(ROLE_C), DAY)));
-        uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, HOUR));
+        // ADMIN's veto roles cover every status policy's, so all are narrowed.
+        IGovernanceTypes.Policy[4] memory policies = pilotPolicies();
+        for (uint256 i = 0; i < 4; i++) {
+            policies[i].vetoRoleMask = only(ROLE_C);
+        }
+        governance = deploy(policies);
+        uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, only(ROLE_C), HOUR));
         vm.expectRevert(IGovernanceTypes.VetoNotAllowed.selector);
         cancelAdmin(id, B);
         // Its proposer may withdraw it.

@@ -28,6 +28,9 @@ abstract contract SignerRotation {
     /// The rule-change policy needs `needed` roles, and only `available` of
     /// the accounts given hold one.
     error NotEnoughApprovers(uint8 needed, uint256 available);
+    /// The rule-change policy requires these roles, and none of the accounts
+    /// given may approve for them: a change without them would never apply.
+    error RequiredApproversMissing(RoleSet missing);
 
     /// Send the next call as `account`: a prank in tests, a broadcast in a script.
     function _as(address account) internal virtual;
@@ -40,6 +43,13 @@ abstract contract SignerRotation {
      * change is a rule change approved under the ADMIN policy by `accounts`
      * that are signers. Returns the ids of the rule changes made; one still
      * in its timelock has to be executed later.
+     *
+     * A change is never approved by a role another change of this run
+     * rotates: the changes wait out ADMIN's timelock side by side, and the
+     * first to apply would retire that role's key, and with it its signature
+     * on the rest. With the pilot's 2 of 3, rotating A and B at once takes
+     * the supervisory authority's approval; without it, rotate one role per
+     * run.
      */
     function _rotateSigners(
         ICertificateGovernance governance,
@@ -57,6 +67,13 @@ abstract contract SignerRotation {
             }
         }
 
+        RoleSet rotating;
+        for (uint256 i = 0; i < target.length; i++) {
+            if (Role.unwrap(governance.roleOf(tiId, target[i].key)) != Role.unwrap(target[i].role)) {
+                rotating = rotating.with(target[i].role);
+            }
+        }
+
         changes = new uint256[](target.length);
         uint256 made;
         for (uint256 i = 0; i < target.length; i++) {
@@ -64,7 +81,7 @@ abstract contract SignerRotation {
             if (Role.unwrap(governance.roleOf(tiId, key)) == Role.unwrap(role)) continue;
 
             address current = _keyOf(governance, tiId, role);
-            address[] memory chosen = _approvers(governance, tiId, accounts);
+            address[] memory chosen = _approvers(governance, tiId, accounts, _without(rotating, role));
             _as(chosen[0]);
             uint256 id = current != address(0)
                 ? governance.proposeReplaceSigner(tiId, current, key)
@@ -81,14 +98,16 @@ abstract contract SignerRotation {
     }
 
     /**
-     * Accounts among `accounts` that are signers, one per role, enough to
-     * meet the ADMIN policy - its required roles first.
+     * Accounts among `accounts` that are signers, one per role and none of
+     * the roles `excluded`, enough to meet the ADMIN policy - its required
+     * roles first.
      */
-    function _approvers(ICertificateGovernance governance, bytes32 tiId, address[] memory accounts)
-        internal
-        view
-        returns (address[] memory chosen)
-    {
+    function _approvers(
+        ICertificateGovernance governance,
+        bytes32 tiId,
+        address[] memory accounts,
+        RoleSet excluded
+    ) internal view returns (address[] memory chosen) {
         IGovernanceTypes.Policy memory admin = governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.ADMIN);
 
         // One account per role, in the order given.
@@ -96,7 +115,7 @@ abstract contract SignerRotation {
         RoleSet present;
         for (uint256 i = 0; i < accounts.length; i++) {
             Role role = governance.roleOf(tiId, accounts[i]);
-            if (Role.unwrap(role) != 0 && !present.contains(role)) {
+            if (Role.unwrap(role) != 0 && !present.contains(role) && !excluded.contains(role)) {
                 byRole[Role.unwrap(role)] = accounts[i];
                 present = present.with(role);
             }
@@ -115,9 +134,17 @@ abstract contract SignerRotation {
             }
         }
         if (n < admin.threshold) revert NotEnoughApprovers(admin.threshold, n);
+        if (!present.includesAll(admin.requiredRoleMask)) {
+            revert RequiredApproversMissing(RoleSet.wrap(RoleSet.unwrap(admin.requiredRoleMask) & ~RoleSet.unwrap(present)));
+        }
         assembly {
             mstore(chosen, n)
         }
+    }
+
+    /// `set` without `role`.
+    function _without(RoleSet set, Role role) internal pure returns (RoleSet) {
+        return RoleSet.wrap(RoleSet.unwrap(set) & ~RoleSet.unwrap(role.toSet()));
     }
 
     /// The first key holding `role`, or zero.

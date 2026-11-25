@@ -164,7 +164,9 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         if (reached) {
             emit AdminQuorumReached(adminProposalId, p.ballot.quorumReachedAt + policy.timelock);
             // Without a delay the change applies with the signature that
-            // completes its quorum, as it always has.
+            // completes its quorum. ADMIN has no delay only when no status
+            // policy has one either (`_requireAdminCovers`), so no decision
+            // waiting out a timelock can be rewritten this way.
             if (policy.timelock == 0) _executeAdmin(adminProposalId, p);
         }
     }
@@ -191,7 +193,8 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     /// @dev A change is valid if applying it now leaves every policy reachable,
-    ///      and every timelock within the proposal lifetime. Asked again at
+    ///      every timelock within the proposal lifetime, and ADMIN at least as
+    ///      strict as every status policy. Asked again at
     ///      execution, so two changes approved apart cannot break it together.
     function _requireValid(bytes32 tiId, AdminChange memory change) private view {
         AdminAction action = change.action;
@@ -206,6 +209,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         } else if (action == AdminAction.SET_POLICY) {
             _requirePolicy(change.policy, _rolesPresent(tiId));
             _requireTimelockWithinTtl(tiId, change.policy.timelock);
+            _requireAdminCovers(_policiesWith(tiId, change.kind, change.policy));
         } else {
             // SET_PROPOSAL_TTL
             _requireTtl(tiId, change.ttl);

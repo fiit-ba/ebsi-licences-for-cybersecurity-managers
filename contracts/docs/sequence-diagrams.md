@@ -257,7 +257,7 @@ sequenceDiagram
     C->>G: signAdminProposal(id)
     G-->>C: AdminProposalSigned, AdminQuorumReached(id, executableAt)
 
-    alt ADMIN timelock = 0
+    alt ADMIN timelock = 0 (only when no other policy has one)
         Note over G: applied within C's call
     else timelock > 0
         Note over A,G: wait, a veto role may cancelAdminProposal,<br/>but not the key being removed (CannotVetoOwnRemoval)

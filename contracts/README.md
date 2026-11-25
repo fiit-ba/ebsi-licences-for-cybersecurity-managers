@@ -367,14 +367,26 @@ own function, so a signer's wallet names what it is asked to approve:
 | `proposeAddSigner(tiId, signer, role)` | a new key for a role; it must be a valid key of the TI's DID in the DID Registry |
 | `proposeRemoveSigner(tiId, signer)` | refused if a policy could then no longer be met |
 | `proposeReplaceSigner(tiId, signer, replacement)` | a key rotation in one step; the replacement, a valid key of the TI's DID, takes the role |
-| `proposePolicy(tiId, kind, threshold, requiredRoleMask, vetoRoleMask, timelock)` | one policy; its timelock must leave `MIN_SIGNING_WINDOW` within the proposal lifetime |
+| `proposePolicy(tiId, kind, threshold, requiredRoleMask, vetoRoleMask, timelock)` | one policy; its timelock must leave `MIN_SIGNING_WINDOW` within the proposal lifetime, and `admin` must stay the strictest (below) |
 | `proposeProposalTtl(tiId, ttl)` | how long a proposal may stay open, from `MIN_SIGNING_WINDOW` past the longest timelock up to `MAX_PROPOSAL_TTL`; it applies to proposals opened afterwards, an open one keeps the lifetime it opened with |
 
 Then `signAdminProposal`, `executeAdminProposal`, `cancelAdminProposal` and
 `expireAdminProposal`.
 
-When the `admin` policy has no timelock, a change applies with the signature
-that completes its quorum. When it has one, the change waits, and a signer of a
+**Rule changes are at least as strict as the decisions they govern.** The
+`admin` policy's timelock is at least the longest timelock of the `suspend`,
+`revoke` and `reinstate` policies, and its veto roles include every veto role
+of theirs (`AdminPolicyTooWeak` otherwise). This is checked when a TI is set
+up, when a policy change is proposed and again when it applies, on the whole
+set of policies, so neither side can be moved past the other. Otherwise the
+keys a delay guards against could rewrite a decision's policy, stripping its
+veto and its timelock, before the delay ran out: a rule change now never
+applies before the decision it could weaken, and every role that may stop the
+decision may stop the change too.
+
+When the `admin` policy has no timelock, which it may only when no other
+policy has one, a change applies with the signature that completes its
+quorum. When it has one, the change waits, and a signer of a
 role the `admin` policy gives the veto may veto it in the meantime; its
 proposer may withdraw it. The exception is the key a change removes or
 replaces (`CannotVetoOwnRemoval`): a compromised key must not be able to block
@@ -399,8 +411,8 @@ by default):
 
 | File | Rules |
 |---|---|
-| [`config/pilot.json`](config/pilot.json) (default) | 2 of 3 roles for everything; 24 h timelock on revocation; rule changes apply at quorum; every role may veto; proposals open for 30 days |
-| [`config/production.json`](config/production.json) | as the pilot, but a rule change waits 24 h, so the supervisory authority can veto it |
+| [`config/pilot.json`](config/pilot.json) (default) | 2 of 3 roles for everything; 24 h timelock on revocation and on rule changes; every role may veto; proposals open for 30 days |
+| [`config/production.json`](config/production.json) | the same rules, as a starting point to narrow (for example `requiredRoles: ["C"]` on revocation) |
 
 Each policy in a file names its `requiredRoles` and its `vetoRoles` by letter.
 `vetoRoles` has no default: a file that does not say who may veto does not
@@ -618,7 +630,12 @@ and never touches role C. It sends one transaction at a time (`--slow`), so a
 signature never reaches the chain before its proposal.
 
 With an `admin` timelock, each change waits, and the script prints when it can
-be executed. The script is not a redeploy, on purpose: a new contract would
+be executed. The changes of one run wait side by side, so none is approved by a
+role another of them rotates: the first to apply would retire that role's key
+and its signature on the rest. Rotating A and B at once therefore takes role
+C's approval too; without it, rotate one role per run. A role the `admin`
+policy requires has to be among the approvers and not rotated in the same run,
+or the script stops before sending anything (`RequiredApproversMissing`). The script is not a redeploy, on purpose: a new contract would
 renumber the proposals that the back-office's case files point at. Bootstrap
 does not need it: the back-office sets a TI up with its KMS role keys from the
 start.

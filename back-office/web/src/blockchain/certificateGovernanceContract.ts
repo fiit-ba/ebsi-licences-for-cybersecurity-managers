@@ -27,6 +27,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "AdminPolicyTooWeak",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "AlreadySigned",
     "type": "error"
   },
@@ -2069,6 +2074,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
     "inputs": [],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "AdminPolicyTooWeak",
+    "type": "error"
   },
   {
     "inputs": [],

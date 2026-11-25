@@ -89,3 +89,64 @@ Covers two findings:
       `CertificateGovernance` and `CertificateRegistry` templates need a new version in
       the Proxy Templates Registry before production deployment. Coordinate with whoever
       submits templates to EBSI.
+
+---
+
+## 2. Rule changes are at least as strict as the decisions they govern
+
+Covers the finding **"Under the pilot rules two roles can strip the veto and the timelock
+from an approved revocation"**. The admin policy had no timelock, so two compromised roles
+could rewrite the revocation policy and execute a revocation in one block, before the
+supervisory authority could veto it.
+
+### What changed in the contracts
+
+- New invariant, enforced in `addTi`, when a policy change is proposed, and again when it
+  is executed: the **ADMIN policy's timelock ≥ the timelock of SUSPEND, REVOKE and
+  REINSTATE**, and **ADMIN's veto roles ⊇ every veto role of those policies**.
+  A violation reverts with the new error **`AdminPolicyTooWeak()`**.
+- `contracts/config/pilot.json` now has an **admin timelock of 86400 (24 h)**, the same
+  as the revocation timelock. `production.json` already had it. Under the pilot rules,
+  **a rule change no longer applies with the signature that completes its quorum**: it
+  reaches `APPROVED` and has to be executed with `executeAdminProposal` after 24 h.
+- The admin timelock may be 0 only when every other policy's timelock is 0. Only then
+  does a rule change still apply immediately.
+- The new error is already in the regenerated ABIs.
+
+### To do
+
+- [ ] **Update the built-in pilot rules.**
+      [`server/lifecycle/ti-governance.ts:46`](../back-office/server/lifecycle/ti-governance.ts#L46):
+      `admin.timelock: 0` → `86400`. Otherwise every `addTi` with the default rules
+      reverts with `AdminPolicyTooWeak`. Update the doc comment above it (lines 36–39,
+      "rule changes applied at quorum").
+
+- [ ] **Update the test fixture.**
+      [`server/lifecycle/fixtures/ledger.ts:74`](../back-office/server/lifecycle/fixtures/ledger.ts#L74):
+      the ADMIN entry of `pilotPolicies` → `timelock: 86400`. Then fix the tests that
+      expect a rule change to be `EXECUTED` right after its second signature. They should
+      expect `APPROVED`, advance the ledger time by 24 h and call `executeAdminProposal`.
+      Likely candidates are `console-governance.test.ts` and `web/tests/lifecycle-live.spec.ts`.
+
+- [ ] **Validate rules before sending `addTi`** (optional, better errors).
+      `tiRules()` in `ti-governance.ts` already checks veto roles. It could also check the
+      invariant above, so that a bad `PLR_TI_GOVERNANCE_CONFIG` fails at startup instead
+      of on-chain.
+
+- [ ] **Translate the new error.**
+      [`web/src/blockchain/governance.ts:679`](../back-office/web/src/blockchain/governance.ts#L679)
+      maps contract errors to messages. Add `AdminPolicyTooWeak`, e.g. "Pravidlá pre
+      zmenu pravidiel musia byť aspoň také prísne ako pravidlá rozhodnutí: rovnako dlhý
+      časový zámok a veto pre každú rolu, ktorá môže vetovať rozhodnutie."
+
+- [ ] **Delayed rule changes in the UI and the console.** Check every flow that proposes a
+      rule change (signer rotation, policy and TTL changes). After the quorum is reached,
+      it must show the change as waiting until `executableAt`, let a veto role cancel it
+      meanwhile, and offer or perform `executeAdminProposal` afterwards. Watch for
+      `AdminQuorumReached` instead of assuming `AdminProposalExecuted` follows at once.
+
+- [ ] **TIs that already exist** (if any were set up with the old pilot rules, admin
+      timelock 0). After the beacon upgrade they keep their policies. Any later change to
+      a status policy is refused until ADMIN is raised. First raise ADMIN's timelock to at
+      least the revocation timelock (under the old rules this change still applies at
+      once).

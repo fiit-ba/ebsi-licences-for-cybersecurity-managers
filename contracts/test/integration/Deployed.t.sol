@@ -137,6 +137,17 @@ abstract contract DeployedFixture is Test, Networks {
         governance.signAdminProposal(change);
     }
 
+    /// Waits out an approved rule change's timelock, as long as a revocation's
+    /// under pilot.json, and applies it.
+    function _applyAdmin(uint256 change) internal {
+        assertEq(
+            uint8(governance.adminStateOf(change)), uint8(IGovernanceTypes.ProposalState.APPROVED), "waits first"
+        );
+        vm.warp(governance.getAdminProposal(change).executableAt);
+        vm.prank(keyA);
+        governance.executeAdminProposal(change);
+    }
+
     /// A new key of the TI's DID in the DID Registry, added by its key A:
     /// development key `index`, as `<TI>#<suffix>`.
     function _addTiKey(uint256 index, string memory suffix) internal returns (address key) {
@@ -321,6 +332,7 @@ contract AdministrationTest is DeployedFixture {
         vm.prank(keyA);
         uint256 change = governance.proposeReplaceSigner(tiId, keyB, next);
         _signAdmin(nbu, change);
+        _applyAdmin(change);
 
         assertEq(Role.unwrap(governance.roleOf(tiId, next)), 2, "the new key holds role B");
         assertTrue(governance.retired(tiId, keyB));
@@ -358,10 +370,7 @@ contract QuorumAfterChangesTest is DeployedFixture {
     uint64 internal constant DAY = 1 days;
 
     function test_ARuleChangeWaitsOutItsTimelockThenApplies() public {
-        // The pilot applies rule changes at once; this one gives them a day.
-        vm.prank(keyA);
-        uint256 slower = governance.proposePolicy(tiId, IGovernanceTypes.PolicyKind.ADMIN, 2, _roles(0), _roles(7), DAY);
-        _signAdmin(keyB, slower);
+        // The pilot gives rule changes the revocation's day.
         assertEq(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.ADMIN).timelock, DAY);
 
         uint64 ttl = governance.getTi(tiId).proposalTtl;
@@ -381,13 +390,17 @@ contract QuorumAfterChangesTest is DeployedFixture {
         assertEq(governance.getTi(tiId).proposalTtl, 7 days);
     }
 
-    function test_AStricterPolicyHoldsAnApprovedRevocationUntilTheCosignerSigns() public {
-        (bytes32 statusKey, uint256 id) = _approvedRevocation();
+    // A rule change waits as long as a revocation, so each change below is
+    // proposed an hour before the revocation it then reaches.
 
+    function test_AStricterPolicyHoldsAnApprovedRevocationUntilTheCosignerSigns() public {
         // Revocations now need NBÚ's role C; A and B alone no longer make the quorum.
         vm.prank(keyA);
         uint256 change = governance.proposePolicy(tiId, IGovernanceTypes.PolicyKind.REVOKE, 2, _roles(4), _roles(7), DAY);
         _signAdmin(keyB, change);
+        skip(1 hours);
+        (bytes32 statusKey, uint256 id) = _approvedRevocation();
+        _applyAdmin(change);
 
         vm.warp(governance.getProposal(id).executableAt);
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
@@ -399,12 +412,13 @@ contract QuorumAfterChangesTest is DeployedFixture {
     }
 
     function test_ARotatedKeysSignatureStopsCountingAndItsSuccessorMakesItUp() public {
-        (bytes32 statusKey, uint256 id) = _approvedRevocation();
-
         address next = _addTiKey(6, "key-3");
         vm.prank(keyA);
         uint256 change = governance.proposeReplaceSigner(tiId, keyB, next);
         _signAdmin(nbu, change);
+        skip(1 hours);
+        (bytes32 statusKey, uint256 id) = _approvedRevocation();
+        _applyAdmin(change);
 
         vm.warp(governance.getProposal(id).executableAt);
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
@@ -421,12 +435,13 @@ contract QuorumAfterChangesTest is DeployedFixture {
     }
 
     function test_AKeyTheTiRemovesAfterApprovalIsMadeUpByAnotherRole() public {
-        (bytes32 statusKey, uint256 id) = _approvedRevocation();
-
         // The TI removes key B; A and NBÚ's C remain, and still meet every policy.
         vm.prank(keyA);
         uint256 change = governance.proposeRemoveSigner(tiId, keyB);
         _signAdmin(nbu, change);
+        skip(1 hours);
+        (bytes32 statusKey, uint256 id) = _approvedRevocation();
+        _applyAdmin(change);
         assertEq(Role.unwrap(governance.roleOf(tiId, keyB)), 0);
 
         vm.warp(governance.getProposal(id).executableAt);

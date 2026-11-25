@@ -198,6 +198,11 @@ interface IGovernanceTypes {
     error InvalidPolicy();
     error InvalidTtl();
     error Unsatisfiable();
+    /// @notice The ADMIN policy must wait at least as long as every status
+    ///         policy and give a veto to every role they do: a rule change
+    ///         never applies before, nor escapes a veto of, the decision it
+    ///         could weaken.
+    error AdminPolicyTooWeak();
     error CannotVetoOwnRemoval();
     /// @notice The caller's role holds no veto under the policy, and the
     ///         caller did not open the proposal.

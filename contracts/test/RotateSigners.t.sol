@@ -25,6 +25,14 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
         return _rotateSigners(governance, TI_ID, accounts, target);
     }
 
+    /// Rotates, then waits out the rule changes' timelock and applies them.
+    function _rotateAndApply(address[] memory accounts, Target[] memory target) internal {
+        uint256[] memory changes = this.rotate(accounts, target);
+        for (uint256 i = 0; i < changes.length; i++) {
+            applyAdmin(changes[i], C);
+        }
+    }
+
     function _bodyKeys() internal view returns (Target[] memory target) {
         target = new Target[](2);
         target[0] = Target(ROLE_A, newA);
@@ -32,7 +40,7 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
     }
 
     function test_ReplacesTheBodysKeysRoleByRoleAndKeepsTheSupervisoryAuthoritys() public {
-        this.rotate(keys(A, B, C), _bodyKeys());
+        _rotateAndApply(keys(A, B, C), _bodyKeys());
         address[] memory signers = governance.getTi(TI_ID).signers;
         assertEq(signers.length, 3);
         assertTrue(governance.isSigner(TI_ID, newA) && governance.isSigner(TI_ID, newB) && governance.isSigner(TI_ID, C));
@@ -48,15 +56,24 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
     }
 
     function test_IsANoOpWhenTheKeysAlreadyMatch() public {
-        this.rotate(keys(A, B, C), _bodyKeys());
+        _rotateAndApply(keys(A, B, C), _bodyKeys());
         uint256 before = governance.adminProposalCount();
         uint256[] memory changes = this.rotate(keys(newA, newB, C), _bodyKeys());
         assertEq(changes.length, 0);
         assertEq(governance.adminProposalCount(), before);
     }
 
+    /// Under the pilot's rules a rotation waits as long as a revocation: until
+    /// it applies, the old keys still sign.
+    function test_LeavesTheOldKeysSigningUntilTheRotationApplies() public {
+        uint256[] memory changes = this.rotate(keys(A, B, C), _bodyKeys());
+        assertFalse(governance.isSigner(TI_ID, newA));
+        assertTrue(governance.isSigner(TI_ID, A));
+        assertAdminState(changes[0], IGovernanceTypes.ProposalState.APPROVED);
+    }
+
     function test_LeavesTheOldKeysUnableToSignAnything() public {
-        this.rotate(keys(A, B, C), _bodyKeys());
+        _rotateAndApply(keys(A, B, C), _bodyKeys());
         vm.expectRevert(IGovernanceTypes.NotASigner.selector);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         propose(newA, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
@@ -77,6 +94,51 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
         target[1] = Target(ROLE_B, newA);
         vm.expectRevert(SameKeyForTwoRoles.selector);
         this.rotate(keys(A, B, C), target);
+    }
+
+    /// Rotating A and B at once, neither change is approved by the other's
+    /// role: whichever applies first would retire that signature on the
+    /// other. Without the supervisory authority's approval there is no quorum.
+    function test_RevertWhen_RotatingBothRolesWithoutTheSupervisoryAuthority() public {
+        vm.expectRevert(abi.encodeWithSelector(NotEnoughApprovers.selector, 2, 1));
+        this.rotate(keys(A, B), _bodyKeys());
+    }
+
+    function test_RotatesOneRoleWithTheOtherBodyRoleAlone() public {
+        Target[] memory target = new Target[](1);
+        target[0] = Target(ROLE_A, newA);
+        uint256[] memory changes = this.rotate(keys(A, B), target);
+        applyAdmin(changes[0], B);
+        assertEq(Role.unwrap(governance.roleOf(TI_ID, newA)), Role.unwrap(ROLE_A));
+    }
+
+    /// A role the rule-change policy requires but no account may approve for
+    /// (here B, rotated in the same run) would leave the change unable to
+    /// apply: refused rather than sent.
+    function test_RevertWhen_ARequiredApproverRoleIsRotatedInTheSameRun() public {
+        applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, only(ROLE_B), ALL, DAY)));
+        vm.expectRevert(abi.encodeWithSelector(RequiredApproversMissing.selector, only(ROLE_B)));
+        this.rotate(keys(A, B, C), _bodyKeys());
+    }
+
+    function test_RevertWhen_NoAccountMayApproveForARequiredRole() public {
+        applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, only(ROLE_C), ALL, DAY)));
+        Target[] memory target = new Target[](1);
+        target[0] = Target(ROLE_A, newA);
+        vm.expectRevert(abi.encodeWithSelector(RequiredApproversMissing.selector, only(ROLE_C)));
+        this.rotate(keys(A, B), target);
+    }
+
+    /// Rotating A and B with C: each change applies, whichever goes first,
+    /// because neither is approved by the role the other retires.
+    function test_EachChangeOfARunKeepsItsQuorumWhicheverAppliesFirst() public {
+        uint256[] memory changes = this.rotate(keys(A, B, C), _bodyKeys());
+        assertFalse(governance.hasSignedAdmin(changes[0], B), "A's change: not signed by B");
+        assertFalse(governance.hasSignedAdmin(changes[1], A), "B's change: not signed by A");
+        applyAdmin(changes[1], C);
+        applyAdmin(changes[0], C);
+        assertEq(Role.unwrap(governance.roleOf(TI_ID, newA)), Role.unwrap(ROLE_A));
+        assertEq(Role.unwrap(governance.roleOf(TI_ID, newB)), Role.unwrap(ROLE_B));
     }
 
     function test_StopsWhenItCannotMusterAQuorumRatherThanHalfRotating() public {

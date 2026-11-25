@@ -20,6 +20,11 @@
     },
     {
       "inputs": [],
+      "name": "AdminPolicyTooWeak",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "AlreadySigned",
       "type": "error"
     },
@@ -2061,6 +2066,11 @@
       "inputs": [],
       "stateMutability": "nonpayable",
       "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AdminPolicyTooWeak",
+      "type": "error"
     },
     {
       "inputs": [],
