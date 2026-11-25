@@ -10,7 +10,6 @@ import {ITiConfiguration} from "../contracts/interfaces/ITiConfiguration.sol";
 import {CertificateGovernance} from "../contracts/CertificateGovernance.sol";
 import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {StubDidRegistry, StubIssuersRegistry} from "./RegistryStubs.sol";
@@ -167,23 +166,12 @@ contract ConstructionTest is GovernanceTest {
 contract ProxyTest is GovernanceTest {
     function test_RevertWhen_TheImplementationIsInitialized() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        implementation.initialize(tao, taoDid, address(registry));
+        implementation.initialize(taoDid, address(registry));
     }
 
     function test_RevertWhen_TheProxyIsInitializedASecondTime() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        governance.initialize(outsider, taoDid, address(registry));
-    }
-
-    function test_TheTaoOwnsTheContractNotItsDeployer() public view {
-        assertEq(governance.owner(), tao);
-        assertNotEq(governance.owner(), address(this));
-    }
-
-    function test_RevertWhen_TheTaoIsTheZeroAddress() public {
-        _expectInitializationRefused(
-            abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, address(0)), address(0), taoDid
-        );
+        governance.initialize(taoDid, address(registry));
     }
 
     function test_RecordsTheTaosDidAndTheRegistries() public view {
@@ -212,7 +200,7 @@ contract ProxyTest is GovernanceTest {
     }
 
     function test_RevertWhen_NoTaoDid() public {
-        _expectInitializationRefused(abi.encodeWithSelector(IGovernanceTypes.InvalidTaoDid.selector), tao, "");
+        _expectInitializationRefused(abi.encodeWithSelector(IGovernanceTypes.InvalidTaoDid.selector), "");
     }
 
     function test_RevertWhen_TheDidRegistryHasNoCode() public {
@@ -225,27 +213,71 @@ contract ProxyTest is GovernanceTest {
         new CertificateGovernance(didRegistry, outsider);
     }
 
-    function _expectInitializationRefused(bytes memory error, address owner, string memory did) private {
-        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (owner, did, address(registry)));
+    function _expectInitializationRefused(bytes memory error, string memory did) private {
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (did, address(registry)));
         vm.expectRevert(error);
         new BeaconProxy(address(beacon), init);
     }
 
-    function test_TheTaoAloneTransfersOwnership() public {
-        vm.prank(outsider);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, outsider));
-        governance.transferOwnership(outsider);
-
-        vm.prank(tao);
-        governance.transferOwnership(spare);
-        assertEq(governance.owner(), spare);
+    /// The TAO is its DID: there is no owner, so nothing to transfer or
+    /// renounce, and no key outside the DID's document acts as the TAO.
+    function test_HasNoOwner() public {
+        string[3] memory gone = ["owner()", "transferOwnership(address)", "renounceOwnership()"];
+        for (uint256 i = 0; i < gone.length; i++) {
+            vm.prank(tao);
+            (bool ok,) = address(governance).call(abi.encodeWithSignature(gone[i], spare));
+            assertFalse(ok, gone[i]);
+        }
     }
 
-    function test_RevertWhen_TheTaoRenouncesTheContract() public {
-        vm.expectRevert(IGovernanceTypes.OwnershipNotRenounceable.selector);
+    function test_RevertWhen_AKeyOutsideTheTaosDidActsAsTheTao() public {
+        vm.prank(outsider);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setCosigners(TI_ID, new IGovernanceTypes.Cosigner[](0));
+    }
+
+    /// Audit: a TAO key rotated out of the DID Registry kept the owner's
+    /// powers, transferred ownership to itself and locked the TAO's new key
+    /// out. The DID is now the TAO: the old key loses every TAO power at once,
+    /// and the new key gains them at once, with nothing to transfer.
+    function test_ARotatedTaoKeyLosesTheTaosPowersAndItsReplacementGainsThem() public {
+        address newKey = makeAddr("tao new key");
+        StubDidRegistry(didRegistry).setController(taoDid, tao, false);
+        StubDidRegistry(didRegistry).setController(taoDid, newKey, true);
+        IGovernanceTypes.Cosigner[] memory none = new IGovernanceTypes.Cosigner[](0);
+
+        vm.startPrank(tao);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setCosigners(TI_ID, none);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.addTi(setup("did:ebsi:zOther", keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilot, pilotTtl));
+        vm.stopPrank();
+
+        vm.startPrank(newKey);
+        vm.expectEmit(address(governance));
+        emit ITiConfiguration.CosignersChanged(TI_ID);
+        governance.setCosigners(TI_ID, none);
+        vm.expectEmit(address(governance));
+        emit ITiConfiguration.TiAttributeChanged(TI_ID, TI_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE);
+        accreditTi("did:ebsi:zOther");
+        governance.addTi(setup("did:ebsi:zOther", keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilot, pilotTtl));
+        vm.stopPrank();
+    }
+
+    /// The DID Registry is asked on every call, so a key it lists again acts
+    /// again: nothing in this contract remembers a key's past.
+    function test_ATaoKeyListedAgainActsAgain() public {
+        StubDidRegistry(didRegistry).setController(taoDid, tao, false);
         vm.prank(tao);
-        governance.renounceOwnership();
-        assertEq(governance.owner(), tao);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setCosigners(TI_ID, new IGovernanceTypes.Cosigner[](0));
+
+        StubDidRegistry(didRegistry).setController(taoDid, tao, true);
+        vm.prank(tao);
+        governance.setCosigners(TI_ID, new IGovernanceTypes.Cosigner[](0));
     }
 
     function test_TheProxyFollowsTheBeaconsImplementation() public view {

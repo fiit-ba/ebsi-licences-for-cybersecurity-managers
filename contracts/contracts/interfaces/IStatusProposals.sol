@@ -9,6 +9,8 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  *         10.5), and their audit verification (component 10.7).
  */
 interface IStatusProposals is IGovernanceTypes {
+    /// @notice The registry executed proposals take effect in, set once at
+    ///         initialization.
     event CertificateRegistryChanged(address indexed certificateRegistry);
 
     event ProposalCreated(
@@ -32,9 +34,6 @@ interface IStatusProposals is IGovernanceTypes {
 
     /// @notice The registry executed proposals take effect in.
     function certificateRegistry() external view returns (address);
-
-    /// @notice Point the contract at a certificate registry. TAO only.
-    function setCertificateRegistry(address certificateRegistry_) external;
 
     /// @notice Open a proposal and cast the proposer's signature.
     /// @param statusKey The certificate's record in the registry, which must

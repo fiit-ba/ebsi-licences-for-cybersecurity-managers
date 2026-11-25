@@ -26,10 +26,13 @@ import {EBSIContracts} from "./DeployTypes.sol";
  *
  * Environment:
  *   GOVERNANCE_DEPLOYER_KEY         pays for the deployment; default dev key 0
- *   GOVERNANCE_TAO                  the contract's owner; default dev key 4 on a dev
- *                                   chain (Networks.sol), else required
- *   GOVERNANCE_TAO_KEY              links the two contracts as the owner; default dev
- *                                   key 4 on a dev chain, else required
+ *   GOVERNANCE_TAO                  the TAO's key, which owns the registry until it
+ *                                   links it to governance; default dev key 4 on a
+ *                                   dev chain (Networks.sol), else required.
+ *                                   Governance has no owner: any key of the TAO's DID
+ *                                   acts as the TAO
+ *   GOVERNANCE_TAO_KEY              links the two contracts, once; default dev key 4
+ *                                   on a dev chain, else required
  *   GOVERNANCE_TAO_DID              the TAO's DID in the Trusted Issuers Registry;
  *                                   default a placeholder on a dev chain, else required
  *   GOVERNANCE_BEACON_OWNER         who can add beacon versions / opt the proxy into
@@ -49,7 +52,8 @@ import {EBSIContracts} from "./DeployTypes.sol";
  * VersionedUpgradeableBeacon, a template registered for them, then a proxy from that
  * template via the Proxy Factory (which also runs its initializer). The proxy is the
  * contract's address. The registry goes first: governance is initialized with its
- * address, and the TAO then points the registry at governance.
+ * address, and the TAO then links the registry to governance, once, which ends the
+ * registry's ownership.
  *
  * The EBSI mock infrastructure (Proxy Templates Registry, Proxy Factory) must already
  * be deployed; this only reads it from deployments/<network>-ebsi.json, never deploys
@@ -93,7 +97,7 @@ contract Deploy is Script, Networks {
         beaconOwner = _beaconOwner(development, vm.addr(deployerKey));
         console.log("beacon owner :", beaconOwner);
         tao = _tao(development);
-        console.log("owner (TAO)  :", tao);
+        console.log("TAO key      :", tao);
         taoDid = development ? vm.envOr("GOVERNANCE_TAO_DID", string("did:ebsi:zDevelopmentTao")) : vm.envString("GOVERNANCE_TAO_DID");
         console.log("TAO DID      :", taoDid);
 
@@ -142,7 +146,7 @@ contract Deploy is Script, Networks {
             })
         );
 
-        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (tao, taoDid, address(registry)));
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (taoDid, address(registry)));
         // The proxy owner is the beacon owner too: the only proxy on its beacon.
         governance = CertificateGovernance(
             IProxyFactory(ebsi.proxyFactory).deployProxy(GOVERNANCE_TEMPLATE_NAME, templateVersion, init, deployerDID, beaconOwner)
@@ -193,11 +197,11 @@ contract Deploy is Script, Networks {
         owner = vm.envAddress("GOVERNANCE_TAO");
         require(
             !_isDevelopmentAccount(owner),
-            string.concat("The TAO is a public development account; it cannot own the contract on ", _networkName())
+            string.concat("The TAO is a public development account; it cannot link the contracts on ", _networkName())
         );
     }
 
-    /// The owner links the contracts, so its key has to be at hand.
+    /// The TAO's key links the contracts, so it has to be at hand.
     function _taoKey(bool development) internal view returns (uint256 key) {
         key = development ? vm.envOr("GOVERNANCE_TAO_KEY", _developmentKey(DEVELOPMENT_TAO)) : vm.envUint("GOVERNANCE_TAO_KEY");
         require(vm.addr(key) == tao, "GOVERNANCE_TAO_KEY is not the key of GOVERNANCE_TAO");
@@ -249,7 +253,6 @@ contract Deploy is Script, Networks {
         vm.serializeAddress("governance", "implementation", implementationAddress);
         vm.serializeAddress("governance", "beacon", beaconAddress);
         vm.serializeAddress("governance", "beaconOwner", beaconOwner);
-        vm.serializeAddress("governance", "owner", tao);
         vm.serializeString("governance", "taoDid", taoDid);
         vm.serializeAddress("governance", "didRegistry", ebsi.didRegistry);
         vm.serializeAddress("governance", "issuersRegistry", ebsi.issuersRegistry);

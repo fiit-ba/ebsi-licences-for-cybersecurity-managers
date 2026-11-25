@@ -7,7 +7,8 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  * @notice The certificate records and their standing: all a verifier reads.
  */
 interface ICertificateRegistry is IGovernanceTypes {
-    /// @notice The contract allowed to apply executed proposals changed.
+    /// @notice The contract allowed to apply executed proposals was set: once,
+    ///         at deployment.
     event GovernanceChanged(address indexed governance);
 
     /// @notice A certificate entered the registry's record.
@@ -50,7 +51,8 @@ interface ICertificateRegistry is IGovernanceTypes {
     ///         executed proposals from.
     function governance() external view returns (address);
 
-    /// @notice Point the registry at a governance contract. TAO only.
+    /// @notice Link the registry to its governance contract, which must name
+    ///         this registry. Once, by the owner, whose ownership ends with it.
     function setGovernance(address governance_) external;
 
     /// @notice Refuses a certificate a TI may not propose for: an unknown one,

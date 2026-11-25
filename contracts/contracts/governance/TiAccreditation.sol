@@ -1,6 +1,6 @@
 pragma solidity 0.8.26;
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IEbsiDidRegistry, IEbsiIssuersRegistry} from "../interfaces/IEbsiRegistries.sol";
 import {ITiAccreditation} from "../interfaces/ITiAccreditation.sol";
 
@@ -14,10 +14,15 @@ import {ITiAccreditation} from "../interfaces/ITiAccreditation.sol";
  *         key that could repoint them (the TAO's, if it were compromised)
  *         would only be a risk. Each network deploys its own implementation
  *         with its own registries; should EBSI ever move one, a new
- *         implementation version, which each proxy's owner opts into, carries
- *         the change.
+ *         implementation version carries the change.
+ *
+ *         The TAO is its DID, not a key: whoever the DID Registry shows as a
+ *         valid key of `taoDid` acts as the TAO, and no other account does.
+ *         There is no owner to transfer, so a key the TAO rotates out of its
+ *         DID document loses the TAO's powers at once, and its replacement
+ *         gains them at once.
  */
-abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
+abstract contract TiAccreditation is ITiAccreditation, Initializable {
     /// @notice Most accreditation hops walked above a TI: the registry's own
     ///         limit, so a chain cannot be longer. Each hop is one more read
     ///         of the Trusted Issuers Registry, and so more gas wherever gas is
@@ -67,9 +72,8 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
         return _accreditationStorage().taoDid;
     }
 
-    /// @dev The owner, while the DID Registry still shows it as the TAO's key.
+    /// @dev A key the DID Registry shows, right now, as a key of the TAO's DID.
     modifier onlyTao() {
-        _checkOwner();
         if (!_controls(taoDid(), msg.sender)) revert NotDidController();
         _;
     }
@@ -78,12 +82,6 @@ abstract contract TiAccreditation is ITiAccreditation, OwnableUpgradeable {
     function _setTaoDid(string memory taoDid_) internal {
         if (bytes(taoDid_).length == 0) revert InvalidTaoDid();
         _accreditationStorage().taoDid = taoDid_;
-    }
-
-    /// @dev Without an owner no TI could be set up again, nor a TI's cosigners
-    ///      or accreditation attribute changed.
-    function renounceOwnership() public pure override {
-        revert OwnershipNotRenounceable();
     }
 
     /// @dev Asks the Trusted Issuers Registry, on every call, whether the

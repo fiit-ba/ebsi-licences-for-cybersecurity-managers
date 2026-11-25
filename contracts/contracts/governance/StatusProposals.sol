@@ -46,10 +46,9 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         }
     }
 
-    function setCertificateRegistry(address certificateRegistry_) external onlyTao {
-        _setCertificateRegistry(certificateRegistry_);
-    }
-
+    /// @dev Called once, by `initialize`: the registry is fixed for the
+    ///      proxy's life, as the registry fixes its governance. A new registry
+    ///      means a new pair of contracts, not a repointed one.
     function _setCertificateRegistry(address certificateRegistry_) internal {
         if (certificateRegistry_.code.length == 0) revert InvalidRegistry();
         _statusProposalsStorage().certificateRegistry = certificateRegistry_;

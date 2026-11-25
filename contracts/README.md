@@ -94,7 +94,8 @@ implementation and a `VersionedUpgradeableBeacon` pointing at it (owned by
 registers a template for them in the Proxy Templates Registry, and has the
 Proxy Factory create the proxy, which initializes itself as it is created. The
 registry goes first: governance is initialized with its address, and the TAO
-then points the registry at governance (`setGovernance`). The proxies are the
+then links the registry to governance (`setGovernance`), once: that call ends
+the registry's ownership, so neither contract can be repointed. The proxies are the
 contracts' addresses. `deployments/<network>.json` records each with its
 implementation and beacon, and `deployments/<network>-ebsi.json` the EBSI
 registries, which must be on the chain first.
@@ -128,7 +129,8 @@ Then, to deploy and run them:
   `GOVERNANCE_DEPLOYER_KEY` and `GOVERNANCE_DEPLOYER_DID`);
 - **the TAO's DID accredited** in the Trusted Issuers Registry, as a TAO with a
   chain up to a Root TAO or as a Root TAO itself, and controlled by the TAO's
-  key, which owns both contracts (`GOVERNANCE_TAO_DID`, `GOVERNANCE_TAO`);
+  key, which links the two contracts once at deployment (`GOVERNANCE_TAO_DID`,
+  `GOVERNANCE_TAO`);
 - **each certification body accredited as a TI** by that TAO, with its signer
   keys registered as controllers of the TI's DID, or of the cosigner's DID, in
   the DID Registry (`TI_DID`, `TI_ATTRIBUTE_ID`, `SIGNER_A`, `SIGNER_B`,
@@ -220,19 +222,28 @@ registries two questions each time, so revoking there is enough:
   (`checkController`). A key that registry no longer shows has no role, and
   its earlier signatures stop counting.
 
-The TAO acts with the owner's key, and only while the DID Registry shows that
-key as a key of the TAO's DID (the registry's `setGovernance` asks only for the
-owner). After `addTi` it can replace a TI's cosigners (`setCosigners`), follow
-a TI to a new accreditation (`setTiAttribute`: a revoked attribute never comes
-back) and point the two contracts at each other (`setCertificateRegistry`, and
-`setGovernance` on the registry). It cannot point the contract at other EBSI
+The TAO is its DID, not a key: the governance contract has no owner, and any
+key the DID Registry shows, right now, as a capabilityInvocation key of the
+TAO's DID acts as the TAO. A key the TAO rotates out of its DID document loses
+the TAO's powers at once, and its replacement gains them at once; there is no
+ownership to transfer, steal or recover. After `addTi` the TAO can replace a
+TI's cosigners (`setCosigners`) and follow a TI to a new accreditation
+(`setTiAttribute`: a revoked attribute never comes back).
+
+The two contracts are linked once, at deployment, and never repointed: a
+contract set as the registry's governance decides every standing, so a key that
+could repoint it would hold every certificate, quorum or not. Governance is
+initialized with its registry, and the registry's owner (the TAO's key that
+deployed the pair) links it with `setGovernance`, which refuses a governance
+contract naming another registry and ends the registry's ownership. Either
+contract's logic changes through its beacon, whose versions EBSI approves, not
+by pointing at another contract. It cannot point the contract at other EBSI
 registries: they are immutables of the implementation, given to its
 constructor, so no transaction changes them. Their addresses never change on
 EBSI, so a compromised TAO key cannot swap in registries of its own. Each
 network deploys its own implementation with its own registries; should EBSI
 ever move one, a new implementation version carries the change. A TI's signer keys, policies and proposal lifetime
-change only through the TI's own quorum. Ownership can be transferred, never
-renounced.
+change only through the TI's own quorum.
 
 ### Roles and policies
 
@@ -402,8 +413,8 @@ are required:
 | Variable | Default | Meaning |
 |---|---|---|
 | `GOVERNANCE_DEPLOYER_KEY` | development key 0 | the key that pays for the deployment |
-| `GOVERNANCE_TAO` | development key 4's account | the owner of both contracts |
-| `GOVERNANCE_TAO_KEY` | development key 4 | the owner's key: it points the registry at governance, and `AddTi.s.sol` sets a TI up with it |
+| `GOVERNANCE_TAO` | development key 4's account | a key of the TAO's DID: owns the registry until it links it to governance |
+| `GOVERNANCE_TAO_KEY` | development key 4 | its private key: it links the registry to governance, once, and `AddTi.s.sol` sets a TI up with it |
 | `GOVERNANCE_TAO_DID` | `did:ebsi:zDevelopmentTao` | the TAO's DID in the Trusted Issuers Registry |
 | `GOVERNANCE_BEACON_OWNER` | the deployer | who owns both beacons, and so can upgrade both contracts |
 | `GOVERNANCE_STORAGE_LAYOUT_HASH`, `REGISTRY_STORAGE_LAYOUT_HASH` | a hash of the implementation's code | the storage layout each beacon records for its implementation |

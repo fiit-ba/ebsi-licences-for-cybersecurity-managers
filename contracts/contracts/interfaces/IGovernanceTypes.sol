@@ -230,10 +230,11 @@ interface IGovernanceTypes {
     error NotCertificateIssuer();
     /// @notice A registry address has no contract behind it.
     error InvalidRegistry();
-    /// @notice A governance address has no contract behind it.
+    /// @notice A governance address has no contract behind it, or one that
+    ///         does not name this registry.
     error InvalidGovernance();
     /// @notice Only the governance contract may do this.
     error NotGovernance();
-    /// @notice A contract always has an owner; ownership is only transferred.
+    /// @notice The registry's ownership ends only by linking its governance.
     error OwnershipNotRenounceable();
 }

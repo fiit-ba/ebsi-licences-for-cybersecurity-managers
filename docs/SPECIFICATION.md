@@ -71,7 +71,7 @@ The variant concentrates the EBSI trust-chain competences in one legal person. T
 
 The variant does not change the existing Slovak split of competences between the scheme owner, the accreditation body and the certification bodies. National accreditation under ISO/IEC 17024 remains with SNAS and is an off-chain precondition for admitting a certification body as a TI.
 
-**Weaknesses:** the variant concentrates two EBSI trust-chain roles in one institution, even though the Slovak system keeps the scheme owner, the accreditation body and the certification bodies separate. Such a configuration therefore needs a separate assessment of impartiality, conflict of interest and compatibility with the requirements for accrediting certification bodies. It must also be shown that NBÚ can hold both roles in EBSI. NBÚ would moreover own the contracts in which it signs as signer C itself.
+**Weaknesses:** the variant concentrates two EBSI trust-chain roles in one institution, even though the Slovak system keeps the scheme owner, the accreditation body and the certification bodies separate. Such a configuration therefore needs a separate assessment of impartiality, conflict of interest and compatibility with the requirements for accrediting certification bodies. It must also be shown that NBÚ can hold both roles in EBSI. NBÚ would moreover administer, as TAO, the contracts in which it signs as signer C itself.
 
 ### Which variant for the pilot
 
@@ -83,7 +83,7 @@ A comparable Portuguese solution for educational credentials uses a multi-level 
 
 ### Link to components 4 and 10
 
-Each TAO has its own pair of contracts: the certificate registry (component 4) and the governance contract (component 10), serving all its TIs. The back-office deploys the pair on behalf of the RootTAO through EBSI's Proxy Factory, and the TAO's key owns it and sets up the TAO's TIs with it. Choosing the institution in the TAO role therefore also chooses the owner of these contracts.
+Each TAO has its own pair of contracts: the certificate registry (component 4) and the governance contract (component 10), serving all its TIs. The back-office deploys the pair on behalf of the RootTAO through EBSI's Proxy Factory, and the TAO, acting with any key of its DID, sets up the TAO's TIs with it. Choosing the institution in the TAO role therefore also chooses who administers these contracts.
 
 The institution in the RTAO role is a candidate for the external signer in the Certificate Governance Contract, if its legal and governance competences fit the role. Signer C is that institution's DID (a cosigner): any of its keys that the DID Registry lists signs. Linking the RTAO role with the signer role is not an automatic consequence of the EBSI trust-chain model and must be confirmed within the governance of component 10, including an assessment of powers, security and availability of the key infrastructure.
 
@@ -460,7 +460,7 @@ Registry licenses use no status lists. StatusList2021 with a status proxy in the
 Each TAO has its own pair of `CertificateRegistry` and `CertificateGovernance` contracts, serving all its TIs:
 
 - **Deployment.** When EBSI confirms a TAO, the back-office deploys its pair through EBSI's Proxy Factory from the `CertificateRegistry@1` and `CertificateGovernance@1` templates. The transactions are signed by the RootTAO's key, which holds the `ProxyFactory:deployProxy` policy in the Trusted Policies Registry. Deployment can be repeated: the addresses derive from the TAO's DID, so an interrupted deployment resumes where it stopped.
-- **Ownership.** The TAO's key owns both contracts. The TAO links them (`setGovernance`) and sets up each of its TIs in the governance contract (component 10.2).
+- **Authority.** The governance contract has no owner: the TAO is its DID, and any key the DID Registry lists for it acts as the TAO, so a rotated key loses that power at once. The TAO's key links the registry to governance once, at deployment (`setGovernance`), which ends the registry's ownership; neither contract can be repointed afterwards. The TAO sets up each of its TIs in the governance contract (component 10.2).
 - **The first pair**, deployed together with the installation, belongs to the TAO its governance contract names.
 - **Trust rule.** A verifier (in the back-office and in the wallet) keeps no list of registries. It accepts the registry named in a license when, according to the Proxy Factory (`getDeploymentInfo`), it was deployed from the registry template and is active, its `governance()` was deployed from the governance template, the two contracts name each other, and the governance contract's `taoDid()` is the TAO that accredited the issuing TI in the TIR. A new TAO therefore needs no new configuration and no new wallet build.
 
@@ -759,7 +759,7 @@ Without this second property, the contract would provide nothing beyond the appl
 
 **Policies are data.** For suspension, revocation, reinstatement and changes to the TI's rules, each policy has its own threshold (`threshold`), the roles that must be among the signers (`requiredRoleMask`), the roles that may veto (`vetoRoleMask`) and a timelock. The alternative "the supervisory authority must sign every permanent revocation" is therefore just the value `revoke.requiredRoles = [C]`. Pilot configuration: all policies 2 of 3 roles, veto by any role, a 24 h timelock on revocation, rule changes applied as soon as their quorum is reached, proposals valid for 30 days. The production configuration also puts a 24 h timelock on rule changes.
 
-**The TAO's key.** The TAO acts with the owner's key, and only while the DID Registry lists it as a key of the TAO's DID. After `addTi`, the TAO can replace a TI's cosigners, move a TI to a new accreditation attribute and link the two contracts. It cannot change a TI's signer keys, its policies or the proposal lifetime — only the TI's quorum changes those.
+**The TAO's key.** The TAO acts with any key the DID Registry lists, at that moment, as a key of the TAO's DID; there is no owner key to transfer. After `addTi`, the TAO can replace a TI's cosigners and move a TI to a new accreditation attribute. The two contracts are linked once, at deployment, and cannot be repointed. It cannot change a TI's signer keys, its policies or the proposal lifetime — only the TI's quorum changes those.
 
 ### 10.3 Data model
 

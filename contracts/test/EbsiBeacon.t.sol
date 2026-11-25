@@ -22,12 +22,12 @@ contract EBSIBeaconTest is GovernanceTest {
             new VersionedUpgradeableBeacon(address(this), address(implementation), keccak256("test-layout"));
         assertEq(IBeacon(address(versionedBeacon)).implementation(), address(implementation));
 
-        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (tao, taoDid, address(registry)));
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (taoDid, address(registry)));
         CertificateGovernance proxied =
             CertificateGovernance(address(new VersionedBeaconProxy(address(versionedBeacon), init, address(this))));
 
         assertEq(versionedBeacon.proxyOwnerOf(address(proxied)), address(this));
         assertEq(versionedBeacon.proxyVersionOf(address(proxied)), 1);
-        assertEq(proxied.owner(), tao);
+        assertEq(proxied.taoDid(), taoDid);
     }
 }

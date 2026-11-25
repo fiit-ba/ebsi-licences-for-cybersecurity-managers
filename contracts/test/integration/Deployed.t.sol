@@ -167,8 +167,8 @@ contract DeploymentTest is DeployedFixture {
         assertEq(governance.didRegistry(), address(didr));
         assertEq(governance.issuersRegistry(), address(tir));
         assertEq(governance.taoDid(), TAO);
-        assertEq(governance.owner(), tao);
-        assertEq(registry.owner(), tao);
+        // Linking ended the registry's ownership; governance never had an owner.
+        assertEq(registry.owner(), address(0));
     }
 
     /// On anvil the registries stand at the PILOT's addresses, so the

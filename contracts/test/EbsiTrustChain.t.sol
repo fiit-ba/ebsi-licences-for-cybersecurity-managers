@@ -4,7 +4,6 @@ import {Test, Vm} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {CertificateGovernance} from "../contracts/CertificateGovernance.sol";
 import {CertificateRegistry} from "../contracts/CertificateRegistry.sol";
@@ -265,7 +264,7 @@ abstract contract GovernanceFixture is EbsiFixture {
         CertificateRegistry certificates = CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (owner))))
         );
-        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (owner, TAO, address(certificates)));
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (TAO, address(certificates)));
         deployed = CertificateGovernance(address(new BeaconProxy(address(beacon), init)));
         vm.prank(owner);
         certificates.setGovernance(address(deployed));
@@ -377,14 +376,14 @@ contract AddTiTest is GovernanceFixture {
         assertEq(Role.unwrap(governance.roleOf(tiId, nbuKey.addr)), 3);
     }
 
-    function test_RevertWhen_TheCallerIsNotTheOwner() public {
+    function test_RevertWhen_TheCallerIsNoKeyOfTheTaosDid() public {
         IGovernanceTypes.TiSetup memory setup = _setup();
         vm.prank(tiKey.addr);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, tiKey.addr));
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.addTi(setup);
     }
 
-    function test_RevertWhen_TheOwnerNoLongerControlsTheTaosDid() public {
+    function test_RevertWhen_TheTaosKeyHasExpiredInTheDidRegistry() public {
         IGovernanceTypes.TiSetup memory setup = _setup();
         vm.warp(block.timestamp + 366 days);
         vm.prank(taoKey.addr);
@@ -464,7 +463,7 @@ contract AddTiTest is GovernanceFixture {
         bytes32 renewed = sha256(abi.encode(TI, salt, uint256(0), bytes("")));
 
         vm.prank(tiKey.addr);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, tiKey.addr));
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.setTiAttribute(tiId, renewed);
 
         vm.prank(tiKey.addr);
@@ -661,9 +660,65 @@ contract FixedRegistriesTest is GovernanceFixture {
         address certificateRegistry = governance.certificateRegistry();
         vm.prank(taoKey.addr);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        governance.initialize(taoKey.addr, OTHER_TAO, certificateRegistry);
+        governance.initialize(OTHER_TAO, certificateRegistry);
         assertEq(governance.taoDid(), TAO);
         assertEq(governance.didRegistry(), address(didr));
         assertEq(governance.issuersRegistry(), address(tir));
+    }
+}
+
+/// Audit: the TAO is its DID, so its key is rotated in the DID Registry alone,
+/// as EBSI documents it, with nothing to transfer in this contract.
+contract TaoKeyRotationTest is GovernanceFixture {
+    Vm.Wallet internal newTaoKey;
+
+    function setUp() public override {
+        super.setUp();
+        newTaoKey = vm.createWallet("tao new key");
+    }
+
+    function test_ATaosNewKeyActsAsTheTaoAtOnce() public {
+        _addKey(taoKey, TAO, "#key-2", newTaoKey);
+        vm.prank(newTaoKey.addr);
+        governance.addTi(_setup());
+        assertEq(governance.getTi(tiId).did, TI);
+    }
+
+    function test_ATaoKeyRevokedInTheDidRegistryLosesEveryTaoPower() public {
+        _addTi(_setup());
+        _addKey(taoKey, TAO, "#key-2", newTaoKey);
+        vm.prank(newTaoKey.addr);
+        didr.revokeVerificationMethod(TAO, string.concat(TAO, "#key-1"), block.timestamp);
+        IGovernanceTypes.Cosigner[] memory cosigners = _setup().cosigners;
+
+        vm.startPrank(taoKey.addr);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setCosigners(tiId, cosigners);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.setTiAttribute(tiId, tiAttr);
+        IGovernanceTypes.TiSetup memory setup2 = _setup2();
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        governance.addTi(setup2);
+        vm.stopPrank();
+
+        vm.startPrank(newTaoKey.addr);
+        governance.setCosigners(tiId, cosigners);
+        governance.setTiAttribute(tiId, tiAttr);
+        governance.addTi(setup2);
+        vm.stopPrank();
+    }
+
+    /// A TAO DID with no document in the DID Registry (the registry reverts for
+    /// it) has no key, so no one acts as that TAO.
+    function test_RevertWhen_TheTaosDidHasNoDocument() public {
+        CertificateRegistry certificates = CertificateRegistry(
+            address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (taoKey.addr))))
+        );
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, ("did:ebsi:zNoDocument", address(certificates)));
+        CertificateGovernance orphan = CertificateGovernance(address(new BeaconProxy(address(beacon), init)));
+        IGovernanceTypes.TiSetup memory setup = _setup();
+        vm.prank(taoKey.addr);
+        vm.expectRevert(IGovernanceTypes.NotDidController.selector);
+        orphan.addTi(setup);
     }
 }

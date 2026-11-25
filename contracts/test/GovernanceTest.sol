@@ -10,7 +10,7 @@ import {Hashes} from "../contracts/libraries/Hashes.sol";
 import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
 import {IEbsiIssuersRegistry} from "../contracts/interfaces/IEbsiRegistries.sol";
 import {GovernanceConfigFile} from "../scripts/GovernanceConfigFile.sol";
-import {StubIssuersRegistry} from "./RegistryStubs.sol";
+import {StubDidRegistry, StubIssuersRegistry} from "./RegistryStubs.sol";
 import {PILOT_DID_REGISTRY, PILOT_ISSUERS_REGISTRY} from "../scripts/PilotRegistries.sol";
 
 /**
@@ -103,6 +103,8 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         beacon = new UpgradeableBeacon(address(implementation), address(this));
         registryBeacon = new UpgradeableBeacon(address(new CertificateRegistry()), address(this));
         tao = makeAddr("tao");
+        // The TAO's DID lists the TAO's key alone: no other account acts as the TAO.
+        StubDidRegistry(didRegistry).setController(taoDid, tao, true);
         _accredit(ROOT_DID, ROOT_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.RootTAO, ROOT_DID, bytes32(0));
         _accredit(taoDid, TAO_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TAO, ROOT_DID, ROOT_ATTRIBUTE);
         accreditTi(TI_DID);
@@ -192,7 +194,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         CertificateRegistry certificates = CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (tao))))
         );
-        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (tao, taoDid, address(certificates)));
+        bytes memory init = abi.encodeCall(CertificateGovernance.initialize, (taoDid, address(certificates)));
         deployed = CertificateGovernance(address(new BeaconProxy(address(beacon), init)));
         vm.prank(tao);
         certificates.setGovernance(address(deployed));

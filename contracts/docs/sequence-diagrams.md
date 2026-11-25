@@ -12,7 +12,7 @@ Participants:
 | `CertificateGovernance` | TIs, signers, cosigners, policies and proposals, one contract per TAO. |
 | DID Registry | EBSI's DIDR: which keys are valid keys of a DID. |
 | Trusted Issuers Registry | EBSI's TIR: who accredited whom. |
-| TAO | The contract's owner; acts with a key of its DID. |
+| TAO | Its DID: any key the DID Registry shows for it acts as the TAO. Its key links the registry to governance, once. |
 | TI signer | A key of the TI's DID, or of a cosigner's DID, with a role. |
 
 ## 1. Is this key a signer of this TI, and is the TI accredited?
@@ -94,11 +94,12 @@ sequenceDiagram
     Note over Dep,F: per contract, first: the implementation (governance's with the DID Registry<br/>and TIR as constructor arguments), a VersionedUpgradeableBeacon,<br/>and a template for them in the Proxy Templates Registry (addTemplate)
     Dep->>F: deployProxy("CertificateRegistry", version, initialize(tao), deployerDid, beaconOwner)
     F->>R: initialize(tao)
-    Dep->>F: deployProxy("CertificateGovernance", version, initialize(tao, taoDid, registry), deployerDid, beaconOwner)
+    Dep->>F: deployProxy("CertificateGovernance", version, initialize(taoDid, registry), deployerDid, beaconOwner)
     F->>G: initialize(...)
     G-->>Dep: CertificateRegistryChanged
-    TAO->>R: setGovernance(governance)
-    R-->>TAO: GovernanceChanged
+    TAO->>R: setGovernance(governance), once
+    R->>G: certificateRegistry() == registry
+    R-->>TAO: GovernanceChanged, OwnershipTransferred(tao, 0)
 
     Note over TAO,T: Per TI, once the TAO has accredited it in the TIR
     TAO->>G: addTi(TiSetup{did, attributeId, signers, roles, cosigners, policies, proposalTtl})

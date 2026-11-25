@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ICertificateRegistry} from "./interfaces/ICertificateRegistry.sol";
+import {IStatusProposals} from "./interfaces/IStatusProposals.sol";
 import {ITiConfiguration} from "./interfaces/ITiConfiguration.sol";
 import {Hashes} from "./libraries/Hashes.sol";
 
@@ -24,6 +25,11 @@ import {Hashes} from "./libraries/Hashes.sol";
  *      (revocation, reinstatement, ordinary suspension) is a proposal that
  *      must reach quorum in CertificateGovernance, for a recorded certificate
  *      only.
+ *
+ *      The governance contract is set once, when the pair is deployed, and
+ *      never replaced: a contract set here decides every standing, so a key
+ *      that could repoint it would hold every certificate. Governance's logic
+ *      changes through its beacon, whose versions EBSI approves, not here.
  *
  *      Who may sign is governance's question. What may happen to a certificate
  *      is this contract's, whatever governance asks: a revoked certificate
@@ -65,8 +71,9 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
     /**
      * @notice Set up the proxy's owner. Governance comes after (`setGovernance`):
      *         it is initialized with this contract's address.
-     * @param tao The contract's owner. Named, not taken from `msg.sender`,
-     *        which is the Proxy Factory on a factory deployment.
+     * @param tao The key that links the registry to its governance, and the
+     *        owner until it does. Named, not taken from `msg.sender`, which is
+     *        the Proxy Factory on a factory deployment.
      */
     function initialize(address tao) external initializer {
         __Ownable_init(tao);
@@ -88,17 +95,27 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         return _registryStorage().governance;
     }
 
-    /// @dev Without an owner this registry could never leave its governance.
+    /// @dev Before `setGovernance` an owner-less registry could never be
+    ///      linked; after it there is no owner left to renounce.
     function renounceOwnership() public pure override {
         revert OwnershipNotRenounceable();
     }
 
-    /// @dev Whoever is set here decides every standing, so this is what the
-    ///      timelock in front of the owner has to protect.
+    /**
+     * @dev Once, at deployment, and the owner's last act: ownership ends here,
+     *      so no key can repoint the registry, nor transfer a power to do so.
+     *      Governance must already name this registry, which it is initialized
+     *      with, so a wrong address cannot be linked for good by mistake.
+     */
     function setGovernance(address governance_) external onlyOwner {
         if (governance_.code.length == 0) revert InvalidGovernance();
+        (bool ok, bytes memory named) = governance_.staticcall(abi.encodeCall(IStatusProposals.certificateRegistry, ()));
+        if (!ok || named.length != 32 || abi.decode(named, (uint256)) != uint256(uint160(address(this)))) {
+            revert InvalidGovernance();
+        }
         _registryStorage().governance = governance_;
         emit GovernanceChanged(governance_);
+        _transferOwnership(address(0));
     }
 
     /**

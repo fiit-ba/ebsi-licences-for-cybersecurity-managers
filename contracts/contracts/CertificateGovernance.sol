@@ -87,17 +87,17 @@ contract CertificateGovernance is ICertificateGovernance, StatusProposals, RuleC
     }
 
     /**
-     * @notice Set up the proxy's owner and its TAO, once, in the transaction
-     *         that creates the proxy. The EBSI registries come with the
-     *         implementation (constructor). TIs come after (`addTi`): one
+     * @notice Set up the proxy's TAO and its registry, once, in the
+     *         transaction that creates the proxy. The EBSI registries come with
+     *         the implementation (constructor). TIs come after (`addTi`): one
      *         contract serves them all.
-     * @param tao The contract's owner. Named, not taken from `msg.sender`,
-     *        which is the Proxy Factory on a factory deployment.
+     * @dev There is no owner: the TAO acts with any key the DID Registry
+     *      shows for `taoDid_` (`onlyTao`). Neither the DID nor the registry
+     *      changes afterwards, except by a new implementation version.
      * @param taoDid_ The TAO's DID in the Trusted Issuers Registry.
      * @param certificateRegistry_ The registry of this TAO's certificates.
      */
-    function initialize(address tao, string memory taoDid_, address certificateRegistry_) external initializer {
-        __Ownable_init(tao);
+    function initialize(string memory taoDid_, address certificateRegistry_) external initializer {
         _setTaoDid(taoDid_);
         _setCertificateRegistry(certificateRegistry_);
     }
