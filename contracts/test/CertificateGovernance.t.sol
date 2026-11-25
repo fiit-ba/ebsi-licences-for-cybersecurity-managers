@@ -57,7 +57,7 @@ contract ConstructionTest is GovernanceTest {
         IGovernanceTypes.Cosigner[] memory cosigners = new IGovernanceTypes.Cosigner[](1);
         cosigners[0] = IGovernanceTypes.Cosigner("did:ebsi:zSupervisor", ROLE_C);
         vm.expectEmit(address(governance));
-        emit ITiConfiguration.CosignersChanged(TI_ID);
+        emit ITiConfiguration.CosignersChanged(TI_ID, cosigners);
         vm.prank(tao);
         governance.setCosigners(TI_ID, cosigners);
         assertEq(governance.getTi(TI_ID).rolesPresentMask, ALL, "after");
@@ -219,8 +219,6 @@ contract ProxyTest is GovernanceTest {
         new BeaconProxy(address(beacon), init);
     }
 
-    /// The TAO is its DID: there is no owner, so nothing to transfer or
-    /// renounce, and no key outside the DID's document acts as the TAO.
     function test_HasNoOwner() public {
         string[3] memory gone = ["owner()", "transferOwnership(address)", "renounceOwnership()"];
         for (uint256 i = 0; i < gone.length; i++) {
@@ -236,10 +234,7 @@ contract ProxyTest is GovernanceTest {
         governance.setCosigners(TI_ID, new IGovernanceTypes.Cosigner[](0));
     }
 
-    /// Audit: a TAO key rotated out of the DID Registry kept the owner's
-    /// powers, transferred ownership to itself and locked the TAO's new key
-    /// out. The DID is now the TAO: the old key loses every TAO power at once,
-    /// and the new key gains them at once, with nothing to transfer.
+    /// Audit: a rotated TAO key kept the owner's powers.
     function test_ARotatedTaoKeyLosesTheTaosPowersAndItsReplacementGainsThem() public {
         address newKey = makeAddr("tao new key");
         StubDidRegistry(didRegistry).setController(taoDid, tao, false);
@@ -257,7 +252,7 @@ contract ProxyTest is GovernanceTest {
 
         vm.startPrank(newKey);
         vm.expectEmit(address(governance));
-        emit ITiConfiguration.CosignersChanged(TI_ID);
+        emit ITiConfiguration.CosignersChanged(TI_ID, none);
         governance.setCosigners(TI_ID, none);
         vm.expectEmit(address(governance));
         emit ITiConfiguration.TiAttributeChanged(TI_ID, TI_ATTRIBUTE);
@@ -267,8 +262,6 @@ contract ProxyTest is GovernanceTest {
         vm.stopPrank();
     }
 
-    /// The DID Registry is asked on every call, so a key it lists again acts
-    /// again: nothing in this contract remembers a key's past.
     function test_ATaoKeyListedAgainActsAgain() public {
         StubDidRegistry(didRegistry).setController(taoDid, tao, false);
         vm.prank(tao);
@@ -570,8 +563,7 @@ contract ExpiryTest is GovernanceTest {
 contract QuorumRegainedTest is GovernanceTest {
     function test_RestartsTheTimelockWhenAReplacedKeysSuccessorSigns() public {
         // The review's scenario: B's key is rotated an hour before the end of
-        // the timelock, and the new B key signs half an hour later. A rotation
-        // waits as long as a revocation, so it was proposed an hour before it.
+        // the timelock, and the new B key signs half an hour later.
         uint256 rotation = replaceSigner(A, C, B, spare);
         skip(HOUR);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
@@ -803,8 +795,6 @@ contract SelfAdministrationTest is GovernanceTest {
         assertEq(governance.getTi(TI_ID).proposalTtl, shortest);
     }
 
-    /// ADMIN's timelock is the longest (it covers every status policy's), so
-    /// it is the one the lifetime bounds first.
     function test_RevertWhen_ATimelockWouldLeaveNoTimeWithinTheLifetime() public {
         uint64 longest = pilotTtl - governance.MIN_SIGNING_WINDOW();
         vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
@@ -866,7 +856,6 @@ contract SelfAdministrationTimelockTest is GovernanceTest {
     }
 
     function test_OnlyByTheRolesTheRuleChangePolicyGivesTheVeto() public {
-        // ADMIN's veto roles cover every status policy's, so all are narrowed.
         IGovernanceTypes.Policy[4] memory policies = pilotPolicies();
         for (uint256 i = 0; i < 4; i++) {
             policies[i].vetoRoleMask = only(ROLE_C);

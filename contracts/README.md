@@ -267,6 +267,25 @@ role C is one, the supervisory authority's DID. A cosigner is never the TI's
 own DID, and a DID is a cosigner once. A key that is one of the TI's own
 signers signs with that role only.
 
+**Cosigners stand beside the TI, never in its place.** The TAO names them
+alone, at once (`setCosigners`), so a TAO key, compromised or not, could
+otherwise name DIDs it controls in the TI's roles and decide for the TI. Two
+rules keep them apart, checked when a TI is set up, when the TAO replaces the
+cosigners, and for the TI's own rule changes when proposed and again when
+applied:
+
+- no cosigner holds a role one of the TI's own keys holds
+  (`CosignerHoldsSignerRole`), so a key added for a cosigner's role is refused
+  too;
+- the cosigners' roles together meet no policy's threshold
+  (`CosignersMeetAQuorum`), so a TI with cosigners cannot lower a threshold to
+  their number either. With the pilot's one supervisory cosigner, no policy
+  can be 1 of N.
+
+A quorum therefore always needs a key of the TI. `CosignersChanged` carries the
+full list of DIDs and roles, at `addTi` and at every change, so a monitor
+follows a TI's cosigners from the events alone.
+
 **A role and a set of roles are different types.** Inside the contract a role
 is a `Role` and a set of roles a `RoleSet` (one bit per role, bit 0 for role
 1), so the compiler refuses to take one for the other. Both are `uint8` in the

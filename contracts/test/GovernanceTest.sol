@@ -103,7 +103,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         beacon = new UpgradeableBeacon(address(implementation), address(this));
         registryBeacon = new UpgradeableBeacon(address(new CertificateRegistry()), address(this));
         tao = makeAddr("tao");
-        // The TAO's DID lists the TAO's key alone: no other account acts as the TAO.
+        // The TAO's DID lists only the TAO's key.
         StubDidRegistry(didRegistry).setController(taoDid, tao, true);
         _accredit(ROOT_DID, ROOT_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.RootTAO, ROOT_DID, bytes32(0));
         _accredit(taoDid, TAO_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TAO, ROOT_DID, ROOT_ATTRIBUTE);
@@ -268,8 +268,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         governance.cancelAdminProposal(id);
     }
 
-    /// Waits out an approved rule change's timelock, which under the pilot's
-    /// rules is as long as a revocation's, and applies it as `by`.
+    /// Waits out an approved rule change's timelock and applies it as `by`.
     function applyAdmin(uint256 id, address by) internal {
         vm.warp(governance.getAdminProposal(id).executableAt);
         executeAdmin(id, by);

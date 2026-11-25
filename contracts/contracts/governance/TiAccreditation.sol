@@ -16,11 +16,7 @@ import {ITiAccreditation} from "../interfaces/ITiAccreditation.sol";
  *         with its own registries; should EBSI ever move one, a new
  *         implementation version carries the change.
  *
- *         The TAO is its DID, not a key: whoever the DID Registry shows as a
- *         valid key of `taoDid` acts as the TAO, and no other account does.
- *         There is no owner to transfer, so a key the TAO rotates out of its
- *         DID document loses the TAO's powers at once, and its replacement
- *         gains them at once.
+ *         The TAO is its DID: any valid key of `taoDid` acts as the TAO.
  */
 abstract contract TiAccreditation is ITiAccreditation, Initializable {
     /// @notice Most accreditation hops walked above a TI: the registry's own
@@ -72,7 +68,7 @@ abstract contract TiAccreditation is ITiAccreditation, Initializable {
         return _accreditationStorage().taoDid;
     }
 
-    /// @dev A key the DID Registry shows, right now, as a key of the TAO's DID.
+    /// @dev A current key of the TAO's DID.
     modifier onlyTao() {
         if (!_controls(taoDid(), msg.sender)) revert NotDidController();
         _;

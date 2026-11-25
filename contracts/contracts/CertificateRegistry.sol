@@ -26,10 +26,7 @@ import {Hashes} from "./libraries/Hashes.sol";
  *      must reach quorum in CertificateGovernance, for a recorded certificate
  *      only.
  *
- *      The governance contract is set once, when the pair is deployed, and
- *      never replaced: a contract set here decides every standing, so a key
- *      that could repoint it would hold every certificate. Governance's logic
- *      changes through its beacon, whose versions EBSI approves, not here.
+ *      Governance is set once, at deployment, and never replaced.
  *
  *      Who may sign is governance's question. What may happen to a certificate
  *      is this contract's, whatever governance asks: a revoked certificate
@@ -71,9 +68,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
     /**
      * @notice Set up the proxy's owner. Governance comes after (`setGovernance`):
      *         it is initialized with this contract's address.
-     * @param tao The key that links the registry to its governance, and the
-     *        owner until it does. Named, not taken from `msg.sender`, which is
-     *        the Proxy Factory on a factory deployment.
+     * @param tao Owner until it links governance (not `msg.sender`: the factory).
      */
     function initialize(address tao) external initializer {
         __Ownable_init(tao);
@@ -95,18 +90,12 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         return _registryStorage().governance;
     }
 
-    /// @dev Before `setGovernance` an owner-less registry could never be
-    ///      linked; after it there is no owner left to renounce.
+    /// @dev Ownership ends only through `setGovernance`.
     function renounceOwnership() public pure override {
         revert OwnershipNotRenounceable();
     }
 
-    /**
-     * @dev Once, at deployment, and the owner's last act: ownership ends here,
-     *      so no key can repoint the registry, nor transfer a power to do so.
-     *      Governance must already name this registry, which it is initialized
-     *      with, so a wrong address cannot be linked for good by mistake.
-     */
+    /// @dev Once; governance must name this registry. Ends the ownership.
     function setGovernance(address governance_) external onlyOwner {
         if (governance_.code.length == 0) revert InvalidGovernance();
         (bool ok, bytes memory named) = governance_.staticcall(abi.encodeCall(IStatusProposals.certificateRegistry, ()));

@@ -7,8 +7,7 @@ import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
  * A policy change reaches proposals already open: the rules that apply are the
  * rules in force when a proposal is decided, not when it was opened. Stricter
  * rules therefore cannot be dodged by opening a proposal just before them, and
- * looser ones - themselves a rule change the quorum approved, and waited out as
- * long as any decision they could loosen - apply once they take effect.
+ * looser ones apply once they take effect.
  */
 contract PolicyChangeOnOpenProposalsTest is GovernanceTest {
     function test_AHigherThresholdHoldsBackAProposalThatHadNotReachedQuorum() public {

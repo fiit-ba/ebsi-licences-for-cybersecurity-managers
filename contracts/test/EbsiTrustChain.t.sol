@@ -619,10 +619,10 @@ contract IsolationTest is GovernanceFixture {
 
     function test_EachTiHasItsOwnPolicy() public {
         vm.prank(ti2Key.addr);
-        uint256 id = governance.proposePolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND, 1, RoleSet.wrap(0), RoleSet.wrap(7), 0);
+        uint256 id = governance.proposePolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND, 2, RoleSet.wrap(1), RoleSet.wrap(7), 0);
         _admin(id);
-        assertEq(governance.getPolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND).threshold, 1);
-        assertEq(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.SUSPEND).threshold, 2);
+        assertEq(RoleSet.unwrap(governance.getPolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND).requiredRoleMask), 1);
+        assertEq(RoleSet.unwrap(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.SUSPEND).requiredRoleMask), 0);
     }
 
     function _admin(uint256 id) private {
@@ -667,8 +667,7 @@ contract FixedRegistriesTest is GovernanceFixture {
     }
 }
 
-/// Audit: the TAO is its DID, so its key is rotated in the DID Registry alone,
-/// as EBSI documents it, with nothing to transfer in this contract.
+/// Audit: the TAO's key is rotated in the DID Registry alone.
 contract TaoKeyRotationTest is GovernanceFixture {
     Vm.Wallet internal newTaoKey;
 
@@ -708,8 +707,6 @@ contract TaoKeyRotationTest is GovernanceFixture {
         vm.stopPrank();
     }
 
-    /// A TAO DID with no document in the DID Registry (the registry reverts for
-    /// it) has no key, so no one acts as that TAO.
     function test_RevertWhen_TheTaosDidHasNoDocument() public {
         CertificateRegistry certificates = CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (taoKey.addr))))

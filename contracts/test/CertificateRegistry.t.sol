@@ -60,8 +60,7 @@ contract CertificateRegistryTest is GovernanceTest {
         assertEq(registry.certificateStatus(_register()).credentialHash, CREDENTIAL_HASH);
     }
 
-    /// A registry not yet linked to a governance contract, as the factory
-    /// leaves it, owned by the TAO's key.
+    /// A registry not yet linked, owned by the TAO's key.
     function _unlinked() internal returns (CertificateRegistry) {
         return CertificateRegistry(
             address(new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (tao))))
@@ -87,7 +86,6 @@ contract CertificateRegistryTest is GovernanceTest {
         registry.applyExecuted(keccak256("other"), key, IGovernanceTypes.ActionType.REVOKE, 1, REASON, tao);
     }
 
-    /// Linking was the owner's last act: the registry has no owner left.
     function test_ALinkedRegistryHasNoOwner() public view {
         assertEq(registry.owner(), address(0));
         assertEq(registry.governance(), address(governance));
@@ -115,9 +113,7 @@ contract CertificateRegistryTest is GovernanceTest {
         assertEq(certificates.owner(), address(0));
     }
 
-    /// Audit: a TAO key, malicious or compromised, repointed the registry at a
-    /// contract of its own, which revoked any certificate for good and wrote
-    /// records in any TI's name. Governance is now set once, for good.
+    /// Audit: a TAO key repointed the registry at its own contract.
     function test_RevertWhen_TheTaoRepointsALinkedRegistry() public {
         PermissiveGovernance fake = new PermissiveGovernance(address(registry));
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, tao));
@@ -125,7 +121,6 @@ contract CertificateRegistryTest is GovernanceTest {
         registry.setGovernance(address(fake));
         assertEq(registry.governance(), address(governance));
 
-        // Nor can any key take a power to do it.
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, tao));
         vm.prank(tao);
         registry.transferOwnership(outsider);
@@ -146,8 +141,6 @@ contract CertificateRegistryTest is GovernanceTest {
         certificates.setGovernance(makeAddr("nothing"));
     }
 
-    /// A link cannot be undone, so a governance contract made for another
-    /// registry is refused rather than linked for good by mistake.
     function test_RevertWhen_GovernanceNamesAnotherRegistry() public {
         CertificateRegistry certificates = _unlinked();
         vm.expectRevert(IGovernanceTypes.InvalidGovernance.selector);
@@ -155,8 +148,7 @@ contract CertificateRegistryTest is GovernanceTest {
         certificates.setGovernance(address(governance));
     }
 
-    /// Whatever a contract answers that is not this registry's address is
-    /// refused alike: nothing, too much, or an address with dirty high bits.
+    /// Nothing, too much, or an address with dirty high bits.
     function test_RevertWhen_GovernanceAnswersSomethingElseThanAnAddress() public {
         CertificateRegistry certificates = _unlinked();
         bytes[3] memory answers = [
@@ -172,13 +164,11 @@ contract CertificateRegistryTest is GovernanceTest {
         }
     }
 
-    /// A registry without an owner could never be linked, so none is made.
     function test_RevertWhen_TheRegistryIsInitializedWithoutAnOwner() public {
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, address(0)));
         new BeaconProxy(address(registryBeacon), abi.encodeCall(CertificateRegistry.initialize, (address(0))));
     }
 
-    /// A refused link changes nothing: the owner still links the right one.
     function test_ARefusedLinkLeavesTheRegistryToBeLinked() public {
         CertificateRegistry certificates = _unlinked();
         vm.prank(tao);
@@ -193,8 +183,6 @@ contract CertificateRegistryTest is GovernanceTest {
         assertEq(certificates.governance(), linked);
     }
 
-    /// Until it is linked, a registry records nothing: no one answers who may
-    /// sign.
     function test_RevertWhen_AnUnlinkedRegistryRecordsACertificate() public {
         CertificateRegistry certificates = _unlinked();
         vm.expectRevert();
@@ -235,7 +223,6 @@ contract CertificateRegistryTest is GovernanceTest {
         assertEq(IStatusProposals(_governanceOf(certificates)).certificateRegistry(), address(certificates));
     }
 
-    /// Governance's registry is fixed by its initializer: no key repoints it.
     function test_GovernanceCannotBeRepointedAtAnotherRegistry() public {
         vm.prank(tao);
         (bool ok,) =
@@ -257,8 +244,7 @@ contract CertificateRegistryTest is GovernanceTest {
     }
 }
 
-/// The audit's governance stand-in: lets anyone act, and names whatever
-/// registry it is given.
+/// Lets anyone act and names any registry it is given.
 contract PermissiveGovernance {
     address public certificateRegistry;
 

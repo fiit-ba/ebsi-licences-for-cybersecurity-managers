@@ -198,10 +198,7 @@ interface IGovernanceTypes {
     error InvalidPolicy();
     error InvalidTtl();
     error Unsatisfiable();
-    /// @notice The ADMIN policy must wait at least as long as every status
-    ///         policy and give a veto to every role they do: a rule change
-    ///         never applies before, nor escapes a veto of, the decision it
-    ///         could weaken.
+    /// @notice ADMIN needs every status policy's timelock and veto roles.
     error AdminPolicyTooWeak();
     error CannotVetoOwnRemoval();
     /// @notice The caller's role holds no veto under the policy, and the
@@ -231,12 +228,15 @@ interface IGovernanceTypes {
     /// @notice The DID Registry does not show the key as a valid key of the DID.
     error NotDidController();
     error InvalidCosigner();
+    /// @notice A cosigner may not hold a role a TI key holds.
+    error CosignerHoldsSignerRole();
+    /// @notice The cosigners alone would meet a policy's threshold.
+    error CosignersMeetAQuorum();
     /// @notice The certificate is another TI's.
     error NotCertificateIssuer();
     /// @notice A registry address has no contract behind it.
     error InvalidRegistry();
-    /// @notice A governance address has no contract behind it, or one that
-    ///         does not name this registry.
+    /// @notice Governance has no code or does not name this registry.
     error InvalidGovernance();
     /// @notice Only the governance contract may do this.
     error NotGovernance();

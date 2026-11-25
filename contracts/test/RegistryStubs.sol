@@ -2,10 +2,8 @@ pragma solidity 0.8.26;
 
 import {IEbsiDidRegistry, IEbsiIssuersRegistry} from "../contracts/interfaces/IEbsiRegistries.sol";
 
-/// Every key controls every DID, so a test about something else need not set
-/// them up, except a DID whose keys a test listed (`setController`): that one
-/// has those keys alone. test/EbsiTrustChain.t.sol runs against the real
-/// registries.
+/// Every key controls every DID, except a DID a test listed keys for
+/// (`setController`): then only those.
 contract StubDidRegistry is IEbsiDidRegistry {
     mapping(bytes32 => bool) private listed;
     mapping(bytes32 => mapping(address => bool)) private valid;

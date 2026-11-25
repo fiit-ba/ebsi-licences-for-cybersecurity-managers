@@ -10,7 +10,8 @@ import {ITiAccreditation} from "./ITiAccreditation.sol";
 interface ITiConfiguration is ITiAccreditation {
     event TiConfigured(bytes32 indexed tiId, string did, bytes32 attributeId);
     event TiAttributeChanged(bytes32 indexed tiId, bytes32 attributeId);
-    event CosignersChanged(bytes32 indexed tiId);
+    /// @notice The TI's full cosigner list, at `addTi` and on every change.
+    event CosignersChanged(bytes32 indexed tiId, Cosigner[] cosigners);
 
     event SignerAdded(bytes32 indexed tiId, address indexed signer, Role role);
     event SignerRemoved(bytes32 indexed tiId, address indexed signer, Role role);

@@ -137,8 +137,7 @@ abstract contract DeployedFixture is Test, Networks {
         governance.signAdminProposal(change);
     }
 
-    /// Waits out an approved rule change's timelock, as long as a revocation's
-    /// under pilot.json, and applies it.
+    /// Waits out an approved rule change's timelock and applies it.
     function _applyAdmin(uint256 change) internal {
         assertEq(
             uint8(governance.adminStateOf(change)), uint8(IGovernanceTypes.ProposalState.APPROVED), "waits first"
@@ -178,7 +177,6 @@ contract DeploymentTest is DeployedFixture {
         assertEq(governance.didRegistry(), address(didr));
         assertEq(governance.issuersRegistry(), address(tir));
         assertEq(governance.taoDid(), TAO);
-        // Linking ended the registry's ownership; governance never had an owner.
         assertEq(registry.owner(), address(0));
     }
 
@@ -390,8 +388,7 @@ contract QuorumAfterChangesTest is DeployedFixture {
         assertEq(governance.getTi(tiId).proposalTtl, 7 days);
     }
 
-    // A rule change waits as long as a revocation, so each change below is
-    // proposed an hour before the revocation it then reaches.
+    // Rule changes wait 24 h, so each is proposed before the revocation.
 
     function test_AStricterPolicyHoldsAnApprovedRevocationUntilTheCosignerSigns() public {
         // Revocations now need NBÚ's role C; A and B alone no longer make the quorum.

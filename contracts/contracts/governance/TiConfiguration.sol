@@ -93,6 +93,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
             _addSigner(tiId, setup.signers[i], setup.roles[i]);
         }
         _storeCosigners(ti, setup.cosigners);
+        emit CosignersChanged(tiId, setup.cosigners);
 
         RoleSet present = _rolesPresent(tiId);
         for (uint8 kind = 0; kind < POLICY_KINDS; kind++) {
@@ -100,6 +101,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
             _setPolicy(tiId, PolicyKind(kind), setup.policies[kind]);
         }
         _requireAdminCovers(setup.policies);
+        _requireCosignersApart(tiId);
         _setProposalTtl(tiId, setup.proposalTtl);
         emit TiConfigured(tiId, setup.did, setup.attributeId);
     }
@@ -116,9 +118,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         TiConfig storage ti = _ti(tiId);
         delete ti.cosigners;
         _storeCosigners(ti, cosigners);
+        _requireCosignersApart(tiId);
         _requireReachable(tiId, _rolesPresent(tiId));
         ti.version++;
-        emit CosignersChanged(tiId);
+        emit CosignersChanged(tiId, cosigners);
     }
 
     /// @dev One role per DID: `roleOf` answers with a DID's first entry, so a
@@ -309,8 +312,47 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         }
     }
 
-    /// @dev The TI's policies with `kind` replaced by `policy`, as a change
-    ///      to it would leave them.
+    // -----------------------------------------------------------------------
+    // Cosigners: beside the TI, never in its place
+    // -----------------------------------------------------------------------
+
+    /// @dev No cosigner holds a TI key's role, and cosigners alone meet no threshold.
+    function _requireCosignersApart(bytes32 tiId) internal view {
+        RoleSet cosigned = _cosignerRoles(tiId);
+        if (_signerRoles(tiId).intersects(cosigned)) revert CosignerHoldsSignerRole();
+        for (uint8 kind = 0; kind < POLICY_KINDS; kind++) {
+            _requireAboveCosigners(cosigned, _policy(tiId, PolicyKind(kind)));
+        }
+    }
+
+    /// @dev A key added for `role` would share it with a cosigner.
+    function _requireRoleNotCosigned(bytes32 tiId, Role role) internal view {
+        if (_cosignerRoles(tiId).contains(role)) revert CosignerHoldsSignerRole();
+    }
+
+    /// @dev The cosigners' roles alone cannot meet `policy`'s threshold.
+    function _requireAboveCosigners(RoleSet cosigned, Policy memory policy) internal pure {
+        if (cosigned.count() >= policy.threshold) revert CosignersMeetAQuorum();
+    }
+
+    /// @dev The roles the cosigners hold, whatever the DID Registry says now.
+    function _cosignerRoles(bytes32 tiId) internal view returns (RoleSet roles) {
+        Cosigner[] storage cosigners = _configurationStorage().tis[tiId].cosigners;
+        for (uint256 i = 0; i < cosigners.length; i++) {
+            roles = roles.with(cosigners[i].role);
+        }
+    }
+
+    /// @dev The roles the TI's own keys hold, whatever the DID Registry says now.
+    function _signerRoles(bytes32 tiId) private view returns (RoleSet roles) {
+        TiConfigurationStorage storage $ = _configurationStorage();
+        address[] storage signers = $.tis[tiId].signers;
+        for (uint256 i = 0; i < signers.length; i++) {
+            roles = roles.with($.signerRole[tiId][signers[i]]);
+        }
+    }
+
+    /// @dev The TI's policies with `kind` replaced by `policy`.
     function _policiesWith(bytes32 tiId, PolicyKind kind, Policy memory policy)
         internal
         view
@@ -320,11 +362,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         policies[uint8(kind)] = policy;
     }
 
-    /// @dev Rule changes are at least as strict as the decisions they govern
-    ///      (`PolicyRules.covers`), checked on the whole set, so neither side
-    ///      can be moved past the other: lowering ADMIN's timelock or veto
-    ///      roles below a status policy's, or raising a status policy's above
-    ///      ADMIN's, is refused alike.
+    /// @dev ADMIN covers every status policy (`PolicyRules.covers`).
     function _requireAdminCovers(Policy[POLICY_KINDS] memory policies) internal pure {
         Policy memory admin = policies[uint8(PolicyKind.ADMIN)];
         for (uint8 kind = 0; kind < uint8(PolicyKind.ADMIN); kind++) {

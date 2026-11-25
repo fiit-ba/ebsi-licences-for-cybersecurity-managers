@@ -26,13 +26,10 @@ import {EBSIContracts} from "./DeployTypes.sol";
  *
  * Environment:
  *   GOVERNANCE_DEPLOYER_KEY         pays for the deployment; default dev key 0
- *   GOVERNANCE_TAO                  the TAO's key, which owns the registry until it
- *                                   links it to governance; default dev key 4 on a
- *                                   dev chain (Networks.sol), else required.
- *                                   Governance has no owner: any key of the TAO's DID
- *                                   acts as the TAO
- *   GOVERNANCE_TAO_KEY              links the two contracts, once; default dev key 4
- *                                   on a dev chain, else required
+ *   GOVERNANCE_TAO                  the registry's owner until linked; default dev
+ *                                   key 4 on a dev chain (Networks.sol), else required
+ *   GOVERNANCE_TAO_KEY              links the contracts; default dev key 4 on a dev
+ *                                   chain, else required
  *   GOVERNANCE_TAO_DID              the TAO's DID in the Trusted Issuers Registry;
  *                                   default a placeholder on a dev chain, else required
  *   GOVERNANCE_BEACON_OWNER         who can add beacon versions / opt the proxy into
@@ -52,8 +49,7 @@ import {EBSIContracts} from "./DeployTypes.sol";
  * VersionedUpgradeableBeacon, a template registered for them, then a proxy from that
  * template via the Proxy Factory (which also runs its initializer). The proxy is the
  * contract's address. The registry goes first: governance is initialized with its
- * address, and the TAO then links the registry to governance, once, which ends the
- * registry's ownership.
+ * address, then the TAO links the two once.
  *
  * The EBSI mock infrastructure (Proxy Templates Registry, Proxy Factory) must already
  * be deployed; this only reads it from deployments/<network>-ebsi.json, never deploys
@@ -201,7 +197,7 @@ contract Deploy is Script, Networks {
         );
     }
 
-    /// The TAO's key links the contracts, so it has to be at hand.
+    /// The TAO's key, to link the contracts.
     function _taoKey(bool development) internal view returns (uint256 key) {
         key = development ? vm.envOr("GOVERNANCE_TAO_KEY", _developmentKey(DEVELOPMENT_TAO)) : vm.envUint("GOVERNANCE_TAO_KEY");
         require(vm.addr(key) == tao, "GOVERNANCE_TAO_KEY is not the key of GOVERNANCE_TAO");

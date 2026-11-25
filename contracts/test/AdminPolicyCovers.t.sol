@@ -4,18 +4,9 @@ import {GovernanceTest} from "./GovernanceTest.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
 import {RoleSet} from "../contracts/libraries/Roles.sol";
 
-/**
- * Rule changes are at least as strict as the decisions they govern: ADMIN
- * waits at least as long as every status policy, and every role that may veto
- * a decision may veto a rule change. A rule change can then never apply
- * before the decision it would weaken, and the role a delay is for can always
- * stop either.
- */
+/// ADMIN waits as long as every status policy and holds all their veto roles.
 contract AdminPolicyCoversTest is GovernanceTest {
-    /// Audit: A and B, compromised, approved a revocation, then stripped C's
-    /// veto and the timelock from the revocation policy in the same block, and
-    /// executed it. The rule change now waits as long as the revocation, so C
-    /// vetoes in time.
+    /// Audit: two roles stripped C's veto and the timelock in one block.
     function test_AVetoStripWaitsForTheDecisionItWouldWeaken() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(id, B);
@@ -37,8 +28,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
         assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.VALID));
     }
 
-    /// Audit: removing the honest role's only key during a timelock. It waits
-    /// as long, so the honest role vetoes the decision before it loses its key.
+    /// Audit: removing the honest role's only key during a timelock.
     function test_RemovingAKeyWaitsAsLongAsTheDecisionItCouldUnblock() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(id, B);
@@ -67,8 +57,6 @@ contract AdminPolicyCoversTest is GovernanceTest {
         deploy(pilotWith(IGovernanceTypes.PolicyKind.SUSPEND, policy(2, NONE, ALL, DAY + 1)));
     }
 
-    /// With no decision waiting out a timelock, rule changes need none either,
-    /// and apply with the signature that completes their quorum.
     function test_ARuleChangeAppliesAtOnceWhenNoDecisionWaits() public {
         governance = deploy(_allPolicies(ALL, 0));
         uint256 id = addSigner(A, B, spare, ROLE_A);
@@ -97,17 +85,13 @@ contract AdminPolicyCoversTest is GovernanceTest {
         _expectRefused(IGovernanceTypes.PolicyKind.SUSPEND, policy(2, NONE, ALL, 0));
     }
 
-    /// Tightening rule changes, or narrowing a decision's veto, keeps ADMIN
-    /// covering every decision.
     function test_AcceptsChangesThatKeepRuleChangesTheStrictest() public {
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 2 * DAY)));
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, only(ROLE_C), 2 * DAY)));
         assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).timelock, 2 * DAY);
     }
 
-    /// Each change keeps ADMIN covering the decisions as they stood when it
-    /// was proposed, but not the two together: the second is refused when it
-    /// would apply.
+    /// Each passes alone; the second is refused at execution.
     function test_RevertWhen_TwoApprovedChangesTogetherLeaveRuleChangesFaster() public {
         governance = deploy(pilotWith(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 2 * DAY)));
         uint256 faster = setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, DAY));
@@ -121,9 +105,6 @@ contract AdminPolicyCoversTest is GovernanceTest {
     // Every status policy alike, and the boundary
     // -----------------------------------------------------------------------
 
-    /// For SUSPEND, REVOKE and REINSTATE each: a TI whose rule changes wait a
-    /// second less, or lack one of its veto roles, is refused; one whose rule
-    /// changes wait exactly as long, with exactly its veto roles, is set up.
     function test_EveryStatusPolicyIsCoveredAtSetUpAndTheBoundaryHolds() public {
         for (uint8 kind = 0; kind < uint8(IGovernanceTypes.PolicyKind.ADMIN); kind++) {
             IGovernanceTypes.Policy[4] memory policies = _allPolicies(ALL, 0);
@@ -145,9 +126,6 @@ contract AdminPolicyCoversTest is GovernanceTest {
         }
     }
 
-    /// For each status policy, a change that would make it wait longer than
-    /// rule changes, or give it a veto role they lack, is refused; one that
-    /// matches ADMIN exactly is accepted.
     function test_EveryStatusPolicyIsCoveredOnChangeAndTheBoundaryHolds() public {
         governance = deploy(_allPolicies(both(ROLE_B, ROLE_C), DAY));
         for (uint8 kind = 0; kind < uint8(IGovernanceTypes.PolicyKind.ADMIN); kind++) {
@@ -159,8 +137,6 @@ contract AdminPolicyCoversTest is GovernanceTest {
         }
     }
 
-    /// ADMIN may not drop any one veto role a status policy holds, nor wait a
-    /// second less than the longest status timelock.
     function test_RuleChangesKeepEveryVetoRoleAndTheLongestDelay() public {
         _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, both(ROLE_B, ROLE_C), DAY));
         _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, both(ROLE_A, ROLE_C), DAY));
@@ -170,9 +146,6 @@ contract AdminPolicyCoversTest is GovernanceTest {
         governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN, 2, NONE, ALL, DAY);
     }
 
-    /// Only policy changes are held to the rule: a rule change that moves no
-    /// policy is not refused for it, so rotating a key and changing the
-    /// lifetime still work.
     function test_OtherRuleChangesAreNotHeldToIt() public {
         applyAdmin(addSigner(A, B, spare, ROLE_A));
         applyAdmin(setTtl(A, B, 7 * DAY));
@@ -184,15 +157,12 @@ contract AdminPolicyCoversTest is GovernanceTest {
     // A TI set up before the rule, under the old pilot (ADMIN without delay)
     // -----------------------------------------------------------------------
 
-    /// What a beacon upgrade finds on a TI set up with the old pilot rules:
-    /// its status policies are not changed until ADMIN covers them again, and
-    /// raising ADMIN, under its old zero delay, applies at once.
+    /// A TI from the old pilot (ADMIN without delay) must raise ADMIN first.
     function test_ATiSetUpBeforeTheRuleRaisesItsRuleChangesFirst() public {
         _forgeLegacyAdminWithoutDelay();
         assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN).timelock, 0);
 
         _expectRefused(IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, DAY));
-        // A key rotation is no policy change and still applies, at once.
         uint256 rotation = addSigner(A, B, spare, ROLE_A);
         assertAdminState(rotation, IGovernanceTypes.ProposalState.EXECUTED);
 
@@ -205,14 +175,11 @@ contract AdminPolicyCoversTest is GovernanceTest {
         );
     }
 
-    /// Sets the pilot TI's ADMIN timelock to 0 in storage, as the old pilot
-    /// rules left it: no transaction can now.
+    /// Sets ADMIN's timelock to 0 in storage, as the old pilot did.
     function _forgeLegacyAdminWithoutDelay() private {
         bytes32 location = keccak256(abi.encode(uint256(keccak256("plr.storage.TiConfiguration")) - 1))
             & ~bytes32(uint256(0xff));
-        // TiConfig: did, attributeId, signers, cosigners, then the four
-        // policies, one slot each; ADMIN is the fourth. A policy packs
-        // threshold, required roles, veto roles (a byte each), then timelock.
+        // TiConfig slot 4 + ADMIN (3); timelock above the three role bytes.
         bytes32 admin = bytes32(uint256(keccak256(abi.encode(TI_ID, location))) + 4 + 3);
         uint256 packed = uint256(vm.load(address(governance), admin));
         assertEq((packed >> 24) & type(uint64).max, DAY, "the slot is ADMIN's");

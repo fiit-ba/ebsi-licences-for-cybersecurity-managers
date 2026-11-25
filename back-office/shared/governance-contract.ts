@@ -57,6 +57,16 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "CosignerHoldsSignerRole",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CosignersMeetAQuorum",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "DuplicateSigner",
     "type": "error"
   },
@@ -385,6 +395,24 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "bytes32",
         "name": "tiId",
         "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "did",
+            "type": "string"
+          },
+          {
+            "internalType": "Role",
+            "name": "role",
+            "type": "uint8"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IGovernanceTypes.Cosigner[]",
+        "name": "cosigners",
+        "type": "tuple[]"
       }
     ],
     "name": "CosignersChanged",
@@ -2103,6 +2131,16 @@ export const REGISTRY_ABI: InterfaceAbi = [
   {
     "inputs": [],
     "name": "CertificateRevoked",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CosignerHoldsSignerRole",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CosignersMeetAQuorum",
     "type": "error"
   },
   {

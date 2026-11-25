@@ -22,11 +22,7 @@ library PolicyRules {
             && present.intersects(policy.vetoRoleMask);
     }
 
-    /// @dev Whether a rule change under `admin` is at least as hard to slip
-    ///      past as a decision under `decision`: it waits as long, and every
-    ///      role that may veto the decision may veto the change. Otherwise
-    ///      the keys a delay guards against could rewrite it, within the
-    ///      delay, before anyone else can act.
+    /// @dev `admin` waits as long as `decision` and has all its veto roles.
     function covers(IGovernanceTypes.Policy memory admin, IGovernanceTypes.Policy memory decision)
         internal
         pure

@@ -91,9 +91,7 @@ contract CertificateGovernance is ICertificateGovernance, StatusProposals, RuleC
      *         transaction that creates the proxy. The EBSI registries come with
      *         the implementation (constructor). TIs come after (`addTi`): one
      *         contract serves them all.
-     * @dev There is no owner: the TAO acts with any key the DID Registry
-     *      shows for `taoDid_` (`onlyTao`). Neither the DID nor the registry
-     *      changes afterwards, except by a new implementation version.
+     * @dev No owner: any key of `taoDid_` acts as the TAO. Both are fixed.
      * @param taoDid_ The TAO's DID in the Trusted Issuers Registry.
      * @param certificateRegistry_ The registry of this TAO's certificates.
      */

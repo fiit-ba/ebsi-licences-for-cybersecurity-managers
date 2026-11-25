@@ -150,3 +150,53 @@ supervisory authority could veto it.
       a status policy is refused until ADMIN is raised. First raise ADMIN's timelock to at
       least the revocation timelock (under the old rules this change still applies at
       once).
+
+---
+
+## 3. Cosigners stand beside the TI, never in its place
+
+Covers the finding **"TAO can name its own DIDs as cosigners and act as a TI's quorum"**.
+`setCosigners` let the TAO name any DID in any role, including the roles of the TI's own
+keys. Two DIDs the TAO controlled could meet a 2-of-3 policy alone.
+
+### What changed in the contracts
+
+- **No cosigner may hold a role that one of the TI's own keys holds.** Otherwise the
+  call reverts with the new error **`CosignerHoldsSignerRole()`**.
+- **The cosigners' roles together may not meet any policy's threshold** (distinct roles
+  are counted). Otherwise the call reverts with the new error **`CosignersMeetAQuorum()`**.
+- Both rules are checked in `addTi`, in `setCosigners`, and for the TI's own rule changes
+  when proposed and when executed: `proposeAddSigner` with a cosigner's role, and
+  `proposePolicy` with a threshold the cosigners would meet. With the pilot's single
+  supervisory cosigner (role C), **no policy may have threshold 1**.
+- **Event signature changed:** `CosignersChanged(bytes32 indexed tiId)` →
+  `CosignersChanged(bytes32 indexed tiId, Cosigner[] cosigners)`. The topic hash is
+  different. Nothing in the back-office listens to it today.
+- **`addTi` now emits `CosignersChanged` too**, with the TI's initial cosigners (an empty
+  list when it has none), before its `PolicyChanged` events. Nothing in the back-office
+  parses `addTi`'s events today; a future receipt parser has to expect it.
+- The new errors and the event are in the regenerated ABIs.
+
+### To do
+
+- [ ] **Translate the two new errors.**
+      [`web/src/blockchain/governance.ts:679`](../back-office/web/src/blockchain/governance.ts#L679).
+      Suggested texts:
+      - `CosignerHoldsSignerRole`: "Spolupodpisovateľ nemôže mať rolu, ktorú má vlastný kľúč TI."
+      - `CosignersMeetAQuorum`: "Spolupodpisovatelia by sami dosiahli kvórum. Prah politiky musí byť vyšší ako počet ich rolí."
+
+- [ ] **Rule-change form.**
+      [`web/src/features/governance/rules/RuleChangeForm.tsx`](../back-office/web/src/features/governance/rules/RuleChangeForm.tsx):
+      when the TI has cosigners, don't offer a threshold ≤ the number of cosigner roles,
+      or adding a signer in a cosigner's role. Either way, show the contract's error if
+      the transaction is refused.
+
+- [ ] **Check the TI setup.**
+      [`server/lifecycle/ti-governance.ts:162`](../back-office/server/lifecycle/ti-governance.ts#L162)
+      sets the supervisory authority as cosigner in role C, with keys in roles A and B.
+      That still satisfies both rules. Make sure no configuration (`PLR_TI_GOVERNANCE_CONFIG`)
+      used with a cosigner has a policy with threshold 1, otherwise `addTi` reverts.
+
+- [ ] **Monitoring (optional).** If the back-office or an auditor's dashboard should alert
+      on cosigner changes, subscribe to the new `CosignersChanged` event. It now carries
+      the full list of DIDs and roles.

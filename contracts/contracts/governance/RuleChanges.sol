@@ -163,10 +163,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         emit AdminProposalSigned(adminProposalId, msg.sender, roleOf(p.ballot.tiId, msg.sender), signed);
         if (reached) {
             emit AdminQuorumReached(adminProposalId, p.ballot.quorumReachedAt + policy.timelock);
-            // Without a delay the change applies with the signature that
-            // completes its quorum. ADMIN has no delay only when no status
-            // policy has one either (`_requireAdminCovers`), so no decision
-            // waiting out a timelock can be rewritten this way.
+            // No delay: apply now. Only when no status policy has one either.
             if (policy.timelock == 0) _executeAdmin(adminProposalId, p);
         }
     }
@@ -192,14 +189,12 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         return _policy(tiId, PolicyKind.ADMIN);
     }
 
-    /// @dev A change is valid if applying it now leaves every policy reachable,
-    ///      every timelock within the proposal lifetime, and ADMIN at least as
-    ///      strict as every status policy. Asked again at
-    ///      execution, so two changes approved apart cannot break it together.
+    /// @dev Checked at proposal and again at execution.
     function _requireValid(bytes32 tiId, AdminChange memory change) private view {
         AdminAction action = change.action;
         if (action == AdminAction.ADD_SIGNER) {
             _requireNewSigner(tiId, change.subject, change.role);
+            _requireRoleNotCosigned(tiId, change.role);
         } else if (action == AdminAction.REMOVE_SIGNER) {
             if (Role.unwrap(_signerRole(tiId, change.subject)) == 0) revert InvalidSigner();
             _requireReachable(tiId, _rolesPresentExcluding(tiId, change.subject));
@@ -210,6 +205,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
             _requirePolicy(change.policy, _rolesPresent(tiId));
             _requireTimelockWithinTtl(tiId, change.policy.timelock);
             _requireAdminCovers(_policiesWith(tiId, change.kind, change.policy));
+            _requireAboveCosigners(_cosignerRoles(tiId), change.policy);
         } else {
             // SET_PROPOSAL_TTL
             _requireTtl(tiId, change.ttl);

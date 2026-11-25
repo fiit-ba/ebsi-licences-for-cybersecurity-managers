@@ -28,8 +28,7 @@ abstract contract SignerRotation {
     /// The rule-change policy needs `needed` roles, and only `available` of
     /// the accounts given hold one.
     error NotEnoughApprovers(uint8 needed, uint256 available);
-    /// The rule-change policy requires these roles, and none of the accounts
-    /// given may approve for them: a change without them would never apply.
+    /// No account given holds these roles, which ADMIN requires.
     error RequiredApproversMissing(RoleSet missing);
 
     /// Send the next call as `account`: a prank in tests, a broadcast in a script.
@@ -43,13 +42,7 @@ abstract contract SignerRotation {
      * change is a rule change approved under the ADMIN policy by `accounts`
      * that are signers. Returns the ids of the rule changes made; one still
      * in its timelock has to be executed later.
-     *
-     * A change is never approved by a role another change of this run
-     * rotates: the changes wait out ADMIN's timelock side by side, and the
-     * first to apply would retire that role's key, and with it its signature
-     * on the rest. With the pilot's 2 of 3, rotating A and B at once takes
-     * the supervisory authority's approval; without it, rotate one role per
-     * run.
+     * A role being rotated never approves another change of the run.
      */
     function _rotateSigners(
         ICertificateGovernance governance,
@@ -98,9 +91,8 @@ abstract contract SignerRotation {
     }
 
     /**
-     * Accounts among `accounts` that are signers, one per role and none of
-     * the roles `excluded`, enough to meet the ADMIN policy - its required
-     * roles first.
+     * Signers among `accounts`, one per role outside `excluded`, enough
+     * for ADMIN - required roles first.
      */
     function _approvers(
         ICertificateGovernance governance,

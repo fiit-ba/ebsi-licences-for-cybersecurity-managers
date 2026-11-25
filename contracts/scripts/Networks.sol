@@ -24,7 +24,7 @@ abstract contract Networks is CommonBase {
     /// The TI's #key-2, its signer of role B.
     uint256 internal constant DEVELOPMENT_SIGNER_B = 2;
     uint256 internal constant DEVELOPMENT_ROOT_TAO = 3;
-    /// The TAO: a key of its DID, which links the two contracts.
+    /// The TAO's key.
     uint256 internal constant DEVELOPMENT_TAO = 4;
     /// NBÚ, whose DID cosigns as role C. The local Besu network's genesis
     /// funds keys 0 to 4 only; SeedEbsi.s.sol gives this one its gas.

@@ -9,8 +9,7 @@ import {IGovernanceTypes} from "./IGovernanceTypes.sol";
  *         10.5), and their audit verification (component 10.7).
  */
 interface IStatusProposals is IGovernanceTypes {
-    /// @notice The registry executed proposals take effect in, set once at
-    ///         initialization.
+    /// @notice The registry was set, once, at initialization.
     event CertificateRegistryChanged(address indexed certificateRegistry);
 
     event ProposalCreated(
