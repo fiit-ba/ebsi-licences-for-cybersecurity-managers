@@ -204,7 +204,9 @@ executed (`CertificateNotValid`, `CertificateNotSuspended`), so no reinstatement
 approved while a certificate was valid can later undo an emergency suspension.
 A proposal the standing has overtaken (a suspension after `suspendNow`) reads as
 expired, takes no signature, and gives way to the next proposal; anyone may
-expire it at once. A reinstatement lifts only a suspension it postdates, so one
+expire it at once. It can no longer be vetoed or withdrawn either:
+`cancelProposal` reverts with `ProposalNotOpen`, so no `reasonHash` is recorded
+for it on chain (the overtaking `suspendNow` carries its own). A reinstatement lifts only a suspension it postdates, so one
 opened before this rule on a valid certificate never lifts a later emergency
 suspension. A record's `changedAt` and `CertificateStandingChanged` therefore
 mark only real changes.
@@ -266,8 +268,15 @@ contract set as the registry's governance decides every standing, so a key that
 could repoint it would hold every certificate, quorum or not. Governance is
 initialized with its registry, and the registry's owner (the TAO's key that
 deployed the pair) links it with `setGovernance`, which refuses a governance
-contract naming another registry and ends the registry's ownership. Either
-contract's logic changes through its beacon, whose versions EBSI approves, not
+contract naming another registry and ends the registry's ownership. That check
+is a sanity check, not authentication: any contract that names this registry
+passes it. Until the link, the owner is a plain key, not gated by the DID
+Registry (rotating the TAO's DID document does not remove it), and it could
+still `transferOwnership`. The link is therefore a one-time trust in the key
+that deploys the pair; `scripts/Deploy.s.sol` makes it right after deploying
+both proxies. A registry linked to anything else is not recognised by
+verifiers, who check through the Proxy Factory that its governance was deployed
+from the governance template. Either contract's logic changes through its beacon, whose versions EBSI approves, not
 by pointing at another contract. It cannot point the contract at other EBSI
 registries: they are immutables of the implementation, given to its
 constructor, so no transaction changes them. Their addresses never change on
@@ -329,9 +338,15 @@ after the TI lost its accreditation); both refuse a cosigner's key with
 again and again, or register a TI's id first with a hash the TI never
 issued.
 
-`CosignersChanged` carries the
-full list of DIDs and roles, at `addTi` and at every change, so a monitor
-follows a TI's cosigners from the events alone.
+**The supervisor's independence rests on the TAO.** The contract cannot verify
+who controls a cosigner's DID: it only asks the DID Registry which keys that DID
+lists. A TAO that names a DID it controls holds signer C's vote and veto in that
+TI. The rules above keep such a TAO from deciding alone, since a quorum still
+needs a TI key, but not from approving or blocking with the TI what needs C.
+That the cosigner in role C is the supervisory authority's DID is checked off
+chain: `CosignersChanged` carries the full list of DIDs and roles, at `addTi`
+and at every change, so the supervisory authority, or a monitor, follows a TI's
+cosigners from the events alone.
 
 **A cosigner change ends every open proposal of the TI.** Each TI has an
 epoch, which `setCosigners` raises whenever the list changes (a cosigner
@@ -377,7 +392,9 @@ Each kind of decision has its own policy:
 `MIN_THRESHOLD` (2 roles), at `addTi` and in every `proposePolicy`, when
 proposed and again when applied (`InvalidPolicy` otherwise). Two keys of one
 role are one role, so a TI needs two roles, its own or a cosigner's. The only
-act of one signature is the reversible `suspendNow`.
+change to an existing licence's standing by one signature is the reversible
+`suspendNow`. Registering a new licence (`registerCertificate`) is one signature
+of one of the TI's own keys by design.
 
 Component 10.2's alternative, the supervisory authority on every permanent
 revocation, is the `revoke` policy with `requiredRoleMask` containing C.
@@ -482,7 +499,12 @@ open per licence, the proposer cannot withdraw it and the other signers may not
 veto it. So any signer of the TI may close such a proposal as long as no quorum
 of live keys backs it; one that a quorum still backs stands, and only the veto
 stops it. Removing a key closes nothing by itself: its proposals stay open until
-someone closes them or they expire. Only the TI's own keys open proposals
+someone closes them or they expire. Before its removal, the rule does not
+apply: under a narrowed veto, a compromised key that still holds its role can
+hold a licence's only open proposal, for example a reinstatement of a suspended
+licence, until a veto holder cancels it or the key's removal executes (one
+`admin` timelock). The licence stays suspended meanwhile, and a revocation can
+be proposed once the slot is free. Only the TI's own keys open proposals
 (R6), so the supervisory authority can no longer start a revocation on chain by
 itself: it asks the TI, then signs or vetoes.
 

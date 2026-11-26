@@ -201,6 +201,12 @@ keys. Two DIDs the TAO controlled could meet a 2-of-3 policy alone.
       on cosigner changes, subscribe to the new `CosignersChanged` event. It now carries
       the full list of DIDs and roles.
 
+- [ ] **Check that role C is the supervisory authority.** The contract cannot tell who
+      controls a cosigner's DID: a TAO that names a DID of its own holds C's vote and veto.
+      Compare each TI's cosigner in role C (`getTi(tiId).cosigners`, `CosignersChanged`)
+      with the supervisory authority's configured DID, show it in the TI view, and alert
+      on any other DID. Offer the same view to the supervisory authority.
+
 ---
 
 ## 4. No key is both a TI key and a cosigner's key
@@ -302,6 +308,12 @@ Covers two MEDIUM findings:
 
 - [ ] **Reinstatement UI.** Offer a reinstatement only for a suspended licence, and a
       suspension only for a valid one.
+
+- [ ] **Closing a rejected case whose proposal was overtaken.** `cancelProposal(id,
+      auditEntryHash)` reverts with `ProposalNotOpen` for an overtaken (or expired)
+      proposal. Check the state first; if it reads `EXPIRED`, close it with
+      `expireProposal(id)` (or leave it to the next proposal) and keep the audit entry's link
+      off chain, since no `reasonHash` is recorded for it.
 
 ---
 
@@ -685,6 +697,11 @@ overtaken proposal is expired by the next one (§5), only the TI's own keys prop
       executes, list the open proposals and rule changes the old key opened; close those that
       no longer meet their policy (`cancelProposal` with any TI key, `reasonHash` = the audit
       entry), so their licences are free again. Re-propose what should go on.
+- [ ] **A compromised key before its removal.** Under a narrowed veto, a key that still
+      holds its role can keep a licence's only proposal slot (e.g. a junk REINSTATE of a
+      suspended licence) until its removal executes. When a key is reported compromised,
+      propose its removal at once, ask a veto holder to cancel its open proposals, and
+      show the licence as blocked by that proposal until the slot is free.
 - [ ] **NBÚ requests.** Give the supervisory authority a way to ask the TI to open a
       revocation (it cannot open one on chain), and show it the resulting proposal to sign.
 
