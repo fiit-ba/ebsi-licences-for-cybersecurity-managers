@@ -39,7 +39,7 @@ contract OwnKeysOnlyTest is GovernanceTest {
     function test_RevertWhen_ACosignerKeyRegistersForTheTi() public {
         vm.prank(supervisor);
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
-        registry.registerCertificate(NEW_ID, TI_DID, 1, 0, FORGED, IGovernanceTypes.Standing.REVOKED);
+        registry.registerCertificate(NEW_ID, TI_DID, 1, 0, FORGED, IGovernanceTypes.Standing.SUSPENDED);
 
         vm.prank(A);
         bytes32 statusKey =
@@ -96,7 +96,7 @@ contract OwnKeysOnlyTest is GovernanceTest {
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         registry.suspendNow(statusKey, REASON_GIVEN);
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
-        registry.registerCertificate(keccak256("other id"), OTHER_TI, 1, 0, FORGED, IGovernanceTypes.Standing.REVOKED);
+        registry.registerCertificate(keccak256("other id"), OTHER_TI, 1, 0, FORGED, IGovernanceTypes.Standing.SUSPENDED);
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         governance.proposeAction(otherId, statusKey, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         vm.stopPrank();

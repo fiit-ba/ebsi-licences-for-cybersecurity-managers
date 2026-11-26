@@ -142,7 +142,7 @@ sequenceDiagram
 
     Note over S: certificateIdHash = SHA-256(abi.encode("PLR-CERTIFICATE-ID-V1", vc.id))<br/>credentialHash = SHA-256(JWT before the first "~")
     S->>R: registerCertificate(certificateIdHash, issuerDid, validFrom, validUntil, credentialHash, standing)
-    Note over R: refuses empty fields, a validUntil that is set (not 0, never)<br/>and <= validFrom, standing NONE
+    Note over R: refuses empty fields, a validUntil that is set (not 0, never)<br/>and <= validFrom, a standing other than VALID or SUSPENDED
     R->>G: requireActiveOwnSigner(keccak256(issuerDid), signer)
     Note over G: diagram 1, own keys only (no cosigner)
     G-->>R: ok

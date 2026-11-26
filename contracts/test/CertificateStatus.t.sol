@@ -127,13 +127,13 @@ contract RegisteringTest is CertificateStatusTest {
         assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.VALID));
     }
 
-    function test_RecordsACertificateSuspendedOrRevokedBeforeTheRecordExistedAsSuch() public {
+    function test_RecordsACertificateSuspendedBeforeTheRecordExistedAsSuch() public {
         _register(IGovernanceTypes.Standing.SUSPENDED);
+        assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.SUSPENDED));
+        vm.expectRevert(IGovernanceTypes.InvalidStanding.selector);
         _register(
             A, OTHER_ID_HASH, ISSUER, VALID_FROM, VALID_UNTIL, OTHER_CREDENTIAL_HASH, IGovernanceTypes.Standing.REVOKED
         );
-        assertEq(uint8(_standingOf(KEY)), uint8(IGovernanceTypes.Standing.SUSPENDED));
-        assertEq(uint8(_standingOf(OTHER_KEY)), uint8(IGovernanceTypes.Standing.REVOKED));
     }
 
     function test_AnswersNoneForACertificateItHasNoRecordOf() public view {

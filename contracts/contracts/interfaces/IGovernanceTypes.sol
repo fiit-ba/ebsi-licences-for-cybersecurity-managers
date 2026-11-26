@@ -212,6 +212,7 @@ interface IGovernanceTypes {
     error IncompleteCertificate();
     /// @notice A certificate expires after it becomes valid, if ever.
     error InvalidValidity();
+    /// @notice A record starts VALID or SUSPENDED, never REVOKED.
     error InvalidStanding();
     /// @notice The TI recorded a certificate with this id already.
     error CertificateAlreadyRegistered();

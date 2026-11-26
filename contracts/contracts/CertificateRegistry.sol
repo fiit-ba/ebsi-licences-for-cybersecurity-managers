@@ -131,7 +131,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
             revert IncompleteCertificate();
         }
         if (validUntil != 0 && validUntil <= validFrom) revert InvalidValidity();
-        if (standing == Standing.NONE) revert InvalidStanding();
+        if (standing != Standing.VALID && standing != Standing.SUSPENDED) revert InvalidStanding();
         ITiConfiguration(governance()).requireActiveOwnSigner(_tiId(issuerDid), msg.sender);
         statusKey = Hashes.statusKey(issuerDid, certificateIdHash);
         Certificate storage certificate = _registryStorage().certificates[statusKey];

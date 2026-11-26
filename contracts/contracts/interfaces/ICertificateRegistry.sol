@@ -34,8 +34,8 @@ interface ICertificateRegistry is IGovernanceTypes {
     /// @param credentialHash SHA-256 of the signed JWT as the TI issued it,
     ///        everything before the first `~` of the SD-JWT, so what a verifier
     ///        is shown can be compared with what was issued.
-    /// @param standing VALID when issued; a certificate already suspended or
-    ///        revoked when the record is first made (migration) says so.
+    /// @param standing VALID, or SUSPENDED for one suspended or revoked before
+    ///        its record; a revocation then goes through the revoke policy.
     /// @return statusKey The key it is recorded under: see `computeStatusKey`.
     function registerCertificate(
         bytes32 certificateIdHash,

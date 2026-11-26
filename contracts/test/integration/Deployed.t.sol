@@ -279,6 +279,23 @@ contract CertificateLifecycleTest is DeployedFixture {
         registry.suspendNow(statusKey, REASON);
     }
 
+    /// On EBSI's registries too: no record starts revoked; one revoked before
+    /// its record is registered suspended and revoked by the quorum.
+    function test_ALicenceRevokedBeforeItsRecordIsRegisteredSuspended() public {
+        bytes32 idHash = Hashes.certificateIdHash("urn:uuid:revoked-before");
+        bytes32 credentialHash = sha256("revoked before");
+        vm.prank(keyA);
+        vm.expectRevert(IGovernanceTypes.InvalidStanding.selector);
+        registry.registerCertificate(
+            idHash, TI, uint64(block.timestamp), 0, credentialHash, IGovernanceTypes.Standing.REVOKED
+        );
+        vm.prank(keyA);
+        bytes32 statusKey = registry.registerCertificate(
+            idHash, TI, uint64(block.timestamp), 0, credentialHash, IGovernanceTypes.Standing.SUSPENDED
+        );
+        assertEq(uint8(registry.certificateStatus(statusKey).standing), uint8(IGovernanceTypes.Standing.SUSPENDED));
+    }
+
     /// NBÚ's key decides with the TI but never acts for it alone.
     function test_RevertWhen_TheCosignerActsForTheTi() public {
         (bytes32 statusKey,) = _register();
@@ -289,7 +306,9 @@ contract CertificateLifecycleTest is DeployedFixture {
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         registry.suspendNow(statusKey, REASON);
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
-        registry.registerCertificate(idHash, TI, uint64(block.timestamp), 0, forged, IGovernanceTypes.Standing.REVOKED);
+        registry.registerCertificate(
+            idHash, TI, uint64(block.timestamp), 0, forged, IGovernanceTypes.Standing.SUSPENDED
+        );
         vm.stopPrank();
     }
 }

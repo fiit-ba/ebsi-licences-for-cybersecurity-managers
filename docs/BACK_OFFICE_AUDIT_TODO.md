@@ -479,3 +479,44 @@ for good.
 - [ ] **Map `NotAnOwnSigner`** in the error handling of registration, immediate suspension
       and every `propose*` call.
 
+---
+
+## 11. No record starts revoked
+
+Covers the finding that `registerCertificate` accepted any initial standing except
+`NONE`, so one key could create a record already `REVOKED`: terminal, without the revoke
+policy's quorum, timelock or veto.
+
+### What changed in the contracts
+
+- `registerCertificate` accepts only `VALID` (1) or `SUSPENDED` (2). `REVOKED` (3) and
+  `NONE` (0) revert with `InvalidStanding()` (already in the ABI; no ABI change).
+- A licence revoked before its record exists is registered `SUSPENDED` and then revoked by
+  an ordinary `proposeAction(REVOKE)`: quorum, 24 h timelock in the pilot, veto.
+- Only the TI's own keys register (§10), so a cosigner cannot take an id first; one of the
+  TI's own keys still can, but at worst as `SUSPENDED`.
+
+### To do
+
+- [ ] **Register revoked-before-collection licences as suspended.**
+      [`server/issuance/governance-ledger.ts:9`](../back-office/server/issuance/governance-ledger.ts#L9)
+      maps `revoked` to `3n`, which now reverts. Send `suspended` (`2n`) for a licence whose
+      local standing is `revoked`.
+- [ ] **Open the revocation right after.** Once such a record is confirmed, open a
+      revocation case (`proposeAction(REVOKE)`, with the original decision's reason hash)
+      and let it go through the quorum and the timelock like any other. Until it executes,
+      the ledger standing is `SUSPENDED`, not `REVOKED`.
+- [ ] **Ledger standing after registration.**
+      [`server/issuance/ledger-delivery.ts`](../back-office/server/issuance/ledger-delivery.ts)
+      sets `ledger_standing=local_standing` after registering; for a locally revoked licence
+      it must be `suspended` until the revocation executes. Reconcile from
+      `CertificateRegistered` / `CertificateStandingChanged` rather than copying the local
+      standing.
+- [ ] **Tests.**
+      [`server/lifecycle/precollection-lifecycle.test.ts:334`](../back-office/server/lifecycle/precollection-lifecycle.test.ts#L334)
+      expects the record to be `revoked` right after registration; it will be `suspended`,
+      then `revoked` once the revocation proposal executes. Fixtures that register with
+      standing `3` must change too.
+- [ ] **Operator view.** Show such a licence as "revocation pending" between registration and
+      the executed revocation, and alert if the revocation proposal is vetoed or expires.
+

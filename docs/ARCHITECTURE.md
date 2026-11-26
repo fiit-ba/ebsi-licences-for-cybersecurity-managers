@@ -235,7 +235,7 @@ statusKey         = SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certific
 where `certificateId` is the license's random `urn:uuid`. The contract computes the key itself, so a TI can only take a key of its own, and keeps one record per license. A verifier recomputes the key from the presented license.
 
 **Writing.**
-- The record is registered with one signature once the holder collects the license. A license suspended or revoked before registration is registered in that standing.
+- The record is registered with one signature once the holder collects the license. A license suspended before registration is registered as `SUSPENDED`. One revoked before registration is registered as `SUSPENDED` too and then revoked by an ordinary revocation proposal (quorum, timelock, veto): no record starts `REVOKED`.
 - An emergency suspension takes one signature of the TI, applies only to a valid license and requires a reason.
 - An executed proposal sets the standing in the same transaction: suspension gives `SUSPENDED`, reinstatement `VALID`, revocation `REVOKED` for good.
 - The back-office writes asynchronously, and a periodic check catches up with anything not yet written.

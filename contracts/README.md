@@ -191,6 +191,12 @@ in an emergency, when one of the TI's own keys suspends it at once (`suspendNow`
 reversible, and a revocation still needs the quorum). The contract proves that a
 quorum approved a change before it happened.
 
+**No record starts revoked.** `registerCertificate` accepts only `VALID` or
+`SUSPENDED` (`InvalidStanding` otherwise). A licence revoked before its record
+exists is registered `SUSPENDED` and then revoked by an ordinary proposal, so
+every revocation takes the revoke policy's quorum, timelock and veto; one key
+can at worst take an id first as `SUSPENDED`, which the quorum still decides.
+
 **An action must change the standing** (`PolicyRules.changes`): a suspension
 only of a valid certificate, a reinstatement only of a suspended one, a
 revocation of either. Checked when proposed and again by the registry when
