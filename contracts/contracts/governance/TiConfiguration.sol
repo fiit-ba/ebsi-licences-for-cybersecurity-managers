@@ -62,6 +62,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         /// Raised by a restored accreditation, which ends the TI's open
         /// reinstatements and rule changes. Last, to keep the layout.
         uint32 restorations;
+        /// When a rule change last set each policy, then the lifetime
+        /// (`POLICY_KINDS`). Last, to keep the layout.
+        uint64[POLICY_KINDS + 1] setAt;
     }
 
     /// @custom:storage-location erc7201:plr.storage.TiConfiguration
@@ -255,6 +258,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
 
     function _loosenedAt(bytes32 tiId, PolicyKind kind) internal view returns (uint64) {
         return _configurationStorage().tis[tiId].loosenedAt[uint8(kind)];
+    }
+
+    function _setAt(bytes32 tiId, uint8 rule) internal view returns (uint64) {
+        return _configurationStorage().tis[tiId].setAt[rule];
     }
 
     function _restorations(bytes32 tiId) internal view returns (uint32) {
@@ -458,7 +465,14 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     function _changePolicy(bytes32 tiId, PolicyKind kind, Policy memory policy) internal {
         TiConfig storage ti = _configurationStorage().tis[tiId];
         if (!policy.asStrictAs(ti.policies[uint8(kind)])) ti.loosenedAt[uint8(kind)] = uint64(block.timestamp);
+        ti.setAt[uint8(kind)] = uint64(block.timestamp);
         _setPolicy(tiId, kind, policy);
+    }
+
+    /// @dev How a rule change sets the proposal lifetime; `addTi` sets it directly.
+    function _changeProposalTtl(bytes32 tiId, uint64 ttl) internal {
+        _configurationStorage().tis[tiId].setAt[POLICY_KINDS] = uint64(block.timestamp);
+        _setProposalTtl(tiId, ttl);
     }
 
     function _setPolicy(bytes32 tiId, PolicyKind kind, Policy memory policy) internal {

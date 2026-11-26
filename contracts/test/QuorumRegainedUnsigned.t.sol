@@ -267,16 +267,20 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         uint256 id = _approveRevocation();
         applyAdmin(setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_C), DAY)));
         uint64 first = uint64(vm.getBlockTimestamp());
-        uint256 tighter = setPolicy(B, C, REVOKE, policy(2, NONE, ALL, DAY));
         applyAdmin(setPolicy(A, C, REVOKE, policy(2, NONE, only(ROLE_C), DAY)));
         uint64 second = uint64(vm.getBlockTimestamp());
         assertGt(second, first);
         assertEq(governance.getProposal(id).executableAt, second + DAY);
+        uint256 tighter = setPolicy(B, C, REVOKE, policy(2, NONE, ALL, DAY));
 
         vm.warp(second + DAY - 1);
+        vm.prank(A);
+        vm.expectRevert(abi.encodeWithSelector(IGovernanceTypes.TimelockNotElapsed.selector, second + DAY));
+        governance.execute(id);
+        vm.warp(second + DAY);
         executeAdmin(tighter, A);
         assertEq(governance.getProposal(id).executableAt, second + DAY);
-        _executesExactlyAt(id);
+        execute(id, A);
     }
 
     /// The same policy set again moves nothing.

@@ -545,7 +545,19 @@ proposer may withdraw it. The exception is the key a change removes or
 replaces (`CannotVetoOwnRemoval`): a compromised key must not be able to block
 its own rotation. The contract re-validates a change when it applies it,
 against the configuration at that time, and only while the TI is still
-accredited. A removal that would leave a policy unmet, or with no role that may
+accredited.
+
+**A later change of the same rule overtakes an earlier one.** A policy change
+or a lifetime change opened before another change set the same policy, or the
+lifetime, reads `EXPIRED`: it takes no signature or veto, cannot be executed,
+and anyone may expire it (`expireAdminProposal`). Otherwise a change approved
+long ago, neutral then, could be applied by one key on top of a later decision
+and undo it, without a new quorum, timelock or veto window; a tightening
+(for example C required on revocations) would be reversed without the
+supervisory authority. Changes to other rules, and signer changes, are not
+overtaken, so keys rotated in parallel all apply; a removed key never returns,
+so a stale signer change cannot undo one. A change opened in the same second
+in which its rule was set counts as later. A removal that would leave a policy unmet, or with no role that may
 veto under it, is refused (`Unsatisfiable`); so is a replacement of the
 cosigners by the TAO that would.
 

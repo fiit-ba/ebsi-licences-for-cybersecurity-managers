@@ -43,8 +43,11 @@ contract ProposalExpiryTest is GovernanceTest {
 
     /// The same for a rule change.
     function test_TheAdminViewKeepsTheLifetimeTooAndIsExact() public {
+        IGovernanceTypes.Policy memory same = pilot[uint8(IGovernanceTypes.PolicyKind.SUSPEND)];
         vm.prank(A);
-        uint256 rule = governance.proposeProposalTtl(TI_ID, pilotTtl + DAY);
+        uint256 rule = governance.proposePolicy(
+            TI_ID, IGovernanceTypes.PolicyKind.SUSPEND, same.threshold, same.requiredRoleMask, same.vetoRoleMask, 0
+        );
         uint64 expiresAt = governance.getAdminProposal(rule).proposedAt + pilotTtl;
         applyAdmin(setTtl(A, B, SHORTER));
         assertEq(governance.getAdminProposal(rule).expiresAt, expiresAt);

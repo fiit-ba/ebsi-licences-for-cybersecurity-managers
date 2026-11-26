@@ -779,3 +779,37 @@ with no say from C.
       ADMIN's veto, or with a required role and no ADMIN timelock, gets every policy change
       refused until a change of ADMIN fixes it. Check the configured TIs and propose that
       change first.
+
+---
+
+## 19. A later change of the same rule overtakes an earlier one
+
+Covers the finding that a rule change approved earlier, neutral at the time and left
+unexecuted, could be executed by one key after a later tightening of the same rule and undo
+it, with no new quorum, timelock or veto window.
+
+### What changed in the contracts
+
+- A `SET_POLICY` change of a kind, or a `SET_PROPOSAL_TTL` change, opened **before** another
+  change set the same policy (or the lifetime) is **overtaken**. It reads `EXPIRED` in
+  `getAdminProposal` / `adminStateOf`; `signAdminProposal`, `cancelAdminProposal` and
+  `executeAdminProposal` revert with `ProposalNotOpen`; anyone may close it with
+  `expireAdminProposal` (`AdminProposalExpired`).
+- Changes of other rules do not overtake it, and signer changes (`ADD_SIGNER`,
+  `REMOVE_SIGNER`, `REPLACE_SIGNER`) are never overtaken, so parallel key rotations still all
+  apply.
+- A change opened in the same second in which its rule was set counts as later.
+- New storage: one "set at" time per policy and one for the lifetime, after the TI's last
+  field. No ABI change.
+
+### To do
+
+- [ ] **Show overtaken changes as expired.** Rule-change lists read the state from the
+      contract; make sure an `EXPIRED` change that never reached its lifetime is shown as
+      "overtaken by a later change of the same rule", not as timed out, and offer to close it
+      (`expireAdminProposal`).
+- [ ] **Do not queue competing changes.** When a policy or lifetime change is proposed while
+      another change of the same rule is open, warn that executing one overtakes the other.
+- [ ] **Stale drafts.** If the back-office keeps approved changes to execute later, re-read
+      their state before sending `executeAdminProposal`; an overtaken one reverts with
+      `ProposalNotOpen`.

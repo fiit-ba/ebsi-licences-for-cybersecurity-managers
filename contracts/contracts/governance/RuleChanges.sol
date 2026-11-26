@@ -1,5 +1,6 @@
 pragma solidity 0.8.26;
 
+import {POLICY_KINDS} from "../interfaces/IGovernanceTypes.sol";
 import {IRuleChanges} from "../interfaces/IRuleChanges.sol";
 import {Role, RoleSet} from "../libraries/Roles.sol";
 import {Ballots} from "./Ballots.sol";
@@ -110,8 +111,10 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         emit AdminProposalCancelled(adminProposalId, msg.sender);
     }
 
+    /// @dev Permissionless, as for status proposals; so is an overtaken one.
     function expireAdminProposal(uint256 adminProposalId) external {
-        _expire(_ruleChangesStorage().adminProposals[adminProposalId].ballot, PolicyKind.ADMIN, false);
+        AdminProposal storage p = _ruleChangesStorage().adminProposals[adminProposalId];
+        _expire(p.ballot, PolicyKind.ADMIN, _overtaken(p));
         emit AdminProposalExpired(adminProposalId);
     }
 
@@ -126,7 +129,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         result.change = p.change;
         result.proposedAt = p.ballot.proposedAt;
         result.quorumReachedAt = p.ballot.quorumReachedAt;
-        result.state = _effectiveState(p.ballot, PolicyKind.ADMIN);
+        result.state = _adminState(p);
         result.signatures = p.ballot.signatures;
         result.executableAt = _executableAt(p.ballot, PolicyKind.ADMIN);
         result.rolesSignedMask = _rolesSigned(p.ballot);
@@ -139,7 +142,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function adminStateOf(uint256 adminProposalId) external view returns (ProposalState) {
-        return _effectiveState(_ruleChangesStorage().adminProposals[adminProposalId].ballot, PolicyKind.ADMIN);
+        return _adminState(_ruleChangesStorage().adminProposals[adminProposalId]);
     }
 
     // -----------------------------------------------------------------------
@@ -184,6 +187,23 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     function _openAdmin(uint256 adminProposalId) private view returns (AdminProposal storage p) {
         p = _ruleChangesStorage().adminProposals[adminProposalId];
         _requireOpenToSigner(p.ballot, PolicyKind.ADMIN);
+        if (_overtaken(p)) revert ProposalNotOpen();
+    }
+
+    /// @dev A rule change since set the same policy, or the lifetime: applied
+    ///      now, this one would undo that decision unseen. Signer changes need
+    ///      no such check: a removed key never returns.
+    function _overtaken(AdminProposal storage p) private view returns (bool) {
+        AdminAction action = p.change.action;
+        if (action < AdminAction.SET_POLICY) return false;
+        uint8 rule = action == AdminAction.SET_POLICY ? uint8(p.change.kind) : POLICY_KINDS;
+        return _setAt(p.ballot.tiId, rule) > p.ballot.proposedAt;
+    }
+
+    /// @dev An open change overtaken by a later one reads as expired.
+    function _adminState(AdminProposal storage p) private view returns (ProposalState state) {
+        state = _effectiveState(p.ballot, PolicyKind.ADMIN);
+        if (_isOpen(state) && _overtaken(p)) state = ProposalState.EXPIRED;
     }
 
     function _adminPolicy(bytes32 tiId) private view returns (Policy memory) {
@@ -228,7 +248,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
             _changePolicy(tiId, change.kind, change.policy);
         } else {
             // SET_PROPOSAL_TTL
-            _setProposalTtl(tiId, change.ttl);
+            _changeProposalTtl(tiId, change.ttl);
         }
     }
 }

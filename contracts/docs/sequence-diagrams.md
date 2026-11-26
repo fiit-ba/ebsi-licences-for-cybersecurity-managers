@@ -266,14 +266,14 @@ sequenceDiagram
     C->>G: signAdminProposal(id)
     G-->>C: AdminProposalSigned, AdminQuorumReached(id, executableAt)
 
-    alt ADMIN timelock = 0 (only when no other policy has one)
+    alt ADMIN timelock = 0 (only when no other policy has one or requires a role)
         Note over G: applied within C's call
     else timelock > 0
         Note over A,G: wait, a veto role may cancelAdminProposal,<br/>but not the key being removed (CannotVetoOwnRemoval)
         A->>G: executeAdminProposal(id)
         Note over G: quorum met again, now >= executableAt
     end
-    Note over G: TI still accredited, the change is still valid,<br/>oldKey retired, newKey takes its role
+    Note over G: TI still accredited, the change is still valid,<br/>oldKey retired, newKey takes its role<br/>(a policy or lifetime change: not overtaken by a later change of its rule)
     G-->>A: SignerReplaced(tiId, oldKey, newKey, role), AdminProposalExecuted(id, REPLACE_SIGNER)
 ```
 
