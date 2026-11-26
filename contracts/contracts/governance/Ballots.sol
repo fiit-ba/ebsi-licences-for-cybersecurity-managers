@@ -63,17 +63,16 @@ abstract contract Ballots is TiConfiguration {
         }
     }
 
-    /// @dev Who may stop an open proposal: a veto-role key, or the proposer
-    ///      withdrawing their own. Withdrawal isn't a veto - it only stops
-    ///      what the same key started, so a compromised key gains nothing
-    ///      over simply not proposing, and the back-office needs it to close
-    ///      a rejected case on-chain regardless of who holds the veto. Either
-    ///      way the key must hold a role now (`_requireOpenToSigner`): a
-    ///      removed, replaced or unlisted proposer withdraws nothing.
+    /// @dev Who may stop an open proposal: a veto-role key; the proposer,
+    ///      withdrawing its own; or any signer, once the proposer holds no role
+    ///      and no quorum of live keys backs it - an orphan nobody else could
+    ///      close. The caller holds a role either way (`_requireOpenToSigner`).
     function _cancel(Ballot storage ballot, Policy memory policy) internal {
-        if (msg.sender != ballot.proposer && !policy.vetoRoleMask.contains(roleOf(ballot.tiId, msg.sender))) {
-            revert VetoNotAllowed();
-        }
+        bytes32 tiId = ballot.tiId;
+        if (
+            msg.sender != ballot.proposer && !policy.vetoRoleMask.contains(roleOf(tiId, msg.sender))
+                && (Role.unwrap(roleOf(tiId, ballot.proposer)) != 0 || policy.meets(_rolesSigned(ballot)))
+        ) revert VetoNotAllowed();
         ballot.state = ProposalState.CANCELLED;
     }
 

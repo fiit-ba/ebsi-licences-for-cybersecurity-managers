@@ -659,3 +659,32 @@ licences stayed `SUSPENDED` for good.
 - [ ] **No reinstatement without accreditation.** Hide or refuse the reinstatement action for a
       TI that is not accredited (`TiNotActive`).
 
+---
+
+## 16. Any signer closes an orphan proposal
+
+Covers the finding that, under a narrowed veto, one key could block decisions about a
+licence by opening a junk proposal: nobody else could open another proposal for it
+(`ProposalAlreadyOpen`) or close the junk (`VetoNotAllowed`), not even after the key was
+removed. Earlier fixes already cover most of it: an action must change the standing (§5), an
+overtaken proposal is expired by the next one (§5), only the TI's own keys propose (§10).
+
+### What changed in the contracts
+
+- `cancelProposal` / `cancelAdminProposal` also accept **any signer of the TI** when the
+  proposer holds no role now (removed, replaced, or unlisted in the DID Registry) **and** the
+  signatures of live keys no longer meet the policy. A proposal a quorum still backs is
+  stopped by the veto only, as before. No ABI change.
+- Removing or replacing a key closes nothing by itself.
+- Documented: the supervisory authority can no longer start a revocation on chain by itself;
+  the TI's key opens it, NBÚ signs or vetoes.
+
+### To do
+
+- [ ] **Close orphans after a rotation.** After a `REMOVE_SIGNER` / `REPLACE_SIGNER`
+      executes, list the open proposals and rule changes the old key opened; close those that
+      no longer meet their policy (`cancelProposal` with any TI key, `reasonHash` = the audit
+      entry), so their licences are free again. Re-propose what should go on.
+- [ ] **NBÚ requests.** Give the supervisory authority a way to ask the TI to open a
+      revocation (it cannot open one on chain), and show it the resulting proposal to sign.
+

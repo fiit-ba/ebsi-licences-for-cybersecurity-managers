@@ -459,8 +459,20 @@ veto to all three roles. A deployment can narrow it, so that one compromised
 key of another role cannot stop every decision.
 
 The key that opened a proposal may always withdraw it, whatever its role, for
-as long as it holds one. That is not a veto: it stops only what the same key started. The back-office relies
-on it to close the on-chain side of a case it rejected.
+as long as it holds one. That is not a veto: it stops only what the same key
+started. The back-office relies on it to close the on-chain side of a case it
+rejected.
+
+**An orphan is closed by any signer.** Under a narrowed veto, a proposal whose
+proposer no longer holds a role (removed, replaced, or no longer listed by the
+DID Registry) would block its licence until it expires: only one proposal is
+open per licence, the proposer cannot withdraw it and the other signers may not
+veto it. So any signer of the TI may close such a proposal as long as no quorum
+of live keys backs it; one that a quorum still backs stands, and only the veto
+stops it. Removing a key closes nothing by itself: its proposals stay open until
+someone closes them or they expire. Only the TI's own keys open proposals
+(R6), so the supervisory authority can no longer start a revocation on chain by
+itself: it asks the TI, then signs or vetoes.
 
 `reasonHash` is a digest of the off-chain record of why, or zero. The
 back-office sends the `entry_hash` of the audit-log entry that rejected the

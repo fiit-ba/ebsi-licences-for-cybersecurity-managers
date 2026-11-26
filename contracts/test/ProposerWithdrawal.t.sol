@@ -38,16 +38,16 @@ contract ProposerWithdrawalTest is GovernanceTest {
         assertState(id, IGovernanceTypes.ProposalState.APPROVED);
     }
 
-    /// A replaced proposer neither; its successor is not the proposer.
-    function test_RevertWhen_AReplacedProposerOrItsSuccessorWithdraws() public {
+    /// A replaced proposer neither. With its signature gone the quorum is too,
+    /// so its successor, as any signer, closes the orphan.
+    function test_RevertWhen_AReplacedProposerWithdraws() public {
         uint256 id = _approvedRevocation();
         applyAdmin(replaceSigner(B, C, A, spare));
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.NotASigner.selector);
         governance.cancelProposal(id, REASON);
-        vm.prank(spare);
-        vm.expectRevert(IGovernanceTypes.VetoNotAllowed.selector);
-        governance.cancelProposal(id, REASON);
+        cancel(id, spare, REASON);
+        assertState(id, IGovernanceTypes.ProposalState.CANCELLED);
     }
 
     /// Nor a proposer the DID Registry no longer lists; listed again, it may.
@@ -77,8 +77,9 @@ contract ProposerWithdrawalTest is GovernanceTest {
         assertEq(governance.openProposalFor(CERTIFICATE), 0);
     }
 
-    /// With no key left to veto, the clock ends it: anyone expires it, and
-    /// the next proposal for the certificate replaces it on its own.
+    /// With no key left to veto and nobody closing it, the clock ends it:
+    /// anyone expires it, and the next proposal for the certificate replaces
+    /// it on its own.
     function test_TheClockEndsWhatNobodyCanCancel() public {
         uint256 id = _approvedRevocation();
         vm.prank(A);
