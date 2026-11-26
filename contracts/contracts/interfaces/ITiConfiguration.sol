@@ -44,9 +44,6 @@ interface ITiConfiguration is ITiAccreditation {
     /// @notice Refuses an account that holds no role of the TI right now.
     function requireSigner(bytes32 tiId, address account) external view;
 
-    /// @notice `requireSigner`, and refuses a TI that is not active.
-    function requireActiveSigner(bytes32 tiId, address account) external view;
-
     /// @notice Refuses an account that is not the TI's own key now, a cosigner's included.
     function requireOwnSigner(bytes32 tiId, address account) external view;
 
@@ -54,6 +51,8 @@ interface ITiConfiguration is ITiAccreditation {
     function requireActiveOwnSigner(bytes32 tiId, address account) external view;
 
     function MAX_ROLE() external view returns (uint8);
+
+    function MIN_THRESHOLD() external view returns (uint8);
 
     function MAX_TIMELOCK() external view returns (uint64);
 

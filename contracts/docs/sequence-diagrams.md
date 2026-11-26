@@ -29,8 +29,6 @@ The check has two parts:
 
 `requireSigner(tiId, account)` checks only the first part. It is used for
 every signature and for a veto, which a cosigner's key gives too.
-`requireActiveSigner(tiId, account)` checks both; the contracts no longer ask
-it, and it stays a view for others.
 
 What the TI starts or does alone asks for one of its **own** keys, the first
 branch below only: a cosigner's key signs and vetoes, but never acts for the
@@ -47,21 +45,20 @@ sequenceDiagram
     participant D as DID Registry
     participant T as Trusted Issuers Registry
 
-    C->>G: requireActiveSigner(tiId, account)
-    Note over G: roleOf(tiId, account)
+    C->>G: requireActiveOwnSigner(tiId, account), or requireSigner
     alt account is one of the TI's signers
         G->>D: checkController(tiDid, account)
         D-->>G: true / false
-    else otherwise, each cosigner in turn
+    else requireSigner only: each cosigner in turn
         loop until one matches
             G->>D: checkController(cosignerDid, account)
             D-->>G: true / false
         end
     end
     alt no role
-        G-->>C: revert NotASigner
+        G-->>C: revert NotAnOwnSigner / NotASigner
     end
-    Note over G: isActiveTi(tiDid, attributeId)
+    Note over G: requireActiveOwnSigner only: isActiveTi(tiDid, attributeId)
     G->>T: getLatestRevisionAttribute(tiDid, attributeId)
     T-->>G: type TI, tao = taoDid
     loop each parent, up to MAX_TRUST_CHAIN_DEPTH

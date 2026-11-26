@@ -8,10 +8,10 @@ import {RoleSet} from "./Roles.sol";
  * @notice What a policy means for a set of roles.
  */
 library PolicyRules {
-    /// @dev The policy says something coherent, and the roles present can meet it.
+    /// @dev The required roles fit the threshold, and the roles present can
+    ///      meet it. The threshold's floor is `MIN_THRESHOLD`.
     function wellFormed(IGovernanceTypes.Policy memory policy, RoleSet present) internal pure returns (bool) {
-        return
-            policy.threshold != 0 && policy.requiredRoleMask.count() <= policy.threshold && reachable(policy, present);
+        return policy.requiredRoleMask.count() <= policy.threshold && reachable(policy, present);
     }
 
     /// @dev Whether the roles present can meet a policy, and veto under it:

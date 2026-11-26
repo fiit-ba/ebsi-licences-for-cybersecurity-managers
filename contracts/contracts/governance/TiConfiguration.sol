@@ -23,6 +23,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     /// @notice Roles are 1..8, so a set of them fits one byte.
     uint8 public constant MAX_ROLE = 8;
 
+    /// @notice Every policy needs at least two roles: no single key decides.
+    uint8 public constant MIN_THRESHOLD = 2;
+
     /// @notice No timelock longer than this: a longer one is a typo that would
     ///         freeze the TI, not a governance choice.
     uint64 public constant MAX_TIMELOCK = 90 days;
@@ -262,11 +265,6 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         if (!isActiveTi(ti.did, ti.attributeId)) revert TiNotActive();
     }
 
-    function requireActiveSigner(bytes32 tiId, address account) public view {
-        requireSigner(tiId, account);
-        _requireActive(tiId);
-    }
-
     /// @dev One of the TI's signer keys, still listed for its DID, as in `roleOf`.
     function requireOwnSigner(bytes32 tiId, address account) public view {
         TiConfigurationStorage storage $ = _configurationStorage();
@@ -356,7 +354,9 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     // -----------------------------------------------------------------------
 
     function _requirePolicy(Policy memory policy, RoleSet present) internal pure {
-        if (policy.timelock > MAX_TIMELOCK || !policy.wellFormed(present)) revert InvalidPolicy();
+        if (policy.threshold < MIN_THRESHOLD || policy.timelock > MAX_TIMELOCK || !policy.wellFormed(present)) {
+            revert InvalidPolicy();
+        }
     }
 
     /// @dev Every policy of the TI stays reachable with the roles `present`.

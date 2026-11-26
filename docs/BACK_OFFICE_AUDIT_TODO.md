@@ -583,3 +583,32 @@ revocation expired silently.
 - [ ] **Operator view.** Show an approved case past its original lifetime as "extended
       until …", and warn the signers and veto holders before the extension ends.
 
+---
+
+## 14. Every policy needs at least two roles
+
+Covers the finding that a policy was well formed as soon as its threshold was not zero, so
+`addTi` and `proposePolicy` accepted a threshold of one: a single key could then revoke
+licences permanently or take over the TI's rules.
+
+### What changed in the contracts
+
+- New constant **`MIN_THRESHOLD = 2`** (`TiConfiguration`, exported in the generated
+  `LIMITS`). `_requirePolicy` refuses a lower threshold with `InvalidPolicy()`, in `addTi`
+  and for `proposePolicy`, when proposed and again when applied.
+- Two keys of one role count once, so a TI needs two roles: two of its own, or one of its
+  own and a cosigner's.
+- `suspendNow` stays the only act of one signature.
+- ABI: one new view, `MIN_THRESHOLD()`.
+
+### To do
+
+- [ ] **Validate `addTi` configurations too.**
+      [`server/lifecycle/admin-policy.ts:67`](../back-office/server/lifecycle/admin-policy.ts#L67)
+      enforces `min_threshold: 2` for rule changes only. Apply the same check to the policies
+      [`server/lifecycle/ti-governance.ts`](../back-office/server/lifecycle/ti-governance.ts)
+      sends to `addTi` (from the configuration file), and read the bound from the generated
+      `LIMITS.MIN_THRESHOLD` instead of the literal 2.
+- [ ] **Map `InvalidPolicy` at set-up.** A TI set up with a single role and no cosigner now
+      fails at `addTi`; report it as "a TI needs at least two roles".
+

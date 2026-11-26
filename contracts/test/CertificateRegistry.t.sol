@@ -264,8 +264,6 @@ contract PermissiveGovernance {
         certificateRegistry = certificateRegistry_;
     }
 
-    function requireActiveSigner(bytes32, address) external pure {}
-
     function requireSigner(bytes32, address) external pure {}
 }
 

@@ -151,10 +151,12 @@ contract CosignersApartTest is GovernanceTest {
     }
 
     function test_RevertWhen_TheTiLowersAThresholdTheCosignersWouldMeet() public {
-        _cosign(ROLE_D);
+        _threeOfAll();
+        vm.prank(tao);
+        governance.setCosigners(TI_ID, _cosigners(ROLE_D, ROLE_E));
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.CosignersMeetAQuorum.selector);
-        governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND, 1, NONE, ALL, 0);
+        governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND, 2, NONE, ALL, 0);
     }
 
     /// The cosigner change ends it before the role check could.
@@ -168,26 +170,36 @@ contract CosignersApartTest is GovernanceTest {
 
     /// The cosigner change ends it before the threshold check could.
     function test_RevertWhen_AThresholdApprovedBeforeACosignerIsNamedApplies() public {
-        uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(1, NONE, ALL, 0));
-        _cosign(ROLE_D);
+        _threeOfAll();
+        uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(2, NONE, ALL, 0));
+        signAdmin(id, C);
+        vm.prank(tao);
+        governance.setCosigners(TI_ID, _cosigners(ROLE_D, ROLE_E));
         vm.warp(governance.getAdminProposal(id).executableAt);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         executeAdmin(id, A);
     }
 
-    function test_AThresholdOfOneStaysOpenToATiWithoutCosigners() public {
-        applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(1, NONE, ALL, 0)));
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND).threshold, 1);
-    }
-
-    function test_RevertWhen_TheTaoNamesACosignerAfterTheTiDecidesOnOneSignature() public {
-        applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(1, NONE, ALL, 0)));
+    function test_RevertWhen_TheTaoNamesCosignersAfterTheTiLoweredAThreshold() public {
+        _threeOfAll();
+        uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(2, NONE, ALL, 0));
+        signAdmin(id, C);
+        applyAdmin(id);
         vm.prank(tao);
         vm.expectRevert(IGovernanceTypes.CosignersMeetAQuorum.selector);
-        governance.setCosigners(TI_ID, _oneCosigner(ROLE_D));
+        governance.setCosigners(TI_ID, _cosigners(ROLE_D, ROLE_E));
     }
 
     // -----------------------------------------------------------------------
+
+    /// Every policy 3 of the roles present, so two cosigners stay short of it.
+    function _threeOfAll() private {
+        IGovernanceTypes.Policy[4] memory policies = pilotPolicies();
+        for (uint256 i = 0; i < 4; i++) {
+            policies[i].threshold = 3;
+        }
+        governance = deploy(policies);
+    }
 
     function _cosign(Role role) private {
         vm.prank(tao);

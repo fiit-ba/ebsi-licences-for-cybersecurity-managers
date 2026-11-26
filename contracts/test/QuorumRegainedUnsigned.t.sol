@@ -113,8 +113,8 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
     /// Each kind has its own: loosening reinstatement or suspension delays
     /// no revocation and no rule change.
     function test_LooseningAnotherKindDelaysNothing() public {
-        uint256 reinstate = setPolicy(A, C, REINSTATE, policy(1, NONE, ALL, 0));
-        uint256 suspend = setPolicy(A, C, SUSPEND, policy(1, NONE, ALL, 0));
+        uint256 reinstate = setPolicy(A, C, REINSTATE, policy(2, NONE, both(ROLE_A, ROLE_B), 0));
+        uint256 suspend = setPolicy(A, C, SUSPEND, policy(2, NONE, both(ROLE_A, ROLE_B), 0));
         skip(HOUR);
         uint256 id = _approveRevocation();
         uint256 rule = setTtl(B, C, pilotTtl + DAY);
@@ -225,8 +225,10 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
     /// A looser threshold the signatures already meet does not approve a
     /// proposal: only a signature does, and its delay starts then.
     function test_ALooserThresholdApprovesNothingWithoutASignature() public {
+        governance = deploy(pilotWith(REVOKE, policy(3, NONE, ALL, DAY)));
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
-        applyAdmin(setPolicy(A, C, REVOKE, policy(1, NONE, ALL, DAY)));
+        sign(id, B);
+        applyAdmin(setPolicy(A, C, REVOKE, pilot[uint8(REVOKE)]));
         assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
         assertEq(governance.getProposal(id).executableAt, 0);
         skip(DAY);
@@ -235,7 +237,7 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         governance.execute(id);
 
         skip(HOUR);
-        sign(id, B);
+        sign(id, C);
         assertEq(governance.getProposal(id).executableAt, vm.getBlockTimestamp() + DAY);
         _executesExactlyAt(id);
     }

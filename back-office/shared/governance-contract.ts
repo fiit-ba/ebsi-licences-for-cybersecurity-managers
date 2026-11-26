@@ -867,6 +867,19 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "MIN_THRESHOLD",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "components": [
@@ -1889,24 +1902,6 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "type": "address"
       }
     ],
-    "name": "requireActiveSigner",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "tiId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
     "name": "requireOwnSigner",
     "outputs": [],
     "stateMutability": "view",
@@ -2901,6 +2896,7 @@ export const ROLES = {
 export const LIMITS = {
   "MAX_TRUST_CHAIN_DEPTH": 32,
   "MAX_ROLE": 8,
+  "MIN_THRESHOLD": 2,
   "MAX_TIMELOCK": 7776000,
   "MAX_PROPOSAL_TTL": 31536000,
   "MIN_SIGNING_WINDOW": 86400

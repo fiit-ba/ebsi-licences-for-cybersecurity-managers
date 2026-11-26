@@ -297,8 +297,7 @@ applied:
   too;
 - the cosigners' roles together meet no policy's threshold
   (`CosignersMeetAQuorum`), so a TI with cosigners cannot lower a threshold to
-  their number either. With the pilot's one supervisory cosigner, no policy
-  can be 1 of N;
+  their number either;
 - no key is both a TI key and a key of a cosigner's DID
   (`CosignerSharesSignerKey`). A key resolves to one role, its TI role first,
   so otherwise the TI could list the supervisor's key in its own DID, adopt
@@ -356,6 +355,12 @@ Each kind of decision has its own policy:
 |---|---|---|
 | `suspend`, `revoke`, `reinstate` | the status actions of component 10.3 | `threshold` (roles that must sign), `requiredRoleMask` (roles that must be among them), `vetoRoleMask` (roles that may veto; at least one must hold a key or a cosigner), `timelock` (seconds between quorum and execution) |
 | `admin` | the contract's own rule changes | the same |
+
+**No single key decides.** Every policy's `threshold` is at least
+`MIN_THRESHOLD` (2 roles), at `addTi` and in every `proposePolicy`, when
+proposed and again when applied (`InvalidPolicy` otherwise). Two keys of one
+role are one role, so a TI needs two roles, its own or a cosigner's. The only
+act of one signature is the reversible `suspendNow`.
 
 Component 10.2's alternative, the supervisory authority on every permanent
 revocation, is the `revoke` policy with `requiredRoleMask` containing C.
