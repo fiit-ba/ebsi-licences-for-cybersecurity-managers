@@ -164,7 +164,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         emit AdminProposalSigned(adminProposalId, msg.sender, roleOf(p.ballot.tiId, msg.sender), signed);
         if (reached) {
             emit AdminQuorumReached(adminProposalId, _executableAt(p.ballot, PolicyKind.ADMIN));
-            // No delay: apply now. Only when no status policy has one either.
+            // No delay: apply now. Only when no status policy has one or requires a role.
             if (policy.timelock == 0) _executeAdmin(adminProposalId, p);
         }
     }

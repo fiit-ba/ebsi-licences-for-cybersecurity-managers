@@ -221,7 +221,8 @@ interface IGovernanceTypes {
     error InvalidPolicy();
     error InvalidTtl();
     error Unsatisfiable();
-    /// @notice ADMIN needs every status policy's timelock and veto roles.
+    /// @notice ADMIN needs every status policy's timelock, and its veto and
+    ///         required roles as veto roles; a required role, a timelock.
     error AdminPolicyTooWeak();
     error CannotVetoOwnRemoval();
     /// @notice The caller's role holds no veto under the policy, and the

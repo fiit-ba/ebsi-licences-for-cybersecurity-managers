@@ -22,13 +22,17 @@ library PolicyRules {
             && present.intersects(policy.vetoRoleMask);
     }
 
-    /// @dev `admin` waits as long as `decision` and has all its veto roles.
+    /// @dev `admin` waits as long as `decision`, and each role that vetoes or
+    ///      is required there vetoes it: no rule change drops one unheard. A
+    ///      required role also needs a timelock to veto in.
     function covers(IGovernanceTypes.Policy memory admin, IGovernanceTypes.Policy memory decision)
         internal
         pure
         returns (bool)
     {
-        return admin.timelock >= decision.timelock && admin.vetoRoleMask.includesAll(decision.vetoRoleMask);
+        return admin.timelock >= decision.timelock && admin.vetoRoleMask.includesAll(decision.vetoRoleMask)
+            && admin.vetoRoleMask.includesAll(decision.requiredRoleMask)
+            && (admin.timelock > 0 || RoleSet.unwrap(decision.requiredRoleMask) == 0);
     }
 
     /// @dev Every set of roles meeting `next` meets `previous`, each role

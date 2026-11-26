@@ -158,6 +158,128 @@ contract AdminPolicyCoversTest is GovernanceTest {
     }
 
     // -----------------------------------------------------------------------
+    // A required role vetoes rule changes too
+    // -----------------------------------------------------------------------
+
+    /// Audit: C required on revocations, only A and B veto. A and B would
+    /// drop the requirement with no say from C.
+    function test_RevertWhen_ATiRequiresARoleItsRuleChangesCannotHear() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(both(ROLE_A, ROLE_B), DAY);
+        policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask = only(ROLE_C);
+        vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+        deploy(policies);
+    }
+
+    /// With C's veto on rule changes, C stops the change that would drop it.
+    function test_TheRequiredRoleVetoesTheChangeThatDropsIt() public {
+        governance = deploy(_requiringC(both(ROLE_A, ROLE_B), ALL));
+        uint256 drop = setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+        cancelAdmin(drop, C);
+        assertAdminState(drop, IGovernanceTypes.ProposalState.CANCELLED);
+        assertEq(
+            RoleSet.unwrap(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).requiredRoleMask),
+            RoleSet.unwrap(only(ROLE_C))
+        );
+    }
+
+    /// Rule changes cannot lose the required role's veto, and a decision
+    /// cannot require a role that rule changes do not hear.
+    function test_RevertWhen_AChangeWouldLeaveARequiredRoleUnheard() public {
+        governance = deploy(_requiringC(both(ROLE_A, ROLE_B), ALL));
+        _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+
+        governance = deploy(_allPolicies(both(ROLE_A, ROLE_B), DAY));
+        _expectRefused(IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), both(ROLE_A, ROLE_B), DAY));
+    }
+
+    /// Every status policy alike; the veto of the required role alone is enough.
+    function test_EveryRequiredRoleIsCoveredAndTheBoundaryHolds() public {
+        for (uint8 kind = 0; kind < uint8(IGovernanceTypes.PolicyKind.ADMIN); kind++) {
+            IGovernanceTypes.Policy[4] memory policies = _allPolicies(only(ROLE_A), DAY);
+            policies[kind].requiredRoleMask = only(ROLE_C);
+            vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+            deploy(policies);
+
+            policies[3].vetoRoleMask = both(ROLE_A, ROLE_C);
+            governance = deploy(policies);
+            _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, only(ROLE_A), DAY));
+        }
+    }
+
+    /// Every required role, not one of them.
+    function test_RevertWhen_OneOfTwoRequiredRolesIsUnheard() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(only(ROLE_A), DAY);
+        policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask = both(ROLE_B, ROLE_C);
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].vetoRoleMask = both(ROLE_A, ROLE_C);
+        vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+        deploy(policies);
+
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].vetoRoleMask = ALL;
+        governance = deploy(policies);
+        _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+    }
+
+    /// Each passes alone; the second is refused at execution.
+    function test_RevertWhen_TwoApprovedChangesTogetherLeaveARequiredRoleUnheard() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(both(ROLE_A, ROLE_B), DAY);
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].vetoRoleMask = ALL;
+        governance = deploy(policies);
+        uint256 narrow = setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+        uint256 require_ =
+            setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), both(ROLE_A, ROLE_B), DAY));
+        applyAdmin(narrow);
+        vm.warp(governance.getAdminProposal(require_).executableAt);
+        vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+        executeAdmin(require_, A);
+    }
+
+    // -----------------------------------------------------------------------
+    // A required role needs a timelock on rule changes to veto in
+    // -----------------------------------------------------------------------
+
+    /// With no timelock anywhere, a rule change would apply at its quorum and
+    /// drop C's requirement before C could veto. A second of it is enough.
+    function test_RevertWhen_ARequiredRoleHasNoTimeToVeto() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(ALL, 0);
+        policies[uint8(IGovernanceTypes.PolicyKind.REINSTATE)].requiredRoleMask = only(ROLE_C);
+        vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+        deploy(policies);
+
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock = 1;
+        governance = deploy(policies);
+        uint256 drop = setPolicy(A, B, IGovernanceTypes.PolicyKind.REINSTATE, policy(2, NONE, ALL, 0));
+        assertAdminState(drop, IGovernanceTypes.ProposalState.APPROVED);
+        cancelAdmin(drop, C);
+        assertAdminState(drop, IGovernanceTypes.ProposalState.CANCELLED);
+    }
+
+    /// Neither side moves past it: ADMIN cannot drop its timelock while a
+    /// role is required, and nothing new is required while it has none.
+    function test_RevertWhen_AChangeWouldLeaveARequiredRoleNoTime() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(ALL, 0);
+        policies[uint8(IGovernanceTypes.PolicyKind.REINSTATE)].requiredRoleMask = only(ROLE_C);
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock = 1;
+        governance = deploy(policies);
+        _expectRefused(IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 0));
+
+        governance = deploy(_allPolicies(ALL, 0));
+        _expectRefused(IGovernanceTypes.PolicyKind.SUSPEND, policy(2, only(ROLE_C), ALL, 0));
+    }
+
+    /// Each passes alone; the second is refused at execution.
+    function test_RevertWhen_TwoApprovedChangesTogetherLeaveARequiredRoleNoTime() public {
+        IGovernanceTypes.Policy[4] memory policies = _allPolicies(ALL, 0);
+        policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock = 1;
+        governance = deploy(policies);
+        uint256 instant = setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 0));
+        uint256 require_ = setPolicy(A, B, IGovernanceTypes.PolicyKind.REINSTATE, policy(2, only(ROLE_C), ALL, 0));
+        applyAdmin(instant);
+        vm.warp(governance.getAdminProposal(require_).executableAt);
+        vm.expectRevert(IGovernanceTypes.AdminPolicyTooWeak.selector);
+        executeAdmin(require_, A);
+    }
+
+    // -----------------------------------------------------------------------
     // A TI set up before the rule, under the old pilot (ADMIN without delay)
     // -----------------------------------------------------------------------
 
@@ -181,8 +303,8 @@ contract AdminPolicyCoversTest is GovernanceTest {
 
     /// Sets ADMIN's timelock to 0 in storage, as the old pilot did.
     function _forgeLegacyAdminWithoutDelay() private {
-        bytes32 location = keccak256(abi.encode(uint256(keccak256("plr.storage.TiConfiguration")) - 1))
-            & ~bytes32(uint256(0xff));
+        bytes32 location =
+            keccak256(abi.encode(uint256(keccak256("plr.storage.TiConfiguration")) - 1)) & ~bytes32(uint256(0xff));
         // TiConfig slot 4 + ADMIN (3); timelock above the three role bytes.
         bytes32 admin = bytes32(uint256(keccak256(abi.encode(TI_ID, location))) + 4 + 3);
         uint256 packed = uint256(vm.load(address(governance), admin));
@@ -196,6 +318,13 @@ contract AdminPolicyCoversTest is GovernanceTest {
         governance.proposePolicy(
             TI_ID, kind, refused.threshold, refused.requiredRoleMask, refused.vetoRoleMask, refused.timelock
         );
+    }
+
+    /// Revocations require C; status policies veto with `veto`, ADMIN with `adminVeto`.
+    function _requiringC(RoleSet veto, RoleSet adminVeto) private view returns (IGovernanceTypes.Policy[4] memory p) {
+        p = _allPolicies(veto, DAY);
+        p[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask = only(ROLE_C);
+        p[uint8(IGovernanceTypes.PolicyKind.ADMIN)].vetoRoleMask = adminVeto;
     }
 
     /// The pilot's thresholds, with every policy given `veto` and `timelock`.

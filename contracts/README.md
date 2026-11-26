@@ -524,16 +524,21 @@ Then `signAdminProposal`, `executeAdminProposal`, `cancelAdminProposal` and
 **Rule changes are at least as strict as the decisions they govern.** The
 `admin` policy's timelock is at least the longest timelock of the `suspend`,
 `revoke` and `reinstate` policies, and its veto roles include every veto role
-of theirs (`AdminPolicyTooWeak` otherwise). This is checked when a TI is set
+and every required role of theirs (`AdminPolicyTooWeak` otherwise). This is checked when a TI is set
 up, when a policy change is proposed and again when it applies, on the whole
 set of policies, so neither side can be moved past the other. Otherwise the
 keys a delay guards against could rewrite a decision's policy, stripping its
 veto and its timelock, before the delay ran out: a rule change now never
 applies before the decision it could weaken, and every role that may stop the
-decision may stop the change too.
+decision may stop the change too. A role a decision requires may veto rule
+changes as well: with `revoke.requiredRoles = [C]` and only A and B on the
+veto, A and B could otherwise drop C's requirement with no say from C. And
+since a veto needs time, the `admin` policy has a timelock whenever a status
+policy requires a role: without one, a change would apply with the signature
+that completes its quorum, before C could veto.
 
 When the `admin` policy has no timelock, which it may only when no other
-policy has one, a change applies with the signature that completes its
+policy has one or requires a role, a change applies with the signature that completes its
 quorum. When it has one, the change waits, and a signer of a
 role the `admin` policy gives the veto may veto it in the meantime; its
 proposer may withdraw it. The exception is the key a change removes or

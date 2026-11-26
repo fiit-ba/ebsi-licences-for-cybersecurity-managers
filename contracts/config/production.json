@@ -1,5 +1,5 @@
 {
-  "description": "A production starting point, the same rules as the pilot: a rule change waits as long as a revocation (24 h), as the contract requires, so the supervisory authority can veto either. Requiring the supervisory authority on every revocation (component 10.2's alternative) is \"requiredRoles\": [\"C\"] under revoke. Every role may veto; \"vetoRoles\" narrows that, so one compromised key of another role cannot stop every decision.",
+  "description": "A production starting point, the same rules as the pilot: a rule change waits as long as a revocation (24 h), as the contract requires, so the supervisory authority can veto either. Requiring the supervisory authority on every revocation (component 10.2's alternative) is \"requiredRoles\": [\"C\"] under revoke; C must then stay among admin's \"vetoRoles\", as the contract requires, so the requirement cannot be dropped without it. Every role may veto; \"vetoRoles\" narrows that, so one compromised key of another role cannot stop every decision.",
   "policies": {
     "suspend": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 0},
     "revoke": {"threshold": 2, "requiredRoles": [], "vetoRoles": ["A", "B", "C"], "timelock": 86400},

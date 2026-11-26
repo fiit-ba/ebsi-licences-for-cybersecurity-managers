@@ -515,6 +515,7 @@ contract AddTiTest is GovernanceFixture {
     function test_RevertWhen_ChangingCosignersLeavesAPolicyOutOfReach() public {
         IGovernanceTypes.TiSetup memory setup = _setup();
         setup.policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask = RoleSet.wrap(4); // role C, NBÚ
+        setup.policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock = 1 days; // time for C to veto
         _addTi(setup);
 
         IGovernanceTypes.Cosigner[] memory none = new IGovernanceTypes.Cosigner[](0);
@@ -670,10 +671,10 @@ contract IsolationTest is GovernanceFixture {
 
     function test_EachTiHasItsOwnPolicy() public {
         vm.prank(ti2Key.addr);
-        uint256 id = governance.proposePolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND, 2, RoleSet.wrap(1), RoleSet.wrap(7), 0);
+        uint256 id = governance.proposePolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND, 2, RoleSet.wrap(0), RoleSet.wrap(1), 0);
         _admin(id);
-        assertEq(RoleSet.unwrap(governance.getPolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND).requiredRoleMask), 1);
-        assertEq(RoleSet.unwrap(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.SUSPEND).requiredRoleMask), 0);
+        assertEq(RoleSet.unwrap(governance.getPolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND).vetoRoleMask), 1);
+        assertEq(RoleSet.unwrap(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.SUSPEND).vetoRoleMask), 7);
     }
 
     function _admin(uint256 id) private {

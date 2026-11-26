@@ -744,3 +744,38 @@ The TAO now states the end, and the contract enforces it.
 - [ ] **Show the date and warn early.** Show `getTi(tiId).accreditedUntil` in the TI view, and
       remind the TAO before it passes. Past it, hide or refuse actions that raise trust (as in
       §15), and show `InvalidAccreditedUntil` / `TiNotActive` as readable errors.
+
+---
+
+## 18. A required role vetoes rule changes too
+
+Follow-up to §2, from the review of its fix. The check left required roles out: with C
+required on revocations but only A and B on the veto, A and B could drop C's requirement
+with no say from C.
+
+### What changed in the contracts
+
+- `AdminPolicyTooWeak` now also requires **ADMIN's veto roles ⊇ every required role** of
+  SUSPEND, REVOKE and REINSTATE, besides their veto roles and the longest timelock. Checked
+  at `addTi`, when a policy change is proposed and again when it executes, on the whole set
+  of policies. No ABI change.
+- So a decision cannot require a role that ADMIN does not give a veto, and ADMIN cannot lose
+  the veto of a role a decision requires.
+- And ADMIN has a **timelock above 0 whenever a status policy requires a role**: without
+  one, a change would apply at its quorum, before the required role could veto. An ADMIN
+  policy without a timelock is now allowed only when no status policy has a timelock or a
+  required role.
+
+### To do
+
+- [ ] **Policy editor.** Where a TI's rules are edited or proposed, add every required role
+      of a status policy to ADMIN's veto roles, or refuse the change before sending it. A
+      "require the supervisory authority on revocations" switch must keep C on ADMIN's veto
+      and ADMIN's timelock above 0.
+- [ ] **Error message.** Extend the `AdminPolicyTooWeak` message from §2: "…a veto for every
+      role that may veto a decision or that a decision requires, and a time lock whenever a
+      decision requires a role."
+- [ ] **Existing TIs.** A TI set up before this change with a required role missing from
+      ADMIN's veto, or with a required role and no ADMIN timelock, gets every policy change
+      refused until a change of ADMIN fixes it. Check the configured TIs and propose that
+      change first.
