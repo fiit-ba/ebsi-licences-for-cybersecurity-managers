@@ -613,7 +613,7 @@ contract IsolationTest is GovernanceFixture {
 
     function test_RevertWhen_ATiRegistersInAnothersName() public {
         vm.prank(tiKey.addr);
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         registry.registerCertificate(
             ID_HASH, TI2, 1, 0, CREDENTIAL_HASH, IGovernanceTypes.Standing.VALID);
     }
@@ -633,7 +633,7 @@ contract IsolationTest is GovernanceFixture {
 
     function test_RevertWhen_ASuspensionComesFromAnotherTi() public {
         vm.prank(tiKey.addr);
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         registry.suspendNow(KEY2, REASON);
     }
 
@@ -744,9 +744,16 @@ contract KeyRelationshipTest is GovernanceFixture {
         vm.prank(tiKey.addr);
         vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
         governance.execute(id);
-        vm.prank(key.addr);
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.startPrank(key.addr);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         governance.proposeAction(tiId, KEY, IGovernanceTypes.ActionType.SUSPEND, REASON);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
+        registry.suspendNow(KEY, REASON);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
+        registry.registerCertificate(
+            keccak256("after the lapse"), TI, 1, 0, CREDENTIAL_HASH, IGovernanceTypes.Standing.VALID
+        );
+        vm.stopPrank();
     }
 
     function test_AKeyActsOnlyOnceItsCapabilityInvocationBegins() public {

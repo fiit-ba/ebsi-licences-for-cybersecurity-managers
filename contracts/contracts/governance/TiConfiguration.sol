@@ -267,6 +267,19 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         _requireActive(tiId);
     }
 
+    /// @dev One of the TI's signer keys, still listed for its DID, as in `roleOf`.
+    function requireOwnSigner(bytes32 tiId, address account) public view {
+        TiConfigurationStorage storage $ = _configurationStorage();
+        if (Role.unwrap($.signerRole[tiId][account]) == 0 || !_controls($.tis[tiId].did, account)) {
+            revert NotAnOwnSigner();
+        }
+    }
+
+    function requireActiveOwnSigner(bytes32 tiId, address account) public view {
+        requireOwnSigner(tiId, account);
+        _requireActive(tiId);
+    }
+
     // -----------------------------------------------------------------------
     // Signers
     // -----------------------------------------------------------------------

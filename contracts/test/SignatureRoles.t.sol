@@ -32,40 +32,45 @@ contract SignatureRolesTest is GovernanceTest {
 
     /// Audit: a cosigner's signature followed the role the TAO gave it later.
     function test_ACosignersSignatureDoesNotFollowItsNewRole() public {
-        uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, cosigner);
         _nameCosigner(ROLE_E);
 
-        assertEq(governance.getProposal(id).rolesSignedMask, NONE, "the D signature does not count as E");
+        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_A), "the D signature does not count as E");
         assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
     }
 
     /// Audit: a cosigner's signature counted as the TI role its key got later.
     function test_ACosignersSignatureDoesNotBecomeATiKeys() public {
-        uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(C, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, cosigner);
         StubDidRegistry(didRegistry).setController(COSIGNER, cosigner, false);
         applyAdmin(addSigner(A, C, cosigner, ROLE_B));
         assertEq(Role.unwrap(governance.roleOf(TI_ID, cosigner)), Role.unwrap(ROLE_B));
 
-        assertEq(governance.getProposal(id).rolesSignedMask, NONE, "the D signature does not count as B");
-        sign(id, A);
-        assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
+        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_C), "the D signature does not count as B");
+        vm.prank(C);
+        vm.expectRevert(IGovernanceTypes.QuorumNotReached.selector);
+        governance.execute(id);
     }
 
     /// The same for a rule change's ballot.
     function test_ARuleChangesSignatureDoesNotFollowANewRole() public {
-        vm.prank(cosigner);
+        vm.prank(A);
         uint256 id = governance.proposeProposalTtl(TI_ID, pilotTtl + DAY);
+        signAdmin(id, cosigner);
         _nameCosigner(ROLE_E);
-        assertEq(governance.getAdminProposal(id).rolesSignedMask, NONE, "the D signature does not count as E");
+        assertEq(governance.getAdminProposal(id).rolesSignedMask, only(ROLE_A), "the D signature does not count as E");
     }
 
     /// A signature keeps counting while its key keeps its role.
     function test_ASignatureCountsWhileItsKeyKeepsItsRole() public {
-        uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, cosigner);
         _nameCosigner(ROLE_D);
-        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_D), "still D");
-        sign(id, A);
+        assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "still D");
         assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        execute(id, A);
     }
 
     /// A quorum lost when a role changes and regained by another restarts its timelock.
@@ -83,7 +88,8 @@ contract SignatureRolesTest is GovernanceTest {
 
     /// One signature per key: a dropped one is not given again in the new role.
     function test_RevertWhen_ADroppedSignerSignsAgain() public {
-        uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, cosigner);
         _becomesATiKey(cosigner);
         vm.prank(cosigner);
         vm.expectRevert(IGovernanceTypes.AlreadySigned.selector);
@@ -92,7 +98,8 @@ contract SignatureRolesTest is GovernanceTest {
 
     /// The role is stored last; a signature from before has none and counts as now.
     function test_ASignatureFromBeforeTheUpgradeCountsAsItsKeysRole() public {
-        uint256 id = propose(cosigner, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, cosigner);
         // Ballot from slot 3: tiId, proposer.., quorumReachedAt.., signatures, signed, signedAs.
         bytes32 location =
             keccak256(abi.encode(uint256(keccak256("plr.storage.StatusProposals")) - 1)) & ~bytes32(uint256(0xff));
@@ -104,7 +111,7 @@ contract SignatureRolesTest is GovernanceTest {
 
         vm.store(address(governance), signedAs, bytes32(0));
         _nameCosigner(ROLE_E);
-        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_E), "counts as its key's role now");
+        assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_E), "counts as its key's role now");
     }
 
     /// The cosigner's DID drops the key, and the TI makes it a key of role B.

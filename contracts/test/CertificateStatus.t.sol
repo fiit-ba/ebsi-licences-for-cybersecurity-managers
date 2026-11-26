@@ -159,7 +159,7 @@ contract RegisteringTest is CertificateStatusTest {
     }
 
     function test_RevertWhen_TheCallerIsNotASigner() public {
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         _register(outsider);
     }
 
@@ -236,7 +236,7 @@ contract SuspendNowTest is CertificateStatusTest {
     }
 
     function test_RevertWhen_TheCallerIsNotASigner() public {
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         vm.prank(outsider);
         registry.suspendNow(KEY, REASON_GIVEN);
     }

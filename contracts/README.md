@@ -187,7 +187,7 @@ one takes effect.
 **It is how a certificate's standing changes.** There are no status lists: the
 record in `CertificateRegistry` is the certificate's status. After registration a
 record changes only when this contract executes a proposal (`applyExecuted`) or,
-in an emergency, when one of the TI's signers suspends it at once (`suspendNow`:
+in an emergency, when one of the TI's own keys suspends it at once (`suspendNow`:
 reversible, and a revocation still needs the quorum). The contract proves that a
 quorum approved a change before it happened.
 
@@ -302,7 +302,16 @@ applied:
   later; that costs it only that key's voice as C, so a cosigner adding a key
   first checks with `roleOf` that it is no TI key.
 
-A quorum therefore always needs a key of the TI. `CosignersChanged` carries the
+A quorum therefore always needs a key of the TI. And a cosigner only signs
+and vetoes: what the TI starts or does alone takes one of its own keys.
+Opening a status proposal or any rule change and `registerCertificate` ask
+`requireActiveOwnSigner`, `suspendNow` asks `requireOwnSigner` (which works
+after the TI lost its accreditation); both refuse a cosigner's key with
+`NotAnOwnSigner`. Otherwise a cosigner could suspend any licence of the TI
+again and again, or register a TI's id first with a hash the TI never
+issued.
+
+`CosignersChanged` carries the
 full list of DIDs and roles, at `addTi` and at every change, so a monitor
 follows a TI's cosigners from the events alone.
 

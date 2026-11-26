@@ -21,8 +21,9 @@ import {PolicyRules} from "./libraries/PolicyRules.sol";
  *      not at all. The record also keeps the hash of the signed
  *      credential, which ties it to that credential's content: a
  *      verifier compares it with the JWT it was shown. Registering and
- *      suspending at once take one signature (issuing is the body's own act;
- *      suspension is reversible, component 10.6); every other change
+ *      suspending at once take one signature of the TI's own key, never a
+ *      cosigner's (issuing is the body's own act; suspension is reversible,
+ *      component 10.6); every other change
  *      (revocation, reinstatement, ordinary suspension) is a proposal that
  *      must reach quorum in CertificateGovernance, for a recorded certificate
  *      only.
@@ -131,7 +132,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         }
         if (validUntil != 0 && validUntil <= validFrom) revert InvalidValidity();
         if (standing == Standing.NONE) revert InvalidStanding();
-        ITiConfiguration(governance()).requireActiveSigner(_tiId(issuerDid), msg.sender);
+        ITiConfiguration(governance()).requireActiveOwnSigner(_tiId(issuerDid), msg.sender);
         statusKey = Hashes.statusKey(issuerDid, certificateIdHash);
         Certificate storage certificate = _registryStorage().certificates[statusKey];
         if (certificate.standing != Standing.NONE) revert CertificateAlreadyRegistered();
@@ -158,7 +159,7 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         if (reasonHash == bytes32(0)) revert ReasonRequired();
         Certificate storage certificate = _registryStorage().certificates[statusKey];
         if (certificate.standing == Standing.NONE) revert UnknownCertificate();
-        ITiConfiguration(governance()).requireSigner(_tiId(certificate.issuerDid), msg.sender);
+        ITiConfiguration(governance()).requireOwnSigner(_tiId(certificate.issuerDid), msg.sender);
         if (certificate.standing != Standing.VALID) revert CertificateNotValid();
         _setStanding(statusKey, certificate, Standing.SUSPENDED, 0, reasonHash, msg.sender);
     }

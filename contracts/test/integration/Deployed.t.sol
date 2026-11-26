@@ -275,8 +275,22 @@ contract CertificateLifecycleTest is DeployedFixture {
     function test_RevertWhen_AnOutsiderActs() public {
         (bytes32 statusKey,) = _register();
         vm.prank(root);
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         registry.suspendNow(statusKey, REASON);
+    }
+
+    /// NBÚ's key decides with the TI but never acts for it alone.
+    function test_RevertWhen_TheCosignerActsForTheTi() public {
+        (bytes32 statusKey,) = _register();
+        // Computed ahead: sha256 is a call, and would take the expected revert.
+        bytes32 idHash = Hashes.certificateIdHash("urn:uuid:taken-first");
+        bytes32 forged = sha256("forged");
+        vm.startPrank(nbu);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
+        registry.suspendNow(statusKey, REASON);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
+        registry.registerCertificate(idHash, TI, uint64(block.timestamp), 0, forged, IGovernanceTypes.Standing.REVOKED);
+        vm.stopPrank();
     }
 }
 

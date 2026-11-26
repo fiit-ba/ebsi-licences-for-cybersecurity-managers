@@ -182,6 +182,7 @@ interface IGovernanceTypes {
     // -----------------------------------------------------------------------
 
     error NotASigner();
+    error NotAnOwnSigner();
     error AlreadySigned();
     error UnknownProposal();
     error ProposalNotOpen();

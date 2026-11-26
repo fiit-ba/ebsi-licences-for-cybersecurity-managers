@@ -322,7 +322,7 @@ contract ProposingTest is GovernanceTest {
     }
 
     function test_RevertWhen_CallerIsNotASignerOrTheCertificateIsUnknown() public {
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         propose(outsider, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         vm.expectRevert(IGovernanceTypes.UnknownCertificate.selector);
         propose(A, bytes32(0), IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
@@ -807,7 +807,7 @@ contract SelfAdministrationTest is GovernanceTest {
     }
 
     function test_RevertWhen_TheCallerIsNotASigner() public {
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         vm.prank(outsider);
         governance.proposeAddSigner(TI_ID, outsider, ROLE_A);
     }

@@ -72,7 +72,7 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
 
     function test_LeavesTheOldKeysUnableToSignAnything() public {
         _rotateAndApply(keys(A, B, C), _bodyKeys());
-        vm.expectRevert(IGovernanceTypes.NotASigner.selector);
+        vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         propose(newA, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         sign(1, newB);

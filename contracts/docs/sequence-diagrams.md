@@ -27,10 +27,17 @@ The check has two parts:
 2. **The TI is accredited.** The Trusted Issuers Registry shows the TI's
    accreditation by the TAO, and every step above it up to the RootTAO.
 
-`requireActiveSigner(tiId, account)` checks both, when something starts:
-registering a certificate, proposing a status change or a rule change.
 `requireSigner(tiId, account)` checks only the first part. It is used for
-every signature, for a veto and for `suspendNow`.
+every signature and for a veto, which a cosigner's key gives too.
+`requireActiveSigner(tiId, account)` checks both; the contracts no longer ask
+it, and it stays a view for others.
+
+What the TI starts or does alone asks for one of its **own** keys, the first
+branch below only: a cosigner's key signs and vetoes, but never acts for the
+TI. `requireActiveOwnSigner(tiId, account)` checks both parts that way, when
+something starts: registering a certificate, proposing a status change or a
+rule change. `requireOwnSigner(tiId, account)`, without the TIR, is used for
+`suspendNow`. Both refuse with `NotAnOwnSigner`.
 
 ```mermaid
 sequenceDiagram
@@ -129,15 +136,15 @@ TI's DID and that id, and the record keeps the JWT's hash.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor S as TI signer
+    actor S as TI's own key
     participant R as CertificateRegistry
     participant G as CertificateGovernance
 
     Note over S: certificateIdHash = SHA-256(abi.encode("PLR-CERTIFICATE-ID-V1", vc.id))<br/>credentialHash = SHA-256(JWT before the first "~")
     S->>R: registerCertificate(certificateIdHash, issuerDid, validFrom, validUntil, credentialHash, standing)
     Note over R: refuses empty fields, a validUntil that is set (not 0, never)<br/>and <= validFrom, standing NONE
-    R->>G: requireActiveSigner(keccak256(issuerDid), signer)
-    Note over G: diagram 1
+    R->>G: requireActiveOwnSigner(keccak256(issuerDid), signer)
+    Note over G: diagram 1, own keys only (no cosigner)
     G-->>R: ok
     Note over R: statusKey = SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certificateIdHash))
     alt a record under statusKey exists
@@ -155,14 +162,14 @@ still accredited: a revoked TI's certificates are withdrawn this way.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor S as TI signer
+    actor S as TI's own key
     participant R as CertificateRegistry
     participant G as CertificateGovernance
 
     S->>R: suspendNow(statusKey, reasonHash)
     Note over R: reasonHash required, the record must exist
-    R->>G: requireSigner(keccak256(record.issuerDid), signer)
-    G-->>R: ok (roleOf, diagram 1, without the TIR)
+    R->>G: requireOwnSigner(keccak256(record.issuerDid), signer)
+    G-->>R: ok (own keys only, diagram 1, without the TIR)
     alt standing is not VALID
         R-->>S: revert CertificateNotValid
     else
@@ -180,13 +187,13 @@ until it is executed.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor A as Signer, role A
+    actor A as TI's own key, role A
     actor B as Signer, role B
     participant G as CertificateGovernance
     participant R as CertificateRegistry
 
     A->>G: proposeAction(tiId, statusKey, actionType, reasonHash)
-    Note over G: requireActiveSigner (diagram 1)<br/>reasonHash required unless REINSTATE
+    Note over G: requireActiveOwnSigner (diagram 1, own keys only)<br/>reasonHash required unless REINSTATE
     G->>R: requireChangeableBy(statusKey, tiId, actionType)
     Note over R: record exists, is this TI's, is not REVOKED,<br/>and the action changes its standing
     R-->>G: ok
@@ -244,13 +251,13 @@ quorum applies the change.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor A as Signer, role A
+    actor A as TI's own key, role A
     actor C as Signer, role C
     participant G as CertificateGovernance
     participant D as DID Registry
 
     A->>G: proposeReplaceSigner(tiId, oldKey, newKey)
-    Note over G: requireActiveSigner (diagram 1)
+    Note over G: requireActiveOwnSigner (diagram 1, own keys only)
     G->>D: checkController(tiDid, newKey)
     Note over G: oldKey is a signer, newKey is new, not retired
     G-->>A: AdminProposalCreated(id, tiId, REPLACE_SIGNER, A), AdminProposalSigned

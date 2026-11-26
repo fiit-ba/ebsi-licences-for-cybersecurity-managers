@@ -432,3 +432,50 @@ relaxed, and the decision executed at once on its original `quorumReachedAt`.
       holders when a key that signed it lapses in the DID Registry (its signature stops
       counting) and again when it is listed again (the signature, and possibly the quorum,
       returns on the original timelock). The contract cannot see either.
+
+---
+
+## 10. Only the TI's own keys register and suspend at once
+
+Covers the finding that a cosigner's key registers and suspends for the TI. Any key
+of a cosigner's DID (the supervisory authority, another TI named as a cosigner) could
+suspend any valid licence of the TI alone, again after every reinstatement, and register a
+TI's pending id first with a forged credential hash, so the TI's own registration failed
+for good.
+
+### What changed in the contracts
+
+- `registerCertificate` asks `requireActiveOwnSigner`, `suspendNow` asks `requireOwnSigner`
+  (no accreditation check, so a TI that lost its accreditation still withdraws its
+  licences). Both accept any of the TI's own signer keys the DID Registry lists for the
+  TI's DID, whatever its role, and refuse everything else with the new error
+  **`NotAnOwnSigner`** (it was `NotASigner`).
+- Opening a proposal (`proposeAction`) or any rule change (`propose*`) now asks
+  `requireActiveOwnSigner` too (R6): a cosigner's key only signs and vetoes, and gets
+  `NotAnOwnSigner` when it proposes.
+- ABI: two new views, `requireOwnSigner(tiId, account)` and
+  `requireActiveOwnSigner(tiId, account)`, and the error `NotAnOwnSigner`. The generated
+  copies in `back-office/shared/` and `back-office/web/src/blockchain/` are regenerated.
+
+### To do
+
+- [ ] **Sign with a TI key.** Make sure `registerCertificate` and `suspendNow` are always
+      sent with one of the TI's own keys (role A in the pilot), including the immediate
+      suspensions a TAO or the RootTAO orders and the withdrawal after a TI loses its
+      accreditation; never with the supervisory authority's key.
+- [ ] **Pre-flight check.** Before sending either, call `requireOwnSigner` /
+      `requireActiveOwnSigner` with the signing key, and map `NotAnOwnSigner` to a clear
+      message (the key is not one of the TI's own keys, or the DID Registry no longer lists
+      it).
+- [ ] **Audit existing records.** For records written before this change, compare the
+      signer in `CertificateRegistered` and in `CertificateStandingChanged` with
+      `proposalId == 0` against the TI's own keys at that block. Flag any written or
+      suspended by a cosigner's key: a forged registration binds the id to a credential hash
+      the TI never issued and must be handled as an incident (the record cannot be
+      rewritten).
+- [ ] **NBÚ console.** If the supervisory authority's tools offered an immediate suspension,
+      a proposal or a rule change with its own key, replace them with a request to the TI:
+      NBÚ signs or vetoes what the TI's key opened.
+- [ ] **Map `NotAnOwnSigner`** in the error handling of registration, immediate suspension
+      and every `propose*` call.
+

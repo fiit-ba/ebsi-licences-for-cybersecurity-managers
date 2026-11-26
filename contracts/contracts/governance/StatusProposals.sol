@@ -66,7 +66,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         external
         returns (uint256 proposalId)
     {
-        requireActiveSigner(tiId, msg.sender);
+        requireActiveOwnSigner(tiId, msg.sender);
         if (reasonHash == bytes32(0) && actionType != ActionType.REINSTATE) revert ReasonRequired();
         _certificateRegistry().requireChangeableBy(statusKey, tiId, actionType);
 

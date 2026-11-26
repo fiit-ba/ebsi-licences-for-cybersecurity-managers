@@ -146,7 +146,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     // -----------------------------------------------------------------------
 
     function _proposeAdmin(bytes32 tiId, AdminChange memory change) private returns (uint256 adminProposalId) {
-        requireActiveSigner(tiId, msg.sender);
+        requireActiveOwnSigner(tiId, msg.sender);
         _requireValid(tiId, change);
         RuleChangesStorage storage $ = _ruleChangesStorage();
         adminProposalId = ++$.adminProposalCount;

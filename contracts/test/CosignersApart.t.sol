@@ -80,7 +80,8 @@ contract CosignersApartTest is GovernanceTest {
         StubDidRegistry(didRegistry).setController("did:ebsi:zCosignerD", first, true);
         StubDidRegistry(didRegistry).setController("did:ebsi:zCosignerE", second, true);
         _cosign(ROLE_D);
-        uint256 id = propose(first, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        sign(id, first);
 
         IGovernanceTypes.Cosigner[] memory next = new IGovernanceTypes.Cosigner[](1);
         next[0] = IGovernanceTypes.Cosigner("did:ebsi:zCosignerE", ROLE_E);

@@ -147,6 +147,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "NotAnOwnSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCertificateIssuer",
     "type": "error"
   },
@@ -1856,7 +1861,43 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "type": "address"
       }
     ],
+    "name": "requireActiveOwnSigner",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "tiId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "requireActiveSigner",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "tiId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "requireOwnSigner",
     "outputs": [],
     "stateMutability": "view",
     "type": "function"
@@ -2231,6 +2272,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
   {
     "inputs": [],
     "name": "NotASigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotAnOwnSigner",
     "type": "error"
   },
   {
