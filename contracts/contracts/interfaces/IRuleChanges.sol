@@ -51,6 +51,7 @@ interface IRuleChanges is IGovernanceTypes {
 
     function adminProposalCount() external view returns (uint256);
 
+    /// @notice As `getProposal`.
     function getAdminProposal(uint256 adminProposalId) external view returns (AdminProposalView memory);
 
     function hasSignedAdmin(uint256 adminProposalId, address account) external view returns (bool);

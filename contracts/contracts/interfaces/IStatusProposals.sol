@@ -85,6 +85,7 @@ interface IStatusProposals is IGovernanceTypes {
 
     function proposalCount() external view returns (uint256);
 
+    /// @notice `state` is authoritative; `expiresAt` is the latest end.
     function getProposal(uint256 proposalId) external view returns (ProposalView memory);
 
     function hasSigned(uint256 proposalId, address account) external view returns (bool);

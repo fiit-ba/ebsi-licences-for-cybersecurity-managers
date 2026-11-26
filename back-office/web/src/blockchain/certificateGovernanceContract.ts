@@ -1260,6 +1260,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
             "internalType": "address",
             "name": "proposer",
             "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "expiresAt",
+            "type": "uint64"
           }
         ],
         "internalType": "struct IGovernanceTypes.AdminProposalView",
@@ -1395,6 +1400,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
             "internalType": "address",
             "name": "proposer",
             "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "expiresAt",
+            "type": "uint64"
           }
         ],
         "internalType": "struct IGovernanceTypes.ProposalView",

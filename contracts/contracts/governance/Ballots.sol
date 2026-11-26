@@ -19,9 +19,7 @@ abstract contract Ballots is TiConfiguration {
         uint64 proposedAt;
         uint64 quorumReachedAt;
         ProposalState state;
-        /// When the lifetime set at opening ends. Fixed at opening: a later
-        /// TTL change neither revives an expired ballot nor cuts an open one
-        /// short.
+        /// Lifetime end set at opening; may extend once approved (`_expiresAt`).
         uint64 expiresAt;
         /// The TI's epoch at opening. Fills free bytes: nothing moves.
         uint64 epoch;
@@ -77,29 +75,23 @@ abstract contract Ballots is TiConfiguration {
     }
 
     /// @dev Past its TTL, or `overtaken`: it could no longer change anything.
-    function _expire(Ballot storage ballot, bool overtaken) internal {
+    function _expire(Ballot storage ballot, PolicyKind kind, bool overtaken) internal {
         if (ballot.state == ProposalState.NONE) revert UnknownProposal();
         if (!_isOpen(ballot.state)) revert ProposalNotOpen();
-        if (!overtaken && !_lapsed(ballot)) revert ProposalNotExpirable();
+        if (!overtaken && !_lapsed(ballot, kind)) revert ProposalNotExpirable();
         ballot.state = ProposalState.EXPIRED;
     }
 
     /// @dev The ballot takes signatures and the caller is one of its signers.
-    function _requireOpenToSigner(Ballot storage ballot) internal view {
+    function _requireOpenToSigner(Ballot storage ballot, PolicyKind kind) internal view {
         if (ballot.state == ProposalState.NONE) revert UnknownProposal();
-        if (!_isOpen(ballot.state) || _lapsed(ballot)) revert ProposalNotOpen();
+        if (!_isOpen(ballot.state) || _lapsed(ballot, kind)) revert ProposalNotOpen();
         _requireSigner(ballot.tiId);
     }
 
-    /// @dev The quorum is checked again with today's signers and policy: a
-    ///      signature whose key was removed no longer counts. The timelock
-    ///      runs from the quorum or a later loosening of the policy, whichever
-    ///      is later, for every decision of that kind, even one that never
-    ///      lost its quorum; pushed past `expiresAt`, the decision expires and
-    ///      is proposed again. A stricter policy or another rule change moves
-    ///      nothing, and a cosigner change ends the ballot (`_lapsed`). A key
-    ///      the DID Registry drops and lists again brings its signature back
-    ///      unseen, and the quorum keeps its original start.
+    /// @dev Quorum checked again with today's keys and policy. The timelock
+    ///      runs from the quorum or a later loosening of its policy. A key the
+    ///      DID Registry lists again returns unseen, on the original start.
     function _requireExecutable(Ballot storage ballot, PolicyKind kind) internal view {
         Policy memory policy = _policy(ballot.tiId, kind);
         if (ballot.state != ProposalState.APPROVED) revert QuorumNotReached();
@@ -112,20 +104,29 @@ abstract contract Ballots is TiConfiguration {
         return state == ProposalState.PROPOSED || state == ProposalState.APPROVED;
     }
 
-    /// @dev A ballot opened before `expiresAt` existed has none, and stays
-    ///      open as it would have under a TTL of 0.
-    function _pastTtl(Ballot storage ballot) internal view returns (bool) {
-        return ballot.expiresAt > 0 && block.timestamp >= ballot.expiresAt;
+    /// @dev Once approved, a day past `executableAt`, capped at MAX_PROPOSAL_TTL
+    ///      from opening. 0: no end (opened before `expiresAt` existed).
+    function _expiresAt(Ballot storage ballot, PolicyKind kind) internal view returns (uint64) {
+        uint64 fixedEnd = ballot.expiresAt;
+        if (fixedEnd == 0 || ballot.quorumReachedAt == 0) return fixedEnd;
+        uint64 needed = _executableAt(ballot, kind) + MIN_SIGNING_WINDOW;
+        uint64 cap = ballot.proposedAt + MAX_PROPOSAL_TTL;
+        if (needed > cap) needed = cap;
+        return needed > fixedEnd ? needed : fixedEnd;
     }
 
-    /// @dev Past its TTL, or opened in an earlier epoch of the TI (before a
-    ///      cosigner change or a restored accreditation).
-    function _lapsed(Ballot storage ballot) internal view returns (bool) {
-        return _pastTtl(ballot) || ballot.epoch < _epoch(ballot.tiId);
+    function _pastTtl(Ballot storage ballot, PolicyKind kind) internal view returns (bool) {
+        uint64 end = _expiresAt(ballot, kind);
+        return end > 0 && block.timestamp >= end;
     }
 
-    function _effectiveState(Ballot storage ballot) internal view returns (ProposalState) {
-        if (_isOpen(ballot.state) && _lapsed(ballot)) return ProposalState.EXPIRED;
+    /// @dev Past its lifetime, or opened in an earlier epoch of the TI.
+    function _lapsed(Ballot storage ballot, PolicyKind kind) internal view returns (bool) {
+        return _pastTtl(ballot, kind) || ballot.epoch < _epoch(ballot.tiId);
+    }
+
+    function _effectiveState(Ballot storage ballot, PolicyKind kind) internal view returns (ProposalState) {
+        if (_isOpen(ballot.state) && _lapsed(ballot, kind)) return ProposalState.EXPIRED;
         return ballot.state;
     }
 

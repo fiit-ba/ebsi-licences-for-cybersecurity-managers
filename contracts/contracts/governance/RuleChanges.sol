@@ -111,7 +111,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function expireAdminProposal(uint256 adminProposalId) external {
-        _expire(_ruleChangesStorage().adminProposals[adminProposalId].ballot, false);
+        _expire(_ruleChangesStorage().adminProposals[adminProposalId].ballot, PolicyKind.ADMIN, false);
         emit AdminProposalExpired(adminProposalId);
     }
 
@@ -126,11 +126,12 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         result.change = p.change;
         result.proposedAt = p.ballot.proposedAt;
         result.quorumReachedAt = p.ballot.quorumReachedAt;
-        result.state = _effectiveState(p.ballot);
+        result.state = _effectiveState(p.ballot, PolicyKind.ADMIN);
         result.signatures = p.ballot.signatures;
         result.executableAt = _executableAt(p.ballot, PolicyKind.ADMIN);
         result.rolesSignedMask = _rolesSigned(p.ballot);
         result.proposer = p.ballot.proposer;
+        result.expiresAt = _expiresAt(p.ballot, PolicyKind.ADMIN);
     }
 
     function hasSignedAdmin(uint256 adminProposalId, address account) external view returns (bool) {
@@ -138,7 +139,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
     }
 
     function adminStateOf(uint256 adminProposalId) external view returns (ProposalState) {
-        return _effectiveState(_ruleChangesStorage().adminProposals[adminProposalId].ballot);
+        return _effectiveState(_ruleChangesStorage().adminProposals[adminProposalId].ballot, PolicyKind.ADMIN);
     }
 
     // -----------------------------------------------------------------------
@@ -182,7 +183,7 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
 
     function _openAdmin(uint256 adminProposalId) private view returns (AdminProposal storage p) {
         p = _ruleChangesStorage().adminProposals[adminProposalId];
-        _requireOpenToSigner(p.ballot);
+        _requireOpenToSigner(p.ballot, PolicyKind.ADMIN);
     }
 
     function _adminPolicy(bytes32 tiId) private view returns (Policy memory) {

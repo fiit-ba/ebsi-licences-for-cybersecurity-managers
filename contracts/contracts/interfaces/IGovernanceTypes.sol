@@ -134,6 +134,8 @@ interface IGovernanceTypes {
         uint64 executableAt;
         RoleSet rolesSignedMask;
         address proposer;
+        /// Latest end (0: none); `state` is authoritative. Last, for old decoders.
+        uint64 expiresAt;
     }
 
     struct AdminProposalView {
@@ -146,6 +148,8 @@ interface IGovernanceTypes {
         uint64 executableAt;
         RoleSet rolesSignedMask;
         address proposer;
+        /// As in `ProposalView`.
+        uint64 expiresAt;
     }
 
     /// @notice A certificate's record, as stored and as a verifier reads it.

@@ -382,8 +382,25 @@ one is opened, instead of blocking it.
 
 The time to live runs from the proposal's opening and covers its timelock, so
 it is at least `MIN_SIGNING_WINDOW` (a day) longer than the TI's longest
-timelock, and at most `MAX_PROPOSAL_TTL`: otherwise a quorum could be reached
-and still never be executed. A proposal keeps the lifetime it opened with.
+timelock, and at most `MAX_PROPOSAL_TTL`. A proposal keeps the lifetime it
+opened with, and a later change of the TI's lifetime does not touch it.
+
+**An approval can always be carried out.** The bound above does not ensure a
+quorum comes early enough: a revocation approved on day 29.5 of 30 would be
+executable on day 30.5. So once approved, a proposal stays open at least
+`MIN_SIGNING_WINDOW` (a day) past its `executableAt`, however that moved: a
+late quorum, a quorum regained by a later signature, a looser policy that
+restarts the delay, or a stricter one that lengthens it. The end is computed
+on every read, never stored, so a rule change extends every approved decision
+it delays. It is capped at `MAX_PROPOSAL_TTL` from opening, so losing and
+regaining a quorum keeps nothing open for ever; past the cap an approval
+lapses. Signing and the veto stay open as long as the proposal does.
+
+`getProposal` and `getAdminProposal` return that end as `expiresAt` (0 for a
+proposal opened before it was stored, which never lapses by time), so nobody
+has to estimate it from the TI's current lifetime. It is the latest end, not a
+promise: a changed standing, a cosigner change or a restored accreditation
+ends a proposal sooner, and `state` (as `stateOf`) is what holds now.
 
 **A quorum regained restarts the timelock.** A quorum can be lost after it was
 reached: a signer key is removed, replaced or dropped from the DID Registry,
@@ -407,9 +424,8 @@ each way it can see:
   A change that is stricter in one respect and looser in another counts as
   looser. A stricter policy, a policy of another kind, and a change of the
   signers or of the lifetime restart nothing. `executableAt` already shows
-  the moved time; no `QuorumReached` is emitted again. If the restart pushes
-  `executableAt` past the proposal's `expiresAt`, the proposal expires and
-  has to be proposed again.
+  the moved time; no `QuorumReached` is emitted again. The proposal's
+  lifetime follows, to a day after the new `executableAt` (see above).
 - **A change of cosigners** ends the TI's open proposals (see below).
 - **A removed key** is retired and never comes back.
 

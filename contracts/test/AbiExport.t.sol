@@ -25,7 +25,7 @@ contract AbiExportTest is GovernanceTest {
         // Privacy (components 10.3, 10.8): no holder DID, no licence number, no
         // reason, no supporting documents - the reason only as a salted
         // commitment; the proposer and signatures are role keys (10.4).
-        string[11] memory expected = [
+        string[12] memory expected = [
             "tiId",
             "statusKey",
             "actionType",
@@ -36,7 +36,8 @@ contract AbiExportTest is GovernanceTest {
             "signatures",
             "executableAt",
             "rolesSignedMask",
-            "proposer"
+            "proposer",
+            "expiresAt"
         ];
         string memory fields = string.concat(_function("getProposal"), ".outputs[0].components");
         for (uint256 i = 0; i < expected.length; i++) {

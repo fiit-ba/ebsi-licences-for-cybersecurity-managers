@@ -75,7 +75,10 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         if (existing != 0) {
             Ballot storage previous = $.proposals[existing].ballot;
             if (_isOpen(previous.state)) {
-                if (!_lapsed(previous) && !_overtaken($.proposals[existing])) revert ProposalAlreadyOpen(existing);
+                Proposal storage open = $.proposals[existing];
+                if (!_lapsed(previous, open.actionType.policyKind()) && !_overtaken(open)) {
+                    revert ProposalAlreadyOpen(existing);
+                }
                 previous.state = ProposalState.EXPIRED;
                 emit ProposalExpired(existing, statusKey);
             }
@@ -134,7 +137,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     function expireProposal(uint256 proposalId) external {
         StatusProposalsStorage storage $ = _statusProposalsStorage();
         Proposal storage p = $.proposals[proposalId];
-        _expire(p.ballot, _isOpen(p.ballot.state) && _overtaken(p));
+        _expire(p.ballot, p.actionType.policyKind(), _isOpen(p.ballot.state) && _overtaken(p));
         delete $.openProposalFor[p.statusKey];
         emit ProposalExpired(proposalId, p.statusKey);
     }
@@ -200,6 +203,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         result.executableAt = _executableAt(p.ballot, p.actionType.policyKind());
         result.rolesSignedMask = _rolesSigned(p.ballot);
         result.proposer = p.ballot.proposer;
+        result.expiresAt = _expiresAt(p.ballot, p.actionType.policyKind());
     }
 
     function signatureCount(uint256 proposalId) external view returns (uint256) {
@@ -239,13 +243,13 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
 
     /// @dev An open proposal overtaken by the standing reads as expired.
     function _stateOf(Proposal storage p) private view returns (ProposalState state) {
-        state = _effectiveState(p.ballot);
+        state = _effectiveState(p.ballot, p.actionType.policyKind());
         if (_isOpen(state) && _overtaken(p)) state = ProposalState.EXPIRED;
     }
 
     function _openProposal(uint256 proposalId) private view returns (Proposal storage p) {
         p = _statusProposalsStorage().proposals[proposalId];
-        _requireOpenToSigner(p.ballot);
+        _requireOpenToSigner(p.ballot, p.actionType.policyKind());
         if (_overtaken(p)) revert ProposalNotOpen();
     }
 }

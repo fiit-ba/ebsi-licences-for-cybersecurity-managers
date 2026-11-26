@@ -1253,6 +1253,11 @@
               "internalType": "address",
               "name": "proposer",
               "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "expiresAt",
+              "type": "uint64"
             }
           ],
           "internalType": "struct IGovernanceTypes.AdminProposalView",
@@ -1388,6 +1393,11 @@
               "internalType": "address",
               "name": "proposer",
               "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "expiresAt",
+              "type": "uint64"
             }
           ],
           "internalType": "struct IGovernanceTypes.ProposalView",

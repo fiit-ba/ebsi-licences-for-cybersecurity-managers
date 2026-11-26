@@ -407,7 +407,7 @@ relaxed, and the decision executed at once on its original `quorumReachedAt`.
   dropped, a shorter timelock, or a mix of stricter and looser) records when it took
   effect, per policy kind. Every decision of that kind approved before, even one that never
   lost its quorum, is executable at the earliest one full (new) timelock **after the
-  change**; one pushed past its `expiresAt` expires. `getProposal(...).executableAt` and `getAdminProposal(...).executableAt`
+  change**; its lifetime follows (§13). `getProposal(...).executableAt` and `getAdminProposal(...).executableAt`
   already return the moved time.
 - A stricter policy, a change of another kind, of the signers or of the lifetime moves
   nothing. Decisions without a timelock are not held back.
@@ -425,9 +425,8 @@ relaxed, and the decision executed at once on its original `quorumReachedAt`.
       `executeAdminProposal`) must refresh it for the TI after `PolicyChanged`; otherwise
       it calls too early and gets `TimelockNotElapsed`.
 - [ ] **Warn before loosening.** When a policy-loosening rule change is proposed or
-      executed, show the TI's approved decisions of that kind it will postpone, and those
-      the postponement would push past their lifetime (they will expire and have to be
-      proposed again).
+      executed, show the TI's approved decisions of that kind it will postpone (their
+      lifetime is extended with them, §13).
 - [ ] **Watch DID Registry key validity.** For each open, approved proposal, alert the veto
       holders when a key that signed it lapses in the DID Registry (its signature stops
       counting) and again when it is listed again (the signature, and possibly the quorum,
@@ -519,4 +518,68 @@ policy's quorum, timelock or veto.
       standing `3` must change too.
 - [ ] **Operator view.** Show such a licence as "revocation pending" between registration and
       the executed revocation, and alert if the revocation proposal is vetoed or expires.
+
+---
+
+## 12. The proposal views return `expiresAt`
+
+Covers the finding that neither `getProposal` nor `getAdminProposal` returned the end of
+the lifetime a proposal opened with, so a client could only estimate it from the TI's
+current `proposalTtl`, wrongly after a lifetime change.
+
+### What changed in the contracts
+
+- `ProposalView` and `AdminProposalView` have a new last field, **`uint64 expiresAt`**: the
+  end of the lifetime fixed at opening. 0 for a proposal opened before it was stored (it
+  never lapses by time).
+- It is the latest end, not a promise: a changed standing (overtaken), a cosigner change or
+  a restored accreditation can end a proposal sooner. **`state` (as `stateOf` /
+  `adminStateOf`) is authoritative.**
+- ABI change: the tuple returned by both views gains a field at the end. The generated
+  copies are regenerated. Because the field is last and the tuple is dynamic, a decoder
+  with the old 11 / 9 fields still reads them correctly.
+
+### To do
+
+- [ ] **Hand-written ABI.**
+      [`server/lifecycle/governance.ts:67`](../back-office/server/lifecycle/governance.ts#L67)
+      declares `getProposal`'s tuple by hand. It keeps working; add `uint64 expiresAt` at the
+      end when the back-office needs it.
+- [ ] **Show it, never estimate it.** Where a proposal or rule change is listed (console,
+      web `blockchain/governance.ts`), show `expiresAt` and warn signers before an approval
+      lapses. Never compute `proposedAt + proposalTtl`; and decide on `state`, not on
+      `expiresAt`, since a proposal can end sooner.
+
+---
+
+## 13. An approval can always be carried out
+
+Covers the finding that a quorum reached late (or regained late, or delayed by a policy
+change) could make a decision executable only after its lifetime ended, so an approved
+revocation expired silently.
+
+### What changed in the contracts
+
+- Once approved, a proposal stays open at least `MIN_SIGNING_WINDOW` (one day) past its
+  `executableAt`, capped at `MAX_PROPOSAL_TTL` from its opening. The end is computed on
+  every read (`Ballots._expiresAt`), so it follows every move of `executableAt`: a late
+  quorum, a quorum regained by a signature, a looser policy that restarts the delay, a
+  stricter one that lengthens it.
+- Signing, executing, vetoing and `expireProposal` / `expireAdminProposal` all use that end.
+  A proposal that is not approved keeps the lifetime it opened with.
+- `getProposal(...).expiresAt` and `getAdminProposal(...).expiresAt` (§12) return the
+  extended end. No new event: the end moves with `QuorumReached`, `AdminQuorumReached` and
+  `PolicyChanged`.
+- No ABI change beyond §12.
+
+### To do
+
+- [ ] **Re-read `expiresAt`.** After `QuorumReached`, `AdminQuorumReached` or
+      `PolicyChanged` for a TI, refresh the cached `expiresAt` of its open proposals;
+      never compute it.
+- [ ] **Expiry jobs.** Any job that expires or closes cases by time must read `state` /
+      `expiresAt` from the chain, not its own copy of the TTL: an approved case may now stay
+      open past `proposedAt + proposalTtl`.
+- [ ] **Operator view.** Show an approved case past its original lifetime as "extended
+      until …", and warn the signers and veto holders before the extension ends.
 

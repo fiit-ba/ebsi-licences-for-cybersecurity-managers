@@ -205,28 +205,21 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.SUSPENDED));
     }
 
-    /// A loosening just before the end pushes `executableAt` past it: the
-    /// decision expires, takes no signature and does not execute.
-    function test_ALateLooseningOutlastsTheProposal() public {
+    /// A loosening just before the end restarts the delay past it: the
+    /// lifetime follows, to a day after the new `executableAt`.
+    function test_ALateLooseningExtendsTheLifetime() public {
         uint256 id = _approveRevocation();
         uint64 expiresAt = uint64(vm.getBlockTimestamp()) + pilotTtl;
         uint256 loosening = setPolicy(A, B, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
         vm.warp(expiresAt - HOUR);
         executeAdmin(loosening, A);
-        assertEq(governance.getProposal(id).executableAt, expiresAt - HOUR + DAY);
-        vm.prank(A);
-        vm.expectRevert(abi.encodeWithSelector(IGovernanceTypes.TimelockNotElapsed.selector, expiresAt - HOUR + DAY));
-        governance.execute(id);
+        uint64 executableAt = expiresAt - HOUR + DAY;
+        assertEq(governance.getProposal(id).executableAt, executableAt);
+        assertEq(governance.getProposal(id).expiresAt, executableAt + DAY);
 
         vm.warp(expiresAt);
-        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
-        vm.prank(C);
-        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
-        governance.signProposal(id);
-        vm.warp(expiresAt - HOUR + DAY);
-        vm.prank(A);
-        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
-        governance.execute(id);
+        assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        _executesExactlyAt(id);
     }
 
     /// A looser threshold the signatures already meet does not approve a
@@ -325,29 +318,27 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         _executesExactlyAt(id);
     }
 
-    /// The boundary: executable exactly at `expiresAt` is too late...
-    function test_ALooseningThatEndsTheDelayAtExpiryIsTooLate() public {
+    /// The boundary: a delay that ends exactly at the old end still runs.
+    function test_ALooseningThatEndsTheDelayAtTheOldEndStillRuns() public {
         uint256 id = _approveRevocation();
         uint64 expiresAt = uint64(vm.getBlockTimestamp()) + pilotTtl;
         uint256 looser = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
         vm.warp(expiresAt - DAY);
         executeAdmin(looser, A);
         assertEq(governance.getProposal(id).executableAt, expiresAt);
-        vm.warp(expiresAt);
-        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
-        vm.prank(A);
-        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
-        governance.execute(id);
+        assertEq(governance.getProposal(id).expiresAt, expiresAt + DAY);
+        _executesExactlyAt(id);
     }
 
-    /// ...and a second before it is in time.
-    function test_ALooseningThatEndsTheDelayJustBeforeExpiryIsInTime() public {
+    /// A second earlier, the same: a full day is always left to execute.
+    function test_ALooseningThatEndsTheDelayJustBeforeTheOldEndLeavesADay() public {
         uint256 id = _approveRevocation();
         uint64 expiresAt = uint64(vm.getBlockTimestamp()) + pilotTtl;
         uint256 looser = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
         vm.warp(expiresAt - DAY - 1);
         executeAdmin(looser, A);
         assertEq(governance.getProposal(id).executableAt, expiresAt - 1);
+        assertEq(governance.getProposal(id).expiresAt, expiresAt - 1 + DAY);
         _executesExactlyAt(id);
     }
 
