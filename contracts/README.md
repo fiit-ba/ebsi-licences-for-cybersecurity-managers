@@ -236,7 +236,17 @@ registries two questions each time, so revoking there is enough:
   change), not of every signature. A TI without accreditation lowers trust
   but never raises it: `suspendNow`, and suspensions and revocations through
   its quorum, timelock and veto, do not ask, so it withdraws its certificates
-  to the end. `isAccredited(tiId)` answers by the same rule.
+  to the end. `isAccredited(tiId)` answers by the same rule, and adds the date
+  below.
+- **Has the accreditation ended?** Its validity period is in the credential
+  the TIR stores as `attribData`, which the contract cannot read. The TAO
+  states the end instead, as `accreditedUntil` in `addTi` and in
+  `setTiAttribute`, and the contract trusts it. A TI is accredited until, not
+  at, that time; past it, it is treated exactly like a TI withdrawn in the TIR.
+  A date that has come, 0 included, is refused. The TAO's own end is not
+  visible to the contract either, so **the TAO must cap every TI's date at the
+  end of its own accreditation**. A TI set up before the date existed reads 0
+  and has no end until the TAO sets one.
 - **Is the key valid?** A signer key holds its role only while the DID
   Registry shows it as a capabilityInvocation key of the TI's DID
   (`checkController`). A key that registry no longer shows has no role, and
@@ -247,8 +257,9 @@ key the DID Registry shows, right now, as a capabilityInvocation key of the
 TAO's DID acts as the TAO. A key the TAO rotates out of its DID document loses
 the TAO's powers at once, and its replacement gains them at once; there is no
 ownership to transfer, steal or recover. After `addTi` the TAO can replace a
-TI's cosigners (`setCosigners`) and follow a TI to a new accreditation
-(`setTiAttribute`: a revoked attribute never comes back).
+TI's cosigners (`setCosigners`) and follow a TI to a renewed or new
+accreditation with a new end date (`setTiAttribute`: a revoked attribute never
+comes back). `TiConfigured` and `TiAttributeChanged` carry the date.
 
 The two contracts are linked once, at deployment, and never repointed: a
 contract set as the registry's governance decides every standing, so a key that
@@ -337,7 +348,8 @@ trusted to change cosigners only when no decision should be cut short.
 
 **A restored accreditation ends what would raise trust.** `setTiAttribute`
 counts each restoration of a TI that was not accredited under its previous
-attribute, and each ballot records the count it opened with. Reinstatements
+attribute or whose `accreditedUntil` had passed, and each ballot records the
+count it opened with. A renewal before the end restores nothing. Reinstatements
 and rule changes opened before a restoration are then expired, as above: they
 could only have been opened before the loss, and are decided again.
 Suspensions and revocations go on, since they could be executed during the

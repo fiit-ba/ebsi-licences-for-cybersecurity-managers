@@ -134,7 +134,7 @@ contract ConstructionTest is GovernanceTest {
     function test_RevertWhen_TheTiIsMovedToAnAttributeTheRegistryDoesNotShow() public {
         vm.prank(tao);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.setTiAttribute(TI_ID, keccak256("no such attribute"));
+        governance.setTiAttribute(TI_ID, keccak256("no such attribute"), ACCREDITED_UNTIL);
     }
 
     function test_RevertWhen_ProposalLifetimeBeyondAYear() public {
@@ -245,7 +245,7 @@ contract ProxyTest is GovernanceTest {
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.setCosigners(TI_ID, none);
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
-        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE, ACCREDITED_UNTIL);
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.addTi(setup("did:ebsi:zOther", keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilot, pilotTtl));
         vm.stopPrank();
@@ -255,8 +255,8 @@ contract ProxyTest is GovernanceTest {
         emit ITiConfiguration.CosignersChanged(TI_ID, none);
         governance.setCosigners(TI_ID, none);
         vm.expectEmit(address(governance));
-        emit ITiConfiguration.TiAttributeChanged(TI_ID, TI_ATTRIBUTE);
-        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE);
+        emit ITiConfiguration.TiAttributeChanged(TI_ID, TI_ATTRIBUTE, ACCREDITED_UNTIL);
+        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE, ACCREDITED_UNTIL);
         accreditTi("did:ebsi:zOther");
         governance.addTi(setup("did:ebsi:zOther", keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilot, pilotTtl));
         vm.stopPrank();

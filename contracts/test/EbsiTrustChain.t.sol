@@ -221,6 +221,7 @@ abstract contract GovernanceFixture is EbsiFixture {
     Role internal constant ROLE_A = Role.wrap(1);
     Role internal constant ROLE_B = Role.wrap(2);
     Role internal constant ROLE_C = Role.wrap(3);
+    uint64 internal constant ACCREDITED_UNTIL = 2_000_000_000;
     bytes32 internal constant CREDENTIAL_HASH = keccak256("credential");
     bytes32 internal constant REASON = keccak256("reason");
 
@@ -293,7 +294,7 @@ abstract contract GovernanceFixture is EbsiFixture {
         (roles[0], roles[1]) = (ROLE_A, ROLE_B);
         IGovernanceTypes.Cosigner[] memory cosigners = new IGovernanceTypes.Cosigner[](1);
         cosigners[0] = IGovernanceTypes.Cosigner(NBU, ROLE_C);
-        return IGovernanceTypes.TiSetup(TI, tiAttr, signers, roles, cosigners, _policies(), 30 days);
+        return IGovernanceTypes.TiSetup(TI, tiAttr, signers, roles, cosigners, _policies(), 30 days, ACCREDITED_UNTIL);
     }
 
     function _setup2() internal view returns (IGovernanceTypes.TiSetup memory) {
@@ -303,7 +304,7 @@ abstract contract GovernanceFixture is EbsiFixture {
         roles[0] = ROLE_A;
         IGovernanceTypes.Cosigner[] memory cosigners = new IGovernanceTypes.Cosigner[](1);
         cosigners[0] = IGovernanceTypes.Cosigner(NBU, ROLE_C);
-        return IGovernanceTypes.TiSetup(TI2, ti2Attr, signers, roles, cosigners, _policies(), 30 days);
+        return IGovernanceTypes.TiSetup(TI2, ti2Attr, signers, roles, cosigners, _policies(), 30 days, ACCREDITED_UNTIL);
     }
 
     /// With a certificate of the TI on record, for its proposals. Does nothing
@@ -471,14 +472,14 @@ contract AddTiTest is GovernanceFixture {
 
         vm.prank(tiKey.addr);
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
-        governance.setTiAttribute(tiId, renewed);
+        governance.setTiAttribute(tiId, renewed, ACCREDITED_UNTIL);
 
         vm.prank(tiKey.addr);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         governance.proposeProposalTtl(tiId, 31 days);
 
         vm.prank(taoKey.addr);
-        governance.setTiAttribute(tiId, renewed);
+        governance.setTiAttribute(tiId, renewed, ACCREDITED_UNTIL);
         vm.prank(tiKey.addr);
         governance.proposeProposalTtl(tiId, 31 days);
     }
@@ -499,7 +500,7 @@ contract AddTiTest is GovernanceFixture {
         tir.setAttributeMetadata(TI, salt, TIR.IssuerType.TI, TAO, taoAttr);
         bytes32 renewed = sha256(abi.encode(TI, salt, uint256(0), bytes("")));
         vm.prank(taoKey.addr);
-        governance.setTiAttribute(tiId, renewed);
+        governance.setTiAttribute(tiId, renewed, ACCREDITED_UNTIL);
 
         assertEq(uint8(governance.stateOf(reinstate)), uint8(IGovernanceTypes.ProposalState.EXPIRED));
         vm.prank(secondKey.addr);
@@ -742,7 +743,7 @@ contract KeyRelationshipTest is GovernanceFixture {
         _relate(taoKey, TAO, "authentication", method, block.timestamp, block.timestamp + 365 days);
         vm.prank(key.addr);
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
-        governance.setTiAttribute(tiId, tiAttr);
+        governance.setTiAttribute(tiId, tiAttr, ACCREDITED_UNTIL);
     }
 
     function test_ACosignerKeyWithoutCapabilityInvocationDoesNotSign() public {
@@ -892,7 +893,7 @@ contract TaoKeyRotationTest is GovernanceFixture {
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.setCosigners(tiId, cosigners);
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
-        governance.setTiAttribute(tiId, tiAttr);
+        governance.setTiAttribute(tiId, tiAttr, ACCREDITED_UNTIL);
         IGovernanceTypes.TiSetup memory setup2 = _setup2();
         vm.expectRevert(IGovernanceTypes.NotDidController.selector);
         governance.addTi(setup2);
@@ -900,7 +901,7 @@ contract TaoKeyRotationTest is GovernanceFixture {
 
         vm.startPrank(newTaoKey.addr);
         governance.setCosigners(tiId, cosigners);
-        governance.setTiAttribute(tiId, tiAttr);
+        governance.setTiAttribute(tiId, tiAttr, ACCREDITED_UNTIL);
         governance.addTi(setup2);
         vm.stopPrank();
     }

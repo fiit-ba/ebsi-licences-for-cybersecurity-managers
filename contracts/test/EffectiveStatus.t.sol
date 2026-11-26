@@ -37,7 +37,7 @@ contract EffectiveStatusTest is GovernanceTest {
 
         issuers.accredit(TI_DID, keccak256("new"), IEbsiIssuersRegistry.IssuerType.TI, taoDid, TAO_ATTRIBUTE);
         vm.prank(tao);
-        governance.setTiAttribute(TI_ID, keccak256("new"));
+        governance.setTiAttribute(TI_ID, keccak256("new"), ACCREDITED_UNTIL);
         assertTrue(registry.effectiveStatus(CERTIFICATE).valid, "accredited again");
     }
 

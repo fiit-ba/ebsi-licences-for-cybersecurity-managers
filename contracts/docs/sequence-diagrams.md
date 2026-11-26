@@ -58,7 +58,7 @@ sequenceDiagram
     alt no role
         G-->>C: revert NotAnOwnSigner / NotASigner
     end
-    Note over G: requireActiveOwnSigner only: isActiveTi(tiDid, attributeId)
+    Note over G: requireActiveOwnSigner only: now < accreditedUntil (0: no end), then isActiveTi(tiDid, attributeId)
     G->>T: getLatestRevisionAttribute(tiDid, attributeId)
     T-->>G: type TI, tao = taoDid
     loop each parent, up to MAX_TRUST_CHAIN_DEPTH
@@ -106,21 +106,23 @@ sequenceDiagram
     R-->>TAO: GovernanceChanged, OwnershipTransferred(tao, 0)
 
     Note over TAO,T: Per TI, once the TAO has accredited it in the TIR
-    TAO->>G: addTi(TiSetup{did, attributeId, signers, roles, cosigners, policies, proposalTtl})
+    TAO->>G: addTi(TiSetup{did, attributeId, signers, roles, cosigners, policies, proposalTtl, accreditedUntil})
     G->>D: checkController(taoDid, TAO)
+    Note over G: accreditedUntil in the future, else InvalidAccreditedUntil
     G->>T: isActiveTi(did, attributeId), as in diagram 1
     loop each signer
         G->>D: checkController(did, signer)
     end
     Note over G: each cosigner a DID other than the TI's, once, with a role<br/>every policy well formed and reachable with the roles present
-    G-->>TAO: SignerAdded..., PolicyChanged..., ProposalTtlChanged, TiConfigured(tiId, did, attributeId)
+    G-->>TAO: SignerAdded..., PolicyChanged..., ProposalTtlChanged, TiConfigured(tiId, did, attributeId, accreditedUntil)
 
     opt later
         TAO->>G: setCosigners(tiId, cosigners)
         Note over G: every policy still reachable
         G-->>TAO: CosignersChanged
-        TAO->>G: setTiAttribute(tiId, attributeId)
-        G-->>TAO: TiAttributeChanged
+        TAO->>G: setTiAttribute(tiId, attributeId, accreditedUntil)
+        Note over G: a renewal; the date in the future and the attribute live.<br/>Not accredited before (TIR or date): restorations + 1
+        G-->>TAO: TiAttributeChanged(tiId, attributeId, accreditedUntil)
     end
 ```
 

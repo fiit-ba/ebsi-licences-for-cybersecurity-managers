@@ -120,6 +120,7 @@ interface IGovernanceTypes {
         Cosigner[] cosigners;
         Policy[POLICY_KINDS] policies;
         uint64 proposalTtl;
+        uint64 accreditedUntil;
     }
 
     struct ProposalView {
@@ -195,6 +196,7 @@ interface IGovernanceTypes {
         uint64 proposalTtl;
         uint64 version;
         RoleSet rolesPresentMask;
+        uint64 accreditedUntil;
     }
 
     // -----------------------------------------------------------------------
@@ -247,8 +249,10 @@ interface IGovernanceTypes {
     /// @notice No TI is set up under this id.
     error UnknownTi();
     error TiAlreadyConfigured();
-    /// @notice The registry does not show a live accreditation by this TAO.
+    /// @notice No live accreditation by this TAO, or past `accreditedUntil`.
     error TiNotActive();
+    /// @notice `accreditedUntil` not in the future.
+    error InvalidAccreditedUntil();
     /// @notice The DID Registry does not show the key as a valid key of the DID.
     error NotDidController();
     error InvalidCosigner();

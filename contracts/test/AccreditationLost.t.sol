@@ -134,7 +134,7 @@ contract AccreditationLostTest is GovernanceTest {
     function _accreditAgain(bytes32 attribute) internal {
         issuers.accredit(TI_DID, attribute, IEbsiIssuersRegistry.IssuerType.TI, taoDid, TAO_ATTRIBUTE);
         vm.prank(tao);
-        governance.setTiAttribute(TI_ID, attribute);
+        governance.setTiAttribute(TI_ID, attribute, ACCREDITED_UNTIL);
         assertTrue(governance.isAccredited(TI_ID));
     }
 }

@@ -92,7 +92,7 @@ abstract contract TiAccreditation is ITiAccreditation, Initializable {
     ///      The path is walked here because the registry keeps a TI's type on
     ///      its own attribute only: revoking a TAO leaves its TIs reading `TI`,
     ///      and the check that would notice is internal to the registry.
-    ///      `attribData` is not read.
+    ///      `attribData` is not read; the end date is `accreditedUntil`.
     function isActiveTi(string memory did, bytes32 attributeId) public view returns (bool) {
         (bool found, IEbsiIssuersRegistry.Attribute memory attribute) = _latest(did, attributeId);
         if (!found || attribute.issuerType != IEbsiIssuersRegistry.IssuerType.TI) return false;

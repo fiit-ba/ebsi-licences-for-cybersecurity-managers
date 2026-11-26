@@ -19,6 +19,7 @@ import {Networks} from "./Networks.sol";
  *   GOVERNANCE                      the contract; default deployments/<network>.json
  *   TI_DID                          the TI's DID
  *   TI_ATTRIBUTE_ID                 its accreditation attribute in the registry
+ *   TI_ACCREDITED_UNTIL             its end (unix time); on a dev chain a year from now
  *   SIGNER_A / SIGNER_B / SIGNER_C  its keys by role; unset roles have no key. On a
  *                                   dev chain dev keys 1, 2 and 5 by default (Networks.sol)
  *   COSIGNER_DID                    a DID that signs from outside the TI (NBÚ), optional
@@ -41,7 +42,10 @@ contract AddTi is Script, GovernanceConfigFile, Networks {
             roles: roles,
             cosigners: cosigners,
             policies: policies,
-            proposalTtl: proposalTtl
+            proposalTtl: proposalTtl,
+            accreditedUntil: development
+                ? uint64(vm.envOr("TI_ACCREDITED_UNTIL", block.timestamp + 365 days))
+                : uint64(vm.envUint("TI_ACCREDITED_UNTIL"))
         });
 
         uint256 taoKey = development

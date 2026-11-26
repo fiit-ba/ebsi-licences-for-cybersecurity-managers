@@ -373,7 +373,7 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         assertEq(uint64(slot), 0, "suspend's");
         uint256 after_ = uint256(vm.load(address(governance), bytes32(ti + 8)));
         assertEq(uint64(after_ >> 64), uint64(uint256(before) >> 64) + 1, "version");
-        assertEq(after_ >> 192, 0, "8 bytes still free");
+        assertEq(after_ >> 192, ACCREDITED_UNTIL, "accreditedUntil stays");
         assertEq(uint256(vm.load(address(governance), bytes32(ti + 10))), 0, "nothing after");
     }
 

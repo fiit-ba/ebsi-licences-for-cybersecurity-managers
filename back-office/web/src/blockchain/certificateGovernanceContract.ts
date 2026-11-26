@@ -87,6 +87,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "InvalidAccreditedUntil",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidCosigner",
     "type": "error"
   },
@@ -771,6 +776,12 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "bytes32",
         "name": "attributeId",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "accreditedUntil",
+        "type": "uint64"
       }
     ],
     "name": "TiAttributeChanged",
@@ -796,6 +807,12 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "bytes32",
         "name": "attributeId",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "accreditedUntil",
+        "type": "uint64"
       }
     ],
     "name": "TiConfigured",
@@ -950,6 +967,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
           {
             "internalType": "uint64",
             "name": "proposalTtl",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "accreditedUntil",
             "type": "uint64"
           }
         ],
@@ -1518,6 +1540,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
             "internalType": "RoleSet",
             "name": "rolesPresentMask",
             "type": "uint8"
+          },
+          {
+            "internalType": "uint64",
+            "name": "accreditedUntil",
+            "type": "uint64"
           }
         ],
         "internalType": "struct IGovernanceTypes.TiView",
@@ -2033,6 +2060,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
         "internalType": "bytes32",
         "name": "attributeId",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "accreditedUntil",
+        "type": "uint64"
       }
     ],
     "name": "setTiAttribute",
@@ -2236,6 +2268,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
   {
     "inputs": [],
     "name": "IncompleteCertificate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAccreditedUntil",
     "type": "error"
   },
   {

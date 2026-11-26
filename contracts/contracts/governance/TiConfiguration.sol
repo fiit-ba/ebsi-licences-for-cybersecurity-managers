@@ -52,9 +52,10 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         uint64 proposalTtl;
         uint64 version;
         /// Raised by a cosigner change, which ends the TI's open proposals
-        /// (`Ballots._lapsed`). Last, to keep the layout. 8 bytes of this slot
-        /// are still free (e.g. for an `accreditedUntil`).
+        /// (`Ballots._lapsed`). Last, to keep the layout.
         uint64 epoch;
+        /// Set by the TAO. Fills free bytes: nothing moves.
+        uint64 accreditedUntil;
         /// When a rule change last loosened each policy (`_changePolicy`).
         /// Last, to keep the layout.
         uint64[POLICY_KINDS] loosenedAt;
@@ -96,11 +97,12 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         tiId = _tiId(setup.did);
         TiConfig storage ti = _configurationStorage().tis[tiId];
         if (bytes(ti.did).length != 0) revert TiAlreadyConfigured();
-        if (!isActiveTi(setup.did, setup.attributeId)) revert TiNotActive();
+        _requireAccreditation(setup.did, setup.attributeId, setup.accreditedUntil);
         if (setup.signers.length == 0 || setup.signers.length != setup.roles.length) revert InvalidSigner();
 
         ti.did = setup.did;
         ti.attributeId = setup.attributeId;
+        ti.accreditedUntil = setup.accreditedUntil;
         for (uint256 i = 0; i < setup.signers.length; i++) {
             _requireNewSigner(tiId, setup.signers[i], setup.roles[i]);
             _addSigner(tiId, setup.signers[i], setup.roles[i]);
@@ -116,19 +118,32 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         _requireAdminCovers(setup.policies);
         _requireCosignersApart(tiId);
         _setProposalTtl(tiId, setup.proposalTtl);
-        emit TiConfigured(tiId, setup.did, setup.attributeId);
+        emit TiConfigured(tiId, setup.did, setup.attributeId, setup.accreditedUntil);
     }
 
-    /// @dev A TI restored after losing its accreditation: what would raise
-    ///      trust or change its rules, opened before, is decided again.
-    function setTiAttribute(bytes32 tiId, bytes32 attributeId) external onlyTao {
+    /// @dev Also a renewal. A restored TI (TIR or date) decides again what
+    ///      would raise trust or change its rules.
+    function setTiAttribute(bytes32 tiId, bytes32 attributeId, uint64 accreditedUntil) external onlyTao {
         TiConfig storage ti = _ti(tiId);
-        if (!isActiveTi(ti.did, attributeId)) revert TiNotActive();
-        bool restored = !isActiveTi(ti.did, ti.attributeId);
+        _requireAccreditation(ti.did, attributeId, accreditedUntil);
+        bool restored = !_accredited(ti);
         ti.attributeId = attributeId;
+        ti.accreditedUntil = accreditedUntil;
         ti.version++;
         if (restored) ti.restorations++;
-        emit TiAttributeChanged(tiId, attributeId);
+        emit TiAttributeChanged(tiId, attributeId, accreditedUntil);
+    }
+
+    /// @dev The date is the TAO's word; one that has come, 0 included, is refused.
+    function _requireAccreditation(string memory did, bytes32 attributeId, uint64 accreditedUntil) private view {
+        if (accreditedUntil <= block.timestamp) revert InvalidAccreditedUntil();
+        if (!isActiveTi(did, attributeId)) revert TiNotActive();
+    }
+
+    /// @dev `isActiveTi` and before `accreditedUntil`; 0 (set up before it existed): no end.
+    function _accredited(TiConfig storage ti) private view returns (bool) {
+        uint64 until = ti.accreditedUntil;
+        return (until == 0 || block.timestamp < until) && isActiveTi(ti.did, ti.attributeId);
     }
 
     function setCosigners(bytes32 tiId, Cosigner[] calldata cosigners) external onlyTao {
@@ -218,6 +233,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         result.proposalTtl = ti.proposalTtl;
         result.version = ti.version;
         result.rolesPresentMask = _rolesPresent(tiId);
+        result.accreditedUntil = ti.accreditedUntil;
     }
 
     // -----------------------------------------------------------------------
@@ -247,8 +263,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
 
     /// @inheritdoc ITiConfiguration
     function isAccredited(bytes32 tiId) external view returns (bool) {
-        TiConfig storage ti = _ti(tiId);
-        return isActiveTi(ti.did, ti.attributeId);
+        return _accredited(_ti(tiId));
     }
 
     function _epoch(bytes32 tiId) internal view returns (uint64) {
@@ -274,8 +289,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     /// @dev Asked when something starts and when it takes effect, not of every
     ///      signature: each check walks the registry's whole trust chain.
     function _requireActive(bytes32 tiId) internal view {
-        TiConfig storage ti = _ti(tiId);
-        if (!isActiveTi(ti.did, ti.attributeId)) revert TiNotActive();
+        if (!_accredited(_ti(tiId))) revert TiNotActive();
     }
 
     /// @dev One of the TI's signer keys, still listed for its DID, as in `roleOf`.

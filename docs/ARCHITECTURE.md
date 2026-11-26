@@ -252,7 +252,7 @@ Registry licenses use no status lists. Keeping status on a contract rather than 
 
 Each TAO has its own certificate registry and governance contract, serving all its TIs:
 - **Deployment.** When a TAO is confirmed in EBSI, the back-office deploys its pair through EBSI's Proxy Factory, from the registered templates `CertificateRegistry` and `CertificateGovernance`. The RootTAO's key signs the deployment, as the holder of the `ProxyFactory:deployProxy` policy in the Trusted Policies Registry.
-- **Authority.** The TAO acts on the governance contract with any key of its DID (there is no owner), links the registry to governance once at deployment, and sets up each of its TIs on the governance contract: the TI's DID, its accreditation attribute, its signer keys with their roles, the supervisory authority as cosigner, and the policies.
+- **Authority.** The TAO acts on the governance contract with any key of its DID (there is no owner), links the registry to governance once at deployment, and sets up each of its TIs on the governance contract: the TI's DID, its accreditation attribute and the date it ends, its signer keys with their roles, the supervisory authority as cosigner, and the policies.
 - **The first pair** is the one the installation deployed with its contracts. It becomes the pair of the TAO it names.
 - **Recognition.** A verifier trusts the registry a license names when the Proxy Factory says it was deployed from the registry template, its governance contract from the governance template, the two name each other, and the governance contract serves the TAO that accredited the license's TI in the Trusted Issuers Registry. No list of registries is configured anywhere, and a new TAO needs no new wallet build.
 

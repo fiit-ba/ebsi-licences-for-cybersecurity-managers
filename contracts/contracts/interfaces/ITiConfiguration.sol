@@ -8,8 +8,8 @@ import {ITiAccreditation} from "./ITiAccreditation.sol";
  * @notice Each TI's signers, cosigners, policies and proposal lifetime.
  */
 interface ITiConfiguration is ITiAccreditation {
-    event TiConfigured(bytes32 indexed tiId, string did, bytes32 attributeId);
-    event TiAttributeChanged(bytes32 indexed tiId, bytes32 attributeId);
+    event TiConfigured(bytes32 indexed tiId, string did, bytes32 attributeId, uint64 accreditedUntil);
+    event TiAttributeChanged(bytes32 indexed tiId, bytes32 attributeId, uint64 accreditedUntil);
     /// @notice The TI's full cosigner list, at `addTi` and on every change. A
     ///         changed list ends the TI's open proposals.
     event CosignersChanged(bytes32 indexed tiId, Cosigner[] cosigners);
@@ -28,13 +28,14 @@ interface ITiConfiguration is ITiAccreditation {
     event ProposalTtlChanged(bytes32 indexed tiId, uint64 ttl);
 
     /// @notice Set up a TI. TAO only; the TI must be its live accreditation
-    ///         and every key valid for the TI's DID.
+    ///         and every key valid for the TI's DID. `accreditedUntil`: no
+    ///         later than the TAO's own.
     /// @return tiId `computeTiId(setup.did)`.
     function addTi(TiSetup calldata setup) external returns (bytes32 tiId);
 
-    /// @notice Follow a TI to a new accreditation. A revoked one never comes
-    ///         back, so the TIR gives a re-accredited TI a new attribute.
-    function setTiAttribute(bytes32 tiId, bytes32 attributeId) external;
+    /// @notice Renew a TI, or follow it to a new attribute (a revoked one
+    ///         never comes back), until a new future date.
+    function setTiAttribute(bytes32 tiId, bytes32 attributeId, uint64 accreditedUntil) external;
 
     /// @notice Replace a TI's cosigners. TAO only; every policy stays reachable.
     function setCosigners(bytes32 tiId, Cosigner[] calldata cosigners) external;
@@ -50,7 +51,7 @@ interface ITiConfiguration is ITiAccreditation {
     /// @notice `requireOwnSigner`, and refuses a TI that is not active.
     function requireActiveOwnSigner(bytes32 tiId, address account) external view;
 
-    /// @notice Whether the TI is accredited now, by the rule of `isActiveTi`.
+    /// @notice `isActiveTi`, and before `accreditedUntil`.
     function isAccredited(bytes32 tiId) external view returns (bool);
 
     function MAX_ROLE() external view returns (uint8);

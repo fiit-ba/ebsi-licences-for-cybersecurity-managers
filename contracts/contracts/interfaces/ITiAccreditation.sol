@@ -19,7 +19,7 @@ interface ITiAccreditation is IGovernanceTypes {
     function taoDid() external view returns (string memory);
 
     /// @notice True while the attribute is a live TI accreditation by `taoDid`
-    ///         with an unbroken path to a RootTAO.
+    ///         with an unbroken path to a RootTAO. No end date: see `isAccredited`.
     /// @param attributeId The TI's accreditation: the TIR keys it per attribute.
     function isActiveTi(string memory did, bytes32 attributeId) external view returns (bool);
 }

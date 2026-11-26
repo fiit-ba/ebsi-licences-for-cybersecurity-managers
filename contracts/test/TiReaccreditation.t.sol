@@ -102,7 +102,7 @@ contract TiReaccreditationTest is GovernanceTest {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         issuers.accredit(TI_DID, THIRD_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TI, taoDid, TAO_ATTRIBUTE);
         vm.prank(tao);
-        governance.setTiAttribute(TI_ID, THIRD_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, THIRD_ATTRIBUTE, ACCREDITED_UNTIL);
         sign(id, B);
         execute(id, A);
         assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.SUSPENDED));
@@ -114,7 +114,7 @@ contract TiReaccreditationTest is GovernanceTest {
         _revokeTheTi();
         vm.prank(tao);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.setTiAttribute(TI_ID, NEW_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, NEW_ATTRIBUTE, ACCREDITED_UNTIL);
         assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
     }
 
@@ -154,6 +154,6 @@ contract TiReaccreditationTest is GovernanceTest {
     function _accreditAgain() internal {
         issuers.accredit(TI_DID, NEW_ATTRIBUTE, IEbsiIssuersRegistry.IssuerType.TI, taoDid, TAO_ATTRIBUTE);
         vm.prank(tao);
-        governance.setTiAttribute(TI_ID, NEW_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, NEW_ATTRIBUTE, ACCREDITED_UNTIL);
     }
 }

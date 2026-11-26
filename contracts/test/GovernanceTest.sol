@@ -27,6 +27,8 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     bytes32 internal constant ROOT_ATTRIBUTE = keccak256("root attribute");
     bytes32 internal constant TAO_ATTRIBUTE = keccak256("tao attribute");
     bytes32 internal constant TI_ATTRIBUTE = keccak256("ti attribute");
+    /// The end of every TI's accreditation, unless a test sets another.
+    uint64 internal constant ACCREDITED_UNTIL = 2_000_000_000;
 
     // A: the certification body's decision maker
     // B: its independent second approver
@@ -184,7 +186,7 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
         uint64 ttl
     ) internal pure returns (IGovernanceTypes.TiSetup memory) {
         return IGovernanceTypes.TiSetup(
-            did, TI_ATTRIBUTE, signers, signerRoles, new IGovernanceTypes.Cosigner[](0), policies, ttl
+            did, TI_ATTRIBUTE, signers, signerRoles, new IGovernanceTypes.Cosigner[](0), policies, ttl, ACCREDITED_UNTIL
         );
     }
 

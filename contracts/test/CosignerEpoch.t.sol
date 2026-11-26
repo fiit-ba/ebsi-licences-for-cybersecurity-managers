@@ -119,7 +119,7 @@ contract CosignerEpochTest is GovernanceTest {
     function test_OtherChangesLeaveThemOpen() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         vm.prank(tao);
-        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE);
+        governance.setTiAttribute(TI_ID, TI_ATTRIBUTE, ACCREDITED_UNTIL);
         applyAdmin(setTtl(A, B, pilotTtl + DAY));
         assertState(id, IGovernanceTypes.ProposalState.PROPOSED);
         sign(id, B);

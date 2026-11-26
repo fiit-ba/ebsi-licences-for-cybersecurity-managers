@@ -688,3 +688,59 @@ overtaken proposal is expired by the next one (§5), only the TI's own keys prop
 - [ ] **NBÚ requests.** Give the supervisory authority a way to ask the TI to open a
       revocation (it cannot open one on chain), and show it the resulting proposal to sign.
 
+
+---
+
+## 17. A TI's accreditation ends on chain at its date
+
+Covers the finding that a TI whose accreditation credential had expired, but whose attribute
+was not yet revoked in the TIR, still acted on chain as fully accredited, while verifiers
+already refused its licences. The contract cannot read the credential's dates (`attribData`).
+The TAO now states the end, and the contract enforces it.
+
+### What changed in the contracts
+
+- **`addTi`**: `TiSetup` has a new last field, **`accreditedUntil`** (unix seconds). It must be
+  in the future; `0` or a past time reverts with the new error **`InvalidAccreditedUntil`**.
+- **`setTiAttribute(tiId, attributeId, accreditedUntil)`**: new third parameter, the same rule.
+  It is also the **renewal** call: the same attribute with a later date. The TAO may also bring
+  the date closer.
+- A TI is accredited **until, not at,** `accreditedUntil`. Past it, `isAccredited`,
+  `effectiveStatus` (`NOT_ACCREDITED`, `valid = false`) and every accreditation check behave
+  as for a TI withdrawn in the TIR: `registerCertificate`, opening or executing a reinstatement,
+  and rule changes revert with `TiNotActive`; `suspendNow`, suspensions and revocations still
+  work. `isActiveTi(did, attributeId)` stays the TIR's answer only, without the date.
+- A renewal of a TI whose date had passed counts as a **restoration**: its open reinstatements
+  and rule changes read `EXPIRED` (as in §15). A renewal before the date ends nothing.
+- A TI set up before this change reads `accreditedUntil = 0` and has **no end** until the TAO
+  calls `setTiAttribute` with a date.
+- **Events**: `TiConfigured(tiId, did, attributeId, accreditedUntil)` and
+  `TiAttributeChanged(tiId, attributeId, accreditedUntil)`. Their signatures, and so their
+  topics, changed.
+- **Views**: `getTi(tiId)` returns `accreditedUntil` as the last field of `TiView`.
+- ABI regenerated (`addTi` and `setTiAttribute` selectors, both events, `TiSetup`, `TiView`,
+  the new error).
+
+### To do
+
+- [ ] **Send the date at setup.**
+      [`server/lifecycle/ti-governance.ts`](../back-office/server/lifecycle/ti-governance.ts)
+      builds the `TiSetup` for `addTi`. Add `accreditedUntil`: the TI's `accredited_until`,
+      the same end as in its accreditation credential, in seconds. Never send `0`.
+- [ ] **Cap it at the TAO's end.** The contract cannot see the TAO's own accreditation end.
+      Before sending, check that the TI's date is not later than the TAO's `accredited_until`
+      (as [`server/accreditation/invitations.ts`](../back-office/server/accreditation/invitations.ts)
+      already does for the credential) and refuse otherwise.
+- [ ] **Renew on chain.** When a TI's accreditation is renewed (a new credential, or a new
+      attribute after a withdrawal), call `setTiAttribute(tiId, attributeId, newEnd)` with the
+      same end as the new credential. Without it, the TI stops being accredited on chain at the
+      old date.
+- [ ] **Set dates on TIs that exist.** After the upgrade, call `setTiAttribute` once for every
+      TI set up before it (`getTi(tiId).accreditedUntil == 0`), with its current attribute and
+      end date.
+- [ ] **Events and selectors.** Update the event parsing and the
+      [`server/keys/ledger-signing.ts`](../back-office/server/keys/ledger-signing.ts) method
+      map to the new `addTi` / `setTiAttribute` signatures and the new event topics.
+- [ ] **Show the date and warn early.** Show `getTi(tiId).accreditedUntil` in the TI view, and
+      remind the TAO before it passes. Past it, hide or refuse actions that raise trust (as in
+      §15), and show `InvalidAccreditedUntil` / `TiNotActive` as readable errors.

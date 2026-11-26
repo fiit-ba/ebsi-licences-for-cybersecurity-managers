@@ -80,6 +80,11 @@
     },
     {
       "inputs": [],
+      "name": "InvalidAccreditedUntil",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "InvalidCosigner",
       "type": "error"
     },
@@ -764,6 +769,12 @@
           "internalType": "bytes32",
           "name": "attributeId",
           "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "accreditedUntil",
+          "type": "uint64"
         }
       ],
       "name": "TiAttributeChanged",
@@ -789,6 +800,12 @@
           "internalType": "bytes32",
           "name": "attributeId",
           "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "accreditedUntil",
+          "type": "uint64"
         }
       ],
       "name": "TiConfigured",
@@ -943,6 +960,11 @@
             {
               "internalType": "uint64",
               "name": "proposalTtl",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "accreditedUntil",
               "type": "uint64"
             }
           ],
@@ -1511,6 +1533,11 @@
               "internalType": "RoleSet",
               "name": "rolesPresentMask",
               "type": "uint8"
+            },
+            {
+              "internalType": "uint64",
+              "name": "accreditedUntil",
+              "type": "uint64"
             }
           ],
           "internalType": "struct IGovernanceTypes.TiView",
@@ -2026,6 +2053,11 @@
           "internalType": "bytes32",
           "name": "attributeId",
           "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "accreditedUntil",
+          "type": "uint64"
         }
       ],
       "name": "setTiAttribute",
@@ -2228,6 +2260,11 @@
     {
       "inputs": [],
       "name": "IncompleteCertificate",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidAccreditedUntil",
       "type": "error"
     },
     {
