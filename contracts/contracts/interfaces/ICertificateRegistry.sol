@@ -74,13 +74,15 @@ interface ICertificateRegistry is IGovernanceTypes {
     /// @param reasonHash The reason's commitment, required.
     function suspendNow(bytes32 statusKey, bytes32 reasonHash) external;
 
-    /// @notice The certificate's record; `standing` NONE if there is none.
+    /// @notice The certificate's record as stored; `standing` NONE if there is
+    ///         none. What a verifier acts on is `effectiveStatus`.
     function certificateStatus(bytes32 statusKey) external view returns (Certificate memory);
+
+    /// @notice The record, whether its issuer is accredited now, and whether
+    ///         it is valid: VALID, issuer ACCREDITED, within its dates.
+    function effectiveStatus(bytes32 statusKey) external view returns (EffectiveStatus memory);
 
     /// @notice SHA-256(abi.encode("PLR-CERTIFICATE-V4", issuerDid, certificateIdHash)).
     ///         A public RPC node sees what it is given: compute this locally.
-    function computeStatusKey(string calldata issuerDid, string calldata certificateId)
-        external
-        pure
-        returns (bytes32);
+    function computeStatusKey(string calldata issuerDid, string calldata certificateId) external pure returns (bytes32);
 }

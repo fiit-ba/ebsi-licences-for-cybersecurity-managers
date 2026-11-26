@@ -66,7 +66,9 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         external
         returns (uint256 proposalId)
     {
-        requireActiveOwnSigner(tiId, msg.sender);
+        // A TI without accreditation still lowers trust, never raises it.
+        if (actionType == ActionType.REINSTATE) requireActiveOwnSigner(tiId, msg.sender);
+        else requireOwnSigner(tiId, msg.sender);
         if (reasonHash == bytes32(0) && actionType != ActionType.REINSTATE) revert ReasonRequired();
         _certificateRegistry().requireChangeableBy(statusKey, tiId, actionType);
 
@@ -106,7 +108,7 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
     function execute(uint256 proposalId) external {
         Proposal storage p = _openProposal(proposalId);
         bytes32 tiId = p.ballot.tiId;
-        _requireActive(tiId);
+        if (p.actionType == ActionType.REINSTATE) _requireActive(tiId);
         _requireExecutable(p.ballot, p.actionType.policyKind());
 
         p.ballot.state = ProposalState.EXECUTED;

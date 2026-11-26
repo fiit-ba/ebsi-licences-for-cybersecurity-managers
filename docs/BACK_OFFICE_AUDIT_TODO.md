@@ -369,6 +369,9 @@ revocation waited out its 24 h timelock, execute it, and name NBÚ again.
 
 ## 8. A TI accredited again starts over
 
+> Narrowed by §15: a return now ends only reinstatements and rule changes; suspensions and
+> revocations go on.
+
 Covers the finding **"A decision approved before a TI lost its accreditation executes
 after it is accredited again"** (MEDIUM). A revocation approved just before the TI's
 accreditation was revoked stayed `APPROVED` and executed at once when the TAO moved the TI
@@ -611,4 +614,48 @@ licences permanently or take over the TI's rules.
       `LIMITS.MIN_THRESHOLD` instead of the literal 2.
 - [ ] **Map `InvalidPolicy` at set-up.** A TI set up with a single role and no cosigner now
       fails at `addTi`; report it as "a TI needs at least two roles".
+
+---
+
+## 15. A TI without accreditation lowers trust, never raises it
+
+Covers the finding that a TI that lost its accreditation could neither open nor execute any
+proposal, so the revocation cases opened at a withdrawal could never complete and its
+licences stayed `SUSPENDED` for good.
+
+### What changed in the contracts
+
+- `proposeAction` and `execute` ask the TIR only for **REINSTATE**. SUSPEND and REVOKE open
+  and execute for a TI without accreditation, through its ordinary quorum, timelock and veto.
+  Registration and rule changes still need an accredited TI (`TiNotActive`).
+- A restored accreditation (`setTiAttribute`) no longer raises the epoch. It raises a new
+  counter, and ends only the **reinstatements and rule changes** opened before it (they read
+  `EXPIRED`). Suspensions and revocations go on; an executed revocation stays.
+  A cosigner change still ends everything (§7).
+- New view **`effectiveStatus(statusKey)`** on the registry: the record, the issuer's
+  accreditation now (`Accreditation`: `UNKNOWN` 0, `ACCREDITED` 1, `NOT_ACCREDITED` 2), and
+  `valid`, true only for `VALID`, `ACCREDITED` and now within `validFrom` / `validUntil`.
+  `UNKNOWN` means the check could not be made (the governance call failed); a TIR error reads
+  as `NOT_ACCREDITED`. `certificateStatus` stays the raw record.
+- New view **`isAccredited(tiId)`** on governance, by the rule of `isActiveTi`.
+- ABI: the two views, the `Accreditation` enum and the `EffectiveStatus` struct; generated
+  copies regenerated (the enum is in the generated `ENUMS`).
+
+### To do
+
+- [ ] **Deliver the withdrawal cases.** The revocation cases opened when an accreditation is
+      withdrawn can now be proposed and executed on chain; remove any guard that holds them
+      back because the TI is not accredited, and let them run through the quorum.
+- [ ] **Verifier: read `effectiveStatus`.**
+      [`server/verification/credential.ts`](../back-office/server/verification/credential.ts)
+      and [`server/verification/evaluate.ts`](../back-office/server/verification/evaluate.ts)
+      read `certificateStatus`. Switch to `effectiveStatus`, refuse unless `valid`, and treat
+      `NOT_ACCREDITED` and `UNKNOWN` as not valid (with their own reason codes).
+- [ ] **Web view.** [`web/src/blockchain/governance.ts`](../back-office/web/src/blockchain/governance.ts)
+      shows the raw standing; show the issuer's accreditation next to it.
+- [ ] **Reinstatements after a return.** Reinstatement cases and rule changes opened before a
+      TI lost its accreditation read `EXPIRED` after it is accredited again; close them and let
+      the TI decide again. Revocation and suspension cases keep running.
+- [ ] **No reinstatement without accreditation.** Hide or refuse the reinstatement action for a
+      TI that is not accredited (`TiNotActive`).
 

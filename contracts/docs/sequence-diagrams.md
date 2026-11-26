@@ -154,7 +154,9 @@ sequenceDiagram
 ## 4. Emergency suspension
 
 One signature, no quorum (component 10.6). It does not ask whether the TI is
-still accredited: a revoked TI's certificates are withdrawn this way.
+still accredited: a revoked TI's certificates are withdrawn this way, and its
+quorum can still suspend and revoke them by proposal. Reinstating needs an
+accredited TI.
 
 ```mermaid
 sequenceDiagram
@@ -190,7 +192,7 @@ sequenceDiagram
     participant R as CertificateRegistry
 
     A->>G: proposeAction(tiId, statusKey, actionType, reasonHash)
-    Note over G: requireActiveOwnSigner (diagram 1, own keys only)<br/>reasonHash required unless REINSTATE
+    Note over G: own key (diagram 1); the TIR only for REINSTATE<br/>reasonHash required unless REINSTATE
     G->>R: requireChangeableBy(statusKey, tiId, actionType)
     Note over R: record exists, is this TI's, is not REVOKED,<br/>and the action changes its standing
     R-->>G: ok
@@ -209,7 +211,7 @@ sequenceDiagram
     end
 
     A->>G: execute(id)
-    Note over G: open, within TTL, caller is a signer, TI still accredited (TIR),<br/>state APPROVED, quorum met again with today's keys and policy,<br/>now >= executableAt
+    Note over G: open, within TTL, caller is a signer, TI accredited (TIR) for REINSTATE,<br/>state APPROVED, quorum met again with today's keys and policy,<br/>now >= executableAt
     G-->>A: ProposalExecuted(id, statusKey, actionType)
     G->>R: applyExecuted(tiId, statusKey, actionType, id, reasonHash, A)
     Note over R: only governance may call, same checks as requireChangeableBy<br/>(the standing may have moved since the proposal)

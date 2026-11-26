@@ -326,6 +326,13 @@ abstract contract GovernanceFixture is EbsiFixture {
         vm.prank(by);
         governance.signProposal(proposalId);
     }
+
+    /// A second certificate of the TI, recorded while it is accredited.
+    function _registerSecond() internal returns (bytes32 statusKey) {
+        bytes32 idHash = Hashes.certificateIdHash("urn:uuid:2");
+        vm.prank(tiKey.addr);
+        statusKey = registry.registerCertificate(idHash, TI, 1, 0, CREDENTIAL_HASH, IGovernanceTypes.Standing.VALID);
+    }
 }
 
 /// isActiveTi against the real registries.
@@ -468,19 +475,24 @@ contract AddTiTest is GovernanceFixture {
 
         vm.prank(tiKey.addr);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.proposeAction(tiId, KEY, IGovernanceTypes.ActionType.SUSPEND, REASON);
+        governance.proposeProposalTtl(tiId, 31 days);
 
         vm.prank(taoKey.addr);
         governance.setTiAttribute(tiId, renewed);
-        _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
+        vm.prank(tiKey.addr);
+        governance.proposeProposalTtl(tiId, 31 days);
     }
 
-    /// Audit: a revocation approved before the TI lost its accreditation does
-    /// not outlive its reaccreditation.
-    function test_AProposalFromBeforeTheTisReaccreditationEnds() public {
+    /// A reinstatement opened before the TI lost its accreditation does not
+    /// outlive its reaccreditation; a revocation goes on.
+    function test_AReaccreditationEndsAReinstatementButNotARevocation() public {
         _addTi(_setup());
-        uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.REVOKE);
-        _sign(secondKey.addr, id);
+        vm.prank(tiKey.addr);
+        registry.suspendNow(KEY, REASON);
+        uint256 reinstate = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.REINSTATE);
+        bytes32 second = _registerSecond();
+        vm.prank(tiKey.addr);
+        uint256 revoke = governance.proposeAction(tiId, second, IGovernanceTypes.ActionType.REVOKE, REASON);
         _revoke(taoKey, TI, tiAttr, TAO, taoAttr);
         bytes32 salt = keccak256("another salt");
         vm.prank(taoKey.addr);
@@ -489,10 +501,14 @@ contract AddTiTest is GovernanceFixture {
         vm.prank(taoKey.addr);
         governance.setTiAttribute(tiId, renewed);
 
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.EXPIRED));
-        vm.prank(tiKey.addr);
+        assertEq(uint8(governance.stateOf(reinstate)), uint8(IGovernanceTypes.ProposalState.EXPIRED));
+        vm.prank(secondKey.addr);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
-        governance.execute(id);
+        governance.signProposal(reinstate);
+        _sign(secondKey.addr, revoke);
+        vm.prank(tiKey.addr);
+        governance.execute(revoke);
+        assertEq(uint8(registry.certificateStatus(second).standing), uint8(IGovernanceTypes.Standing.REVOKED));
     }
 
     function test_RevertWhen_ChangingCosignersLeavesAPolicyOutOfReach() public {
@@ -551,28 +567,42 @@ contract LiveRegistriesTest is GovernanceFixture {
         governance.execute(id);
     }
 
-    function test_ARevokedTiCanNeitherProposeNorExecute() public {
+    /// A revoked TI lowers trust through its quorum, and never raises it.
+    function test_ARevokedTiLowersTrustButNeverRaisesIt() public {
+        bytes32 second = _registerSecond();
         uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
         _sign(secondKey.addr, id);
         _revoke(taoKey, TI, tiAttr, TAO, taoAttr);
+        assertFalse(governance.isAccredited(tiId));
 
         vm.prank(tiKey.addr);
-        vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         governance.execute(id);
+        assertEq(uint8(registry.certificateStatus(KEY).standing), uint8(IGovernanceTypes.Standing.SUSPENDED));
+        uint256 revoke = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.REVOKE);
+        _sign(secondKey.addr, revoke);
+        vm.prank(tiKey.addr);
+        governance.execute(revoke);
+        assertEq(uint8(registry.certificateStatus(KEY).standing), uint8(IGovernanceTypes.Standing.REVOKED));
 
         vm.prank(tiKey.addr);
+        registry.suspendNow(second, REASON);
+        vm.prank(tiKey.addr);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.proposeAction(tiId, keccak256("other"), IGovernanceTypes.ActionType.SUSPEND, REASON);
+        governance.proposeAction(tiId, second, IGovernanceTypes.ActionType.REINSTATE, REASON);
+        vm.prank(tiKey.addr);
+        vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
+        governance.proposeProposalTtl(tiId, 31 days);
     }
 
-    function test_RevokingTheTaoStopsItsTisToo() public {
-        uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
-        _sign(secondKey.addr, id);
+    /// The TAO's revocation leaves its TIs unaccredited, and their licences not
+    /// valid to a verifier, whatever the record's standing.
+    function test_RevokingTheTaoLeavesItsTisUnaccredited() public {
         _revoke(rootKey, TAO, taoAttr, ROOT, rootAttr);
-
-        vm.prank(tiKey.addr);
-        vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.execute(id);
+        assertFalse(governance.isAccredited(tiId));
+        IGovernanceTypes.EffectiveStatus memory status = registry.effectiveStatus(KEY);
+        assertEq(uint8(status.record.standing), uint8(IGovernanceTypes.Standing.VALID));
+        assertEq(uint8(status.issuer), uint8(IGovernanceTypes.Accreditation.NOT_ACCREDITED));
+        assertFalse(status.valid);
     }
 
     function test_ARevokedTiStillSuspendsItsCertificates() public {

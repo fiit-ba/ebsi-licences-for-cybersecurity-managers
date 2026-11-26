@@ -231,10 +231,12 @@ registries two questions each time, so revoking there is enough:
 - **Is the TI accredited?** `isActiveTi` reads the Trusted Issuers Registry:
   the TI's attribute is a `TI` accreditation by this contract's TAO, and every
   step above it is a `TAO`, up to a `RootTAO`, within `MAX_TRUST_CHAIN_DEPTH`
-  (32) steps. It is asked when something starts (recording a certificate,
-  opening a proposal or a rule change) and when a proposal or a rule change
-  takes effect, not of every signature. `suspendNow` does not ask: a TI whose
-  accreditation was revoked withdraws its certificates that way.
+  (32) steps. It is asked when something that raises trust or changes rules
+  starts or takes effect (recording a certificate, a reinstatement, a rule
+  change), not of every signature. A TI without accreditation lowers trust
+  but never raises it: `suspendNow`, and suspensions and revocations through
+  its quorum, timelock and veto, do not ask, so it withdraws its certificates
+  to the end. `isAccredited(tiId)` answers by the same rule.
 - **Is the key valid?** A signer key holds its role only while the DID
   Registry shows it as a capabilityInvocation key of the TI's DID
   (`checkController`). A key that registry no longer shows has no role, and
@@ -320,11 +322,10 @@ issued.
 full list of DIDs and roles, at `addTi` and at every change, so a monitor
 follows a TI's cosigners from the events alone.
 
-**A cosigner change or a restored accreditation ends every open proposal of
-the TI.** Each TI has an epoch, which `setCosigners` raises whenever the list
-changes (a cosigner added, removed, given another role, or the order changed;
-the same list again changes nothing), and `setTiAttribute` raises when it
-restores a TI that was not accredited under its previous attribute. A proposal or rule change records the epoch it opened in, and one from
+**A cosigner change ends every open proposal of the TI.** Each TI has an
+epoch, which `setCosigners` raises whenever the list changes (a cosigner
+added, removed, given another role, or the order changed; the same list again
+changes nothing). A proposal or rule change records the epoch it opened in, and one from
 an earlier epoch is expired: it takes no signature, is not executed or
 cancelled, anyone may expire it, and the next proposal for its certificate
 replaces it. Otherwise the TAO could take the supervisory authority's veto
@@ -332,12 +333,16 @@ from a decision already under way (remove it during a 24 h timelock, execute,
 name it again), or add a DID of its own to complete a decision one TI key
 opened. The consequences are deliberate: by changing cosigners the TAO can end
 any pending decision of the TI, an approved revocation included, and the TAO is
-trusted to change cosigners only when no decision should be cut short. A TI
-accredited again starts over likewise: a revocation approved just before it
-lost its accreditation, possibly for the conduct that cost it, does not take
-effect on its old signatures once the TAO moves it to a new attribute. Moving a
-TI that is still accredited, and the TI's own rule changes, leave proposals
-open. Not covered: a revoked TAO whose chain the registry repairs under the same
+trusted to change cosigners only when no decision should be cut short.
+
+**A restored accreditation ends what would raise trust.** `setTiAttribute`
+counts each restoration of a TI that was not accredited under its previous
+attribute, and each ballot records the count it opened with. Reinstatements
+and rule changes opened before a restoration are then expired, as above: they
+could only have been opened before the loss, and are decided again.
+Suspensions and revocations go on, since they could be executed during the
+loss anyway, and an executed revocation stays in force. Moving a TI that is
+still accredited, and the TI's own rule changes, leave proposals open. Not covered: a revoked TAO whose chain the registry repairs under the same
 attributes brings its TIs back without any call to this contract, so their
 proposals go on; a veto still stops them.
 

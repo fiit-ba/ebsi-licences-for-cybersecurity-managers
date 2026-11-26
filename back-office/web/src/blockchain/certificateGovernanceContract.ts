@@ -1597,6 +1597,25 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "tiId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "isAccredited",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "did",
         "type": "string"
@@ -2654,6 +2673,79 @@ export const REGISTRY_ABI: InterfaceAbi = [
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "statusKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "effectiveStatus",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "enum IGovernanceTypes.Standing",
+                "name": "standing",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint64",
+                "name": "validFrom",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "validUntil",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "registeredAt",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "changedAt",
+                "type": "uint64"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "credentialHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "string",
+                "name": "issuerDid",
+                "type": "string"
+              }
+            ],
+            "internalType": "struct IGovernanceTypes.Certificate",
+            "name": "record",
+            "type": "tuple"
+          },
+          {
+            "internalType": "enum IGovernanceTypes.Accreditation",
+            "name": "issuer",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "valid",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct IGovernanceTypes.EffectiveStatus",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

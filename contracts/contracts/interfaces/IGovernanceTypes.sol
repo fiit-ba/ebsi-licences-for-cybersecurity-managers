@@ -169,6 +169,22 @@ interface IGovernanceTypes {
         string issuerDid;
     }
 
+    /// @notice Whether a certificate's issuer is accredited now. UNKNOWN: the
+    ///         check could not be made; a verifier treats it as not valid.
+    enum Accreditation {
+        UNKNOWN,
+        ACCREDITED,
+        NOT_ACCREDITED
+    }
+
+    /// @notice A record as a verifier acts on it. `valid` only when VALID, the
+    ///         issuer ACCREDITED, and now within its validity dates.
+    struct EffectiveStatus {
+        Certificate record;
+        Accreditation issuer;
+        bool valid;
+    }
+
     struct TiView {
         string did;
         bytes32 attributeId;

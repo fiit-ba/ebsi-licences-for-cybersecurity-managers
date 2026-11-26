@@ -315,25 +315,36 @@ contract CertificateLifecycleTest is DeployedFixture {
 
 /// The trust chain, changed in EBSI's registries rather than in the contract.
 contract TrustChainTest is DeployedFixture {
-    function test_ATiTheTaoRevokesStopsButStillSuspendsItsCertificates() public {
+    /// A TI the TAO revokes records nothing and reinstates nothing, but
+    /// withdraws its certificates to the end: suspended at once, then revoked
+    /// through its quorum and timelock.
+    function test_ATiTheTaoRevokesWithdrawsItsCertificatesToTheEnd() public {
         (bytes32 statusKey,) = _register();
         vm.prank(tao);
         tir.setAttributeMetadata(TI, tiAttribute, TIR.IssuerType.Revoked, TAO, taoAttribute);
         assertFalse(governance.isActiveTi(TI, tiAttribute));
-
-        vm.prank(keyA);
-        vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.proposeAction(tiId, statusKey, IGovernanceTypes.ActionType.SUSPEND, REASON);
+        IGovernanceTypes.EffectiveStatus memory status = registry.effectiveStatus(statusKey);
+        assertEq(uint8(status.issuer), uint8(IGovernanceTypes.Accreditation.NOT_ACCREDITED));
+        assertFalse(status.valid);
 
         bytes32 idHash = Hashes.certificateIdHash("urn:uuid:after-revocation");
         vm.prank(keyA);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         registry.registerCertificate(idHash, TI, 1, 0, REASON, IGovernanceTypes.Standing.VALID);
 
-        // Withdrawing its certificates starts here.
         vm.prank(keyA);
         registry.suspendNow(statusKey, REASON);
         _assertStanding(statusKey, IGovernanceTypes.Standing.SUSPENDED);
+        vm.prank(keyA);
+        vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
+        governance.proposeAction(tiId, statusKey, IGovernanceTypes.ActionType.REINSTATE, REASON);
+
+        vm.prank(keyA);
+        uint256 id = governance.proposeAction(tiId, statusKey, IGovernanceTypes.ActionType.REVOKE, REASON);
+        _sign(keyB, id);
+        vm.warp(governance.getProposal(id).executableAt);
+        _execute(keyA, id);
+        _assertStanding(statusKey, IGovernanceTypes.Standing.REVOKED);
     }
 
     function test_RevokingTheTaoTakesItsTiWithIt() public {

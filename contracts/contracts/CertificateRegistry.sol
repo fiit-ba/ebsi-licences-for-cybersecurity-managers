@@ -189,6 +189,20 @@ contract CertificateRegistry is ICertificateRegistry, OwnableUpgradeable, ERC165
         return _registryStorage().certificates[statusKey];
     }
 
+    /// @inheritdoc ICertificateRegistry
+    function effectiveStatus(bytes32 statusKey) external view returns (EffectiveStatus memory result) {
+        Certificate storage record = _registryStorage().certificates[statusKey];
+        result.record = record;
+        if (record.standing == Standing.NONE) return result;
+        try ITiConfiguration(governance()).isAccredited(_tiId(record.issuerDid)) returns (bool accredited) {
+            result.issuer = accredited ? Accreditation.ACCREDITED : Accreditation.NOT_ACCREDITED;
+        } catch {
+            // UNKNOWN: a verifier treats it as not valid.
+        }
+        result.valid = record.standing == Standing.VALID && result.issuer == Accreditation.ACCREDITED
+            && block.timestamp >= record.validFrom && (record.validUntil == 0 || block.timestamp < record.validUntil);
+    }
+
     function computeStatusKey(string calldata issuerDid, string calldata certificateId)
         external
         pure

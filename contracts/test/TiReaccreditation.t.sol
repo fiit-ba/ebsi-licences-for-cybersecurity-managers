@@ -4,18 +4,17 @@ import {GovernanceTest} from "./GovernanceTest.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
 import {IEbsiIssuersRegistry} from "../contracts/interfaces/IEbsiRegistries.sol";
 
-/// A TI accredited again starts over: what it had open before ends.
+/// A TI accredited again decides again what would raise trust or change its
+/// rules; what lowers trust goes on, as it could without accreditation.
 contract TiReaccreditationTest is GovernanceTest {
     bytes32 internal constant NEW_ATTRIBUTE = keccak256("new ti attribute");
     bytes32 internal constant THIRD_ATTRIBUTE = keccak256("third ti attribute");
 
-    /// Audit: a revocation approved before the TI lost its accreditation
-    /// executed at once when the TAO moved it to a new one.
-    function test_RevertWhen_ARevocationOutlivesTheTisAccreditation() public {
-        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
-        sign(id, B);
+    /// A reinstatement approved before the TI lost its accreditation neither
+    /// executes without it nor outlives its return.
+    function test_RevertWhen_AReinstatementOutlivesTheTisAccreditation() public {
+        uint256 id = _approvedReinstatement();
         _revokeTheTi();
-        skip(DAY);
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         governance.execute(id);
@@ -25,7 +24,19 @@ contract TiReaccreditationTest is GovernanceTest {
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         governance.execute(id);
-        assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.VALID));
+        assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.SUSPENDED));
+    }
+
+    /// A revocation approved before goes on, through the loss and the return.
+    function test_ARevocationOutlivesTheTisAccreditation() public {
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        sign(id, B);
+        _revokeTheTi();
+        _accreditAgain();
+        assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        skip(DAY);
+        execute(id, A);
+        assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.REVOKED));
     }
 
     function test_RevertWhen_ARuleChangeOutlivesTheTisAccreditation() public {
@@ -53,15 +64,19 @@ contract TiReaccreditationTest is GovernanceTest {
         assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.REVOKED));
     }
 
-    /// Nothing is opened while the TI is not accredited.
-    function test_RevertWhen_AnUnaccreditedTiProposes() public {
+    /// Without accreditation, only what lowers trust is opened.
+    function test_AnUnaccreditedTiOpensOnlyWhatLowersTrust() public {
+        vm.prank(A);
+        registry.suspendNow(OTHER_CERTIFICATE, REASON_GIVEN);
         _revokeTheTi();
+        propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
         vm.startPrank(A);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
-        governance.proposeAction(TI_ID, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        governance.proposeAction(TI_ID, OTHER_CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, REASON_GIVEN);
         vm.expectRevert(IGovernanceTypes.TiNotActive.selector);
         governance.proposeProposalTtl(TI_ID, pilotTtl + DAY);
         vm.stopPrank();
+        propose(A, OTHER_CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
     }
 
     /// Documented: a revoked TAO whose chain the registry repairs under the
@@ -112,14 +127,23 @@ contract TiReaccreditationTest is GovernanceTest {
         assertState(id, IGovernanceTypes.ProposalState.CANCELLED);
     }
 
-    /// Anyone expires an ended proposal, which frees its certificate.
+    /// Anyone expires an ended reinstatement, which frees its certificate.
     function test_AnyoneExpiresAProposalTheRestorationEnded() public {
-        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        vm.prank(A);
+        registry.suspendNow(CERTIFICATE, REASON_GIVEN);
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, REASON_GIVEN);
         _revokeTheTi();
         _accreditAgain();
         vm.prank(outsider);
         governance.expireProposal(id);
         assertEq(governance.openProposalFor(CERTIFICATE), 0);
+    }
+
+    function _approvedReinstatement() internal returns (uint256 id) {
+        vm.prank(A);
+        registry.suspendNow(CERTIFICATE, REASON_GIVEN);
+        id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REINSTATE, REASON_GIVEN);
+        sign(id, B);
     }
 
     function _revokeTheTi() internal {

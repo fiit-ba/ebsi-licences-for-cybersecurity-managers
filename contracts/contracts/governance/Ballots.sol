@@ -23,6 +23,8 @@ abstract contract Ballots is TiConfiguration {
         uint64 expiresAt;
         /// The TI's epoch at opening. Fills free bytes: nothing moves.
         uint64 epoch;
+        /// The TI's restorations at opening. Fills free bytes too.
+        uint32 restorations;
         address[] signatures;
         mapping(address => bool) signed;
         /// The role each signature was given in. Last, to keep the layout.
@@ -36,6 +38,7 @@ abstract contract Ballots is TiConfiguration {
         ballot.state = ProposalState.PROPOSED;
         ballot.expiresAt = uint64(block.timestamp) + _proposalTtl(tiId);
         ballot.epoch = _epoch(tiId);
+        ballot.restorations = _restorations(tiId);
     }
 
     /// @dev Adds the caller's signature; returns the signed roles and
@@ -120,9 +123,12 @@ abstract contract Ballots is TiConfiguration {
         return end > 0 && block.timestamp >= end;
     }
 
-    /// @dev Past its lifetime, or opened in an earlier epoch of the TI.
+    /// @dev Past its lifetime, or opened in an earlier epoch of the TI; a
+    ///      restored accreditation ends reinstatements and rule changes.
     function _lapsed(Ballot storage ballot, PolicyKind kind) internal view returns (bool) {
-        return _pastTtl(ballot, kind) || ballot.epoch < _epoch(ballot.tiId);
+        if (_pastTtl(ballot, kind) || ballot.epoch < _epoch(ballot.tiId)) return true;
+        bool raises = kind == PolicyKind.REINSTATE || kind == PolicyKind.ADMIN;
+        return raises && ballot.restorations < _restorations(ballot.tiId);
     }
 
     function _effectiveState(Ballot storage ballot, PolicyKind kind) internal view returns (ProposalState) {

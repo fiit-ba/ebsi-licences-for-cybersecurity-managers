@@ -516,7 +516,7 @@ When the holder's key is compromised, or another incident requires immediate act
 
 ### 7.3 Revoking a certification body
 
-Revoking a TI's accreditation withdraws everything it stands behind. Each of its licenses that is still valid is suspended at once, and a revocation case is opened for it, decided like any other. Revoking a TAO does the same for all of its TIs. The revoked organizations' accounts can no longer sign in. Once the accreditation is revoked in the Trusted Issuers Registry, the governance contract refuses any new record or proposal for that TI.
+Revoking a TI's accreditation withdraws everything it stands behind. Each of its licenses that is still valid is suspended at once, and a revocation case is opened for it, decided like any other. Revoking a TAO does the same for all of its TIs. The revoked organizations' accounts can no longer sign in. Once the accreditation is revoked in the Trusted Issuers Registry, the governance contract refuses any new record, reinstatement or rule change for that TI, but still lets its quorum suspend and revoke, so the revocation cases complete; a verifier reading `effectiveStatus` sees the TI as not accredited and none of its licenses as valid.
 
 ### 7.4 Expiry, reinstatement and re-certification
 

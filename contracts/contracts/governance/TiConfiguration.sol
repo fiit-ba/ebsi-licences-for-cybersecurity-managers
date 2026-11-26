@@ -51,13 +51,16 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         Policy[POLICY_KINDS] policies; // indexed by PolicyKind
         uint64 proposalTtl;
         uint64 version;
-        /// Raised by a cosigner change or a restored accreditation, which ends
-        /// the TI's open proposals (`Ballots._lapsed`). Last, to keep the layout.
-        /// 8 bytes of this slot are still free (e.g. for an `accreditedUntil`).
+        /// Raised by a cosigner change, which ends the TI's open proposals
+        /// (`Ballots._lapsed`). Last, to keep the layout. 8 bytes of this slot
+        /// are still free (e.g. for an `accreditedUntil`).
         uint64 epoch;
         /// When a rule change last loosened each policy (`_changePolicy`).
         /// Last, to keep the layout.
         uint64[POLICY_KINDS] loosenedAt;
+        /// Raised by a restored accreditation, which ends the TI's open
+        /// reinstatements and rule changes. Last, to keep the layout.
+        uint32 restorations;
     }
 
     /// @custom:storage-location erc7201:plr.storage.TiConfiguration
@@ -116,15 +119,15 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         emit TiConfigured(tiId, setup.did, setup.attributeId);
     }
 
-    /// @dev A TI restored after losing its accreditation starts a new epoch:
-    ///      nothing decided before takes effect without being decided again.
+    /// @dev A TI restored after losing its accreditation: what would raise
+    ///      trust or change its rules, opened before, is decided again.
     function setTiAttribute(bytes32 tiId, bytes32 attributeId) external onlyTao {
         TiConfig storage ti = _ti(tiId);
         if (!isActiveTi(ti.did, attributeId)) revert TiNotActive();
         bool restored = !isActiveTi(ti.did, ti.attributeId);
         ti.attributeId = attributeId;
         ti.version++;
-        if (restored) ti.epoch++;
+        if (restored) ti.restorations++;
         emit TiAttributeChanged(tiId, attributeId);
     }
 
@@ -236,6 +239,16 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
 
     function _loosenedAt(bytes32 tiId, PolicyKind kind) internal view returns (uint64) {
         return _configurationStorage().tis[tiId].loosenedAt[uint8(kind)];
+    }
+
+    function _restorations(bytes32 tiId) internal view returns (uint32) {
+        return _configurationStorage().tis[tiId].restorations;
+    }
+
+    /// @inheritdoc ITiConfiguration
+    function isAccredited(bytes32 tiId) external view returns (bool) {
+        TiConfig storage ti = _ti(tiId);
+        return isActiveTi(ti.did, ti.attributeId);
     }
 
     function _epoch(bytes32 tiId) internal view returns (uint64) {

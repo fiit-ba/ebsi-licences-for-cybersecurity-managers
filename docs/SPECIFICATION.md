@@ -572,9 +572,9 @@ sequenceDiagram
     V->>PF: getDeploymentInfo(registry), getDeploymentInfo(governance)
     PF-->>V: Templates, active
     V->>LED: governance(), taoDid() — is the registry the TAO's that accredited the TI?
-    V->>LED: certificateStatus(statusKey)
-    LED-->>V: Record (standing, TI, credential hash, dates)
-    V->>V: Record matches the license, standing VALID, validUntil
+    V->>LED: effectiveStatus(statusKey)
+    LED-->>V: Record (standing, TI, credential hash, dates), issuer ACCREDITED / NOT_ACCREDITED / UNKNOWN, valid
+    V->>V: Record matches the license, valid (VALID, issuer ACCREDITED, within its dates)
     V-->>H: Verification result
 ```
 
@@ -585,6 +585,7 @@ If the record cannot be read within 30 s or is not written yet, the result is `S
 - The record is read from the registry the license names only if the Proxy Factory and the TIR confirm it as the registry of the issuing TI's TAO (component 4.5); otherwise the result is `STATUS_UNAVAILABLE`
 - **The record must be the license's own** — `issuerDid`, `credentialHash`, `validFrom` and `validUntil` must match; a mismatch is grounds for refusal (`INDETERMINATE`). A license therefore cannot borrow another's standing, slip other content under a real license's identifier, or outlive the dates the registry recorded
 - Only `VALID` passes; `SUSPENDED` and `REVOKED` are refusals, and after `validUntil` the result is `EXPIRED`
+- **The issuer must be accredited now** — `effectiveStatus` returns, with the record, whether the issuing TI is accredited by the rule of `isActiveTi`: `ACCREDITED`, `NOT_ACCREDITED`, or `UNKNOWN` when the check could not be made. Its `valid` holds only for `VALID`, `ACCREDITED` and now within the record's dates. `NOT_ACCREDITED` and `UNKNOWN` are never valid. `certificateStatus` stays the raw record
 - A record that cannot be read or does not exist yet is `STATUS_UNAVAILABLE`, never `VALID`; there is no fallback source of status
 - Caching applies to DID documents, accreditations, schemas and trust in a registry, not to a license's standing
 
@@ -866,7 +867,7 @@ The license's standing is changed by the execution of the proposal in the contra
 
 When the holder's key is compromised, a two-level process applies: an **immediate temporary suspension** (one signature, `suspendNow` on the registry, without waiting for the multisig) followed by a **permanent revocation** that needs the full quorum. The multisig therefore does not slow down the response to a security incident. Who may suspend at once depends on place in the trust chain: a TI its own licenses, a TAO those of its TIs, the RootTAO all of them; on chain it is always one of the own keys of the TI that issued the license that signs; a cosigner's key cannot.
 
-Likewise, when a TI's accreditation is revoked, all its valid licenses are suspended and a revocation case is opened for each, decided in the ordinary way. `suspendNow` does not ask the TIR, so it works even when the TI is no longer accredited; the contract refuses new records and proposals for such a TI.
+Likewise, when a TI's accreditation is revoked, all its valid licenses are suspended and a revocation case is opened for each, decided in the ordinary way. A TI without accreditation lowers trust but never raises it: `suspendNow`, and suspension and revocation proposals through its ordinary quorum, timelock and veto, work without asking the TIR, while the contract refuses new records, reinstatements and rule changes for such a TI. A revocation stays in force if the TI is accredited again; the return ends only the reinstatements and rule changes opened before the loss, which are decided again.
 
 ```mermaid
 sequenceDiagram

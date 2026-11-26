@@ -50,6 +50,9 @@ interface ITiConfiguration is ITiAccreditation {
     /// @notice `requireOwnSigner`, and refuses a TI that is not active.
     function requireActiveOwnSigner(bytes32 tiId, address account) external view;
 
+    /// @notice Whether the TI is accredited now, by the rule of `isActiveTi`.
+    function isAccredited(bytes32 tiId) external view returns (bool);
+
     function MAX_ROLE() external view returns (uint8);
 
     function MIN_THRESHOLD() external view returns (uint8);
