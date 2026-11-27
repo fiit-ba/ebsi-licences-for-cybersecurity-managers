@@ -60,6 +60,8 @@ abstract contract Ballots is TiConfiguration {
         if (reached) {
             ballot.quorumReachedAt = uint64(block.timestamp);
             ballot.state = ProposalState.APPROVED;
+            uint64 end = ballot.expiresAt;
+            if (end != 0) ballot.expiresAt = _heldOpenTo(ballot, uint64(block.timestamp) + policy.timelock, end);
         }
     }
 
@@ -106,15 +108,21 @@ abstract contract Ballots is TiConfiguration {
         return state == ProposalState.PROPOSED || state == ProposalState.APPROVED;
     }
 
-    /// @dev Once approved, a day past `executableAt`, capped at MAX_PROPOSAL_TTL
-    ///      from opening. 0: no end (opened before `expiresAt` existed).
+    /// @dev Stored at opening, raised at the quorum to a day past `executableAt`.
+    ///      A later change of its policy moves it only if made before that end:
+    ///      an end once reached stays reached. 0: no end (opened before it existed).
     function _expiresAt(Ballot storage ballot, PolicyKind kind) internal view returns (uint64) {
-        uint64 fixedEnd = ballot.expiresAt;
-        if (fixedEnd == 0 || ballot.quorumReachedAt == 0) return fixedEnd;
-        uint64 needed = _executableAt(ballot, kind) + MIN_SIGNING_WINDOW;
+        uint64 end = ballot.expiresAt;
+        if (end == 0 || ballot.quorumReachedAt == 0 || _setAt(ballot.tiId, uint8(kind)) >= end) return end;
+        return _heldOpenTo(ballot, _executableAt(ballot, kind), end);
+    }
+
+    /// @dev A day past `executableAt`, capped at MAX_PROPOSAL_TTL from opening; never before `end`.
+    function _heldOpenTo(Ballot storage ballot, uint64 executableAt, uint64 end) private view returns (uint64) {
+        uint64 needed = executableAt + MIN_SIGNING_WINDOW;
         uint64 cap = ballot.proposedAt + MAX_PROPOSAL_TTL;
         if (needed > cap) needed = cap;
-        return needed > fixedEnd ? needed : fixedEnd;
+        return needed > end ? needed : end;
     }
 
     function _pastTtl(Ballot storage ballot, PolicyKind kind) internal view returns (bool) {

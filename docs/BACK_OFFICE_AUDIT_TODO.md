@@ -576,10 +576,10 @@ revocation expired silently.
 ### What changed in the contracts
 
 - Once approved, a proposal stays open at least `MIN_SIGNING_WINDOW` (one day) past its
-  `executableAt`, capped at `MAX_PROPOSAL_TTL` from its opening. The end is computed on
-  every read (`Ballots._expiresAt`), so it follows every move of `executableAt`: a late
-  quorum, a quorum regained by a signature, a looser policy that restarts the delay, a
-  stricter one that lengthens it.
+  `executableAt`, capped at `MAX_PROPOSAL_TTL` from its opening. It follows every move of
+  `executableAt` while the proposal is open: a late quorum, a quorum regained by a
+  signature, a looser policy that restarts the delay, a stricter one that lengthens it.
+  Since §20 the end is stored at the quorum, and a change after it moves nothing.
 - Signing, executing, vetoing and `expireProposal` / `expireAdminProposal` all use that end.
   A proposal that is not approved keeps the lifetime it opened with.
 - `getProposal(...).expiresAt` and `getAdminProposal(...).expiresAt` (§12) return the
@@ -830,3 +830,38 @@ it, with no new quorum, timelock or veto window.
 - [ ] **Stale drafts.** If the back-office keeps approved changes to execute later, re-read
       their state before sending `executeAdminProposal`; an overtaken one reverts with
       `ProposalNotOpen`.
+
+---
+
+## 20. An end once reached stays reached
+
+Follow-up to §13, from the review of its fix. The end of an approved proposal was computed on
+every read from the current `executableAt`, so a proposal that already read `EXPIRED`, and
+that nobody had expired with `expireProposal`, came back when a later rule change moved its
+`executableAt` past now (a loosening that restarts the delay, or a raised timelock). It then
+executed on its old signatures, weeks after the back-office had closed the case.
+
+### What changed in the contracts
+
+- The end is **stored when the quorum is reached** (and again when it is regained by a
+  signature): the lifetime's end, or a day past `executableAt` if later, capped at
+  `MAX_PROPOSAL_TTL` from opening.
+- A later change of the proposal's policy moves the end only if it was made **before** that
+  stored end. One made at or after it moves nothing: the proposal stays `EXPIRED`.
+- The same for rule changes (the ADMIN policy).
+- Limit, on the safe side: the stored end is the one from the quorum. If one change of a
+  policy extended an approved decision past that end, a second change of the same policy
+  made after it ends the decision (it reads `EXPIRED` and must be proposed again).
+- Compiler: `optimizer_runs` is now **1** (was 200) to make room for this under EIP-170.
+  Calls cost 0.1 to 0.4 % more gas; the gas table in `contracts/README.md` is re-measured.
+- No ABI change.
+
+### To do
+
+- [ ] **Trust `EXPIRED`.** A proposal or rule change that reads `EXPIRED` no longer comes
+      back, so the back-office may close its case for good. Calling `expireProposal` /
+      `expireAdminProposal` is still useful to free the certificate's slot and to leave an
+      event, but it is no longer needed to keep the decision from returning.
+- [ ] **Gas budgets.** If the back-office sets a gas limit per transaction, check it against
+      the new figures in `contracts/README.md` (`signProposal` about 275,000, `addTi` about
+      709,000).

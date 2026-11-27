@@ -150,15 +150,17 @@ copies in `local/ebsi-mock/` (each receipt is left in `broadcast/`):
 
 | Transaction | EBSI's review | `make integration` |
 |---|---|---|
-| deploying a proxy (`deployProxy`) | about 600,000 to 670,000 | 558,000 (registry), 576,000 (governance) |
-| `registerCertificate` | about 270,000 | 339,000 |
-| `addTi` | about 590,000 | 673,000 |
-| a suspension through the quorum | about 750,000 | 1,000,000 |
-| — `proposeAction` | 430,000 | 482,000 |
-| — `signProposal` | 170,000 | 209,000 |
-| — `execute` | 145,000 | 309,000 |
+| deploying a proxy (`deployProxy`) | about 600,000 to 670,000 | 558,000 (registry), 551,000 (governance) |
+| `registerCertificate` | about 270,000 | 343,000 |
+| `addTi` | about 590,000 | 709,000 |
+| a suspension through the quorum | about 750,000 | 886,000 |
+| — `proposeAction` | 430,000 | 390,000 |
+| — `signProposal` | 170,000 | 275,000 |
+| — `execute` | 145,000 | 221,000 |
 
-The figures also depend on the length of the DIDs and on the TI's signers and
+The `make integration` column is from the current build (optimizer at 1 run;
+at 200 runs each call costs 0.1 to 0.4 % less). The figures also depend on the
+length of the DIDs and on the TI's signers and
 cosigners. A longer trust chain costs more. `isActiveTi` reads the Trusted Issuers
 Registry once per level above the TI, and the contracts ask it when a
 certificate is recorded, when a proposal or a rule change is opened and when
@@ -169,8 +171,8 @@ one takes effect.
 - The scope is `contracts/`: `CertificateGovernance`, `CertificateRegistry` and
   the modules, interfaces and libraries they are built from. Everything else
   here (scripts, tests, `local/ebsi-mock/`) only deploys or exercises them.
-- solc 0.8.26 through the IR pipeline, optimizer at 200 runs
-  ([`foundry.toml`](foundry.toml)). `FOUNDRY_PROFILE=prod forge build --skip
+- solc 0.8.26 through the IR pipeline, optimizer at 1 run, for size: the
+  governance contract sits close to EIP-170's limit ([`foundry.toml`](foundry.toml)). `FOUNDRY_PROFILE=prod forge build --skip
   test --skip script` builds the contracts without the mocks.
 - OpenZeppelin Contracts and Contracts Upgradeable 5.6.1, pinned in
   `soldeer.lock`: the version EBSI's core contracts are on. The contracts take
@@ -429,9 +431,15 @@ quorum comes early enough: a revocation approved on day 29.5 of 30 would be
 executable on day 30.5. So once approved, a proposal stays open at least
 `MIN_SIGNING_WINDOW` (a day) past its `executableAt`, however that moved: a
 late quorum, a quorum regained by a later signature, a looser policy that
-restarts the delay, or a stricter one that lengthens it. The end is computed
-on every read, never stored, so a rule change extends every approved decision
-it delays. It is capped at `MAX_PROPOSAL_TTL` from opening, so losing and
+restarts the delay, or a stricter one that lengthens it. The end is stored at
+the quorum, and a later change of the decision's policy moves it only if made
+before that end, so a rule change extends every approved decision it delays
+while it is still open. **An end once reached stays reached:** a loosening or a
+longer timelock applied after a decision expired does not bring it back on its
+old signatures, even if nobody called `expireProposal`. The stored end is the
+one from the quorum, so on the safe side a second change of the policy made
+after it, inside an extension an earlier change gave, ends the decision; it is
+proposed again. It is capped at `MAX_PROPOSAL_TTL` from opening, so losing and
 regaining a quorum keeps nothing open for ever; past the cap an approval
 lapses. Signing and the veto stay open as long as the proposal does.
 

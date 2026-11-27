@@ -4,6 +4,7 @@ import {GovernanceTest} from "./GovernanceTest.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
 import {IStatusProposals} from "../contracts/interfaces/IStatusProposals.sol";
 import {Role} from "../contracts/libraries/Roles.sol";
+import {StubDidRegistry} from "./RegistryStubs.sol";
 
 /// An approval can always be carried out: once approved, a proposal stays open
 /// at least a day past its `executableAt`, up to MAX_PROPOSAL_TTL from opening.
@@ -283,6 +284,164 @@ contract LateQuorumTest is GovernanceTest {
         assertEq(governance.getAdminProposal(rule).expiresAt, 0);
         skip(DAY);
         executeAdmin(rule, A);
+    }
+
+    // -----------------------------------------------------------------------
+    // An end once reached stays reached
+    // -----------------------------------------------------------------------
+
+    /// Audit: an approved revocation past its end came back after a loosening
+    /// of its policy, and executed on its old signatures.
+    function test_ALaterLooseningRevivesNoExpiredDecision() public {
+        uint256 id = _approvedRevocation();
+        uint64 end = governance.getProposal(id).expiresAt;
+        skip(10 * DAY);
+        uint256 looser = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+        vm.warp(end);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+
+        executeAdmin(looser, A);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        assertEq(governance.getProposal(id).expiresAt, end);
+        skip(DAY);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        vm.prank(A);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.execute(id);
+        assertEq(uint8(registry.certificateStatus(CERTIFICATE).standing), uint8(IGovernanceTypes.Standing.VALID));
+    }
+
+    /// Nor does a raised timelock.
+    function test_ALaterRaisedTimelockRevivesNoExpiredDecision() public {
+        uint256 id = _approvedRevocation();
+        uint64 end = governance.getProposal(id).expiresAt;
+        skip(10 * DAY);
+        applyAdmin(setPolicy(A, C, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 2 * DAY)));
+        uint256 slower = setPolicy(A, C, REVOKE, policy(2, NONE, ALL, 2 * DAY));
+        vm.warp(end);
+        executeAdmin(slower, A);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        assertEq(governance.getProposal(id).expiresAt, end);
+    }
+
+    /// The same for a rule change: an expired one stays expired when ADMIN's
+    /// timelock is raised.
+    function test_ALaterRaisedTimelockRevivesNoExpiredRuleChange() public {
+        uint256 ttl = setTtl(A, B, pilotTtl + DAY);
+        uint64 end = governance.getAdminProposal(ttl).expiresAt;
+        skip(10 * DAY);
+        uint256 slower = setPolicy(A, C, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 2 * DAY));
+        vm.warp(end);
+        assertAdminState(ttl, IGovernanceTypes.ProposalState.EXPIRED);
+        executeAdmin(slower, A);
+        assertAdminState(ttl, IGovernanceTypes.ProposalState.EXPIRED);
+        assertEq(governance.getAdminProposal(ttl).expiresAt, end);
+    }
+
+    /// A change made a second before a ballot's end moves it; one made at its
+    /// end does not.
+    function test_TheEndIsTheLastSecondAChangeMovesIt() public {
+        uint256 atEnd = _approvedRevocation();
+        uint64 end = governance.getProposal(atEnd).expiresAt;
+        skip(1);
+        uint256 before = propose(A, OTHER_CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        sign(before, B);
+        assertEq(governance.getProposal(before).expiresAt, end + 1);
+        skip(10 * DAY);
+        uint256 looser = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
+
+        vm.warp(end);
+        executeAdmin(looser, A);
+        assertState(atEnd, IGovernanceTypes.ProposalState.EXPIRED);
+        assertEq(governance.getProposal(before).expiresAt, end + 2 * DAY, "moved");
+        _executesAt(before, end + DAY);
+    }
+
+    /// Limit, on the safe side: the stored end is the one from the quorum, so a
+    /// second change of the policy after it, inside an extension an earlier
+    /// change gave, ends the decision; it never executes late.
+    function test_ASecondChangeAfterTheStoredEndEndsAnExtension() public {
+        uint256 id = _approvedRevocation();
+        uint64 end = governance.getProposal(id).expiresAt;
+        skip(10 * DAY);
+        uint256 first = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_C), DAY));
+        vm.warp(end - HOUR);
+        executeAdmin(first, A);
+        assertEq(governance.getProposal(id).expiresAt, end - HOUR + 2 * DAY, "extended");
+        uint256 second = setPolicy(B, C, REVOKE, policy(2, NONE, only(ROLE_C), DAY));
+
+        vm.warp(end - HOUR + DAY);
+        assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        executeAdmin(second, A);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        assertEq(governance.getProposal(id).expiresAt, end);
+    }
+
+    /// A quorum lost to a stricter policy and met again by a loosening made
+    /// after the end stays expired: no signature, no revival.
+    function test_AQuorumMetAgainByALateLooseningStaysExpired() public {
+        uint256 id = _approvedRevocation();
+        uint64 end = governance.getProposal(id).expiresAt;
+        skip(DAY);
+        applyAdmin(setPolicy(A, C, REVOKE, policy(2, only(ROLE_C), ALL, DAY)));
+        assertEq(governance.getProposal(id).expiresAt, end, "a tightening moves nothing");
+        uint256 looser = setPolicy(A, C, REVOKE, policy(2, NONE, ALL, DAY));
+
+        vm.warp(end);
+        executeAdmin(looser, A);
+        assertState(id, IGovernanceTypes.ProposalState.EXPIRED);
+        skip(DAY);
+        vm.prank(A);
+        vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
+        governance.execute(id);
+    }
+
+    /// A quorum regained by a signature inside an extension stores a new end,
+    /// so a later change before it still moves it.
+    function test_AQuorumRegainedInAnExtensionStoresANewEnd() public {
+        uint256 id = _approvedRevocation();
+        uint64 end = governance.getProposal(id).expiresAt;
+        skip(10 * DAY);
+        uint256 first = setPolicy(A, C, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_C), DAY));
+        vm.warp(end - HOUR);
+        executeAdmin(first, A);
+
+        vm.warp(end + HOUR);
+        StubDidRegistry(didRegistry).setController(TI_DID, A, true);
+        StubDidRegistry(didRegistry).setController(TI_DID, C, true);
+        StubDidRegistry(didRegistry).setController(TI_DID, B, false);
+        sign(id, C);
+        uint64 stored = end + HOUR + 2 * DAY;
+        assertEq(governance.getProposal(id).expiresAt, stored, "stored again");
+        uint256 second = setPolicy(A, C, REVOKE, policy(2, NONE, only(ROLE_C), DAY));
+
+        vm.warp(stored - DAY);
+        executeAdmin(second, A);
+        assertState(id, IGovernanceTypes.ProposalState.APPROVED);
+        assertEq(governance.getProposal(id).expiresAt, stored + DAY, "moved");
+        _executesAt(id, stored);
+    }
+
+    /// The end is stored at the quorum: a day past `executableAt`, never before
+    /// the lifetime's end.
+    function test_TheEndIsStoredAtTheQuorum() public {
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        uint64 lifetimeEnd = governance.getProposal(id).expiresAt;
+        vm.warp(lifetimeEnd - HOUR);
+        sign(id, B);
+        uint256 packed = uint256(vm.load(address(governance), bytes32(_proposalSlot(id) + 5)));
+        assertEq(uint64(packed >> 72), lifetimeEnd - HOUR + 2 * DAY, "raised in storage");
+
+        uint256 early = propose(A, OTHER_CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        uint64 earlyEnd = governance.getProposal(early).expiresAt;
+        sign(early, B);
+        packed = uint256(vm.load(address(governance), bytes32(_proposalSlot(early) + 5)));
+        assertEq(uint64(packed >> 72), earlyEnd, "an early quorum keeps it");
+    }
+
+    function _approvedRevocation() private returns (uint256 id) {
+        id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        sign(id, B);
     }
 
     function _executesAt(uint256 id, uint64 executableAt) private {

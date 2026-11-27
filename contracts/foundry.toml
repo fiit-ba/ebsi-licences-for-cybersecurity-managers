@@ -9,7 +9,9 @@ out = "out"
 libs = ["dependencies"]
 solc = "0.8.26"
 optimizer = true
-optimizer_runs = 200
+# Size over gas: the governance contract sits close to EIP-170's 24,576 bytes.
+# One run makes every call cost a little more gas, and EBSI's PILOT charges none.
+optimizer_runs = 1
 # openzeppelin-foundry-upgrades validates upgrades from the build info and the
 # storage layout.
 build_info = true
