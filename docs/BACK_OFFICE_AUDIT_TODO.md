@@ -895,3 +895,39 @@ too expensive.
       check the proposal view: if `rolesSignedMask` already contains the signer's role
       (`roleOf`), show who signed for that role instead of the sign button. This applies to a
       TI with a primary and a backup key in one role: only one of them signs a given proposal.
+
+## 22. A decision keeps the policy it was approved under
+
+Follow-up to §18, from the review of its fix. A waiting decision read its timelock and veto
+roles from the policy in force at execution. A rule change approved before a revocation, and
+applied while the revocation waited, could therefore cut the revocation's timelock to zero and
+drop the supervisory authority's veto. The revocation then executed at once, and C's
+`cancelProposal` reverted.
+
+### What changed in the contracts
+
+- At the quorum (and again when a signature regains it) the ballot stores the timelock and the
+  veto roles of the policy then in force, in bytes that were free: no storage moves.
+- `execute` / `executeAdminProposal` wait for the **longer** of that timelock and the current
+  one (a loosening still restarts the current one from the change). `executableAt` in the
+  views shows the result.
+- `cancelProposal` / `cancelAdminProposal` accept every role that **either** policy gives the
+  veto.
+- A regained quorum keeps what was stored and adds the policy then in force.
+- A decision whose quorum comes after the change applies follows the new policy, even one
+  opened before it.
+- No ABI change. CertificateGovernance is now 24,496 B (80 B under EIP-170).
+
+### To do
+
+- [ ] **Who may veto.** Do not derive the veto from the current `vetoRoleMask` alone. For an
+      approved proposal, a role in the policy in force at its quorum may still cancel. Offer
+      the cancel button to the current veto roles and, when the policy of the proposal's kind
+      changed after `quorumReachedAt`, to the veto roles before that change too (read from
+      the `PolicyChanged` events or the audit log), or simply let the contract decide.
+- [ ] **When it executes.** Use `executableAt` from `getProposal` / `getAdminProposal`, never
+      `quorumReachedAt` plus the current timelock: a loosening no longer shortens it below
+      the timelock in force at the quorum.
+- [ ] **Watch pending loosenings.** A decision approved after a rule change applies follows
+      the new policy. Show the supervisory authority every pending rule change that loosens
+      a policy, with its `executableAt`, so it can veto it in time.

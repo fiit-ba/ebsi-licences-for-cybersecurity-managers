@@ -17,6 +17,8 @@ abstract contract Ballots is TiConfiguration {
         bytes32 tiId;
         address proposer;
         uint64 proposedAt;
+        /// The longest timelock in force at a quorum. Fills free bytes.
+        uint32 heldTimelock;
         uint64 quorumReachedAt;
         ProposalState state;
         /// Lifetime end set at opening; may extend once approved (`_expiresAt`).
@@ -25,6 +27,8 @@ abstract contract Ballots is TiConfiguration {
         uint64 epoch;
         /// The TI's restorations at opening. Fills free bytes too.
         uint32 restorations;
+        /// Every veto role in force at a quorum. Fills free bytes too.
+        RoleSet heldVeto;
         address[] signatures;
         mapping(address => bool) signed;
         /// The role each signature was given in. Last, to keep the layout.
@@ -61,8 +65,10 @@ abstract contract Ballots is TiConfiguration {
         if (reached) {
             ballot.quorumReachedAt = uint64(block.timestamp);
             ballot.state = ProposalState.APPROVED;
+            if (policy.timelock > ballot.heldTimelock) ballot.heldTimelock = uint32(policy.timelock);
+            ballot.heldVeto = RoleSet.wrap(RoleSet.unwrap(ballot.heldVeto) | RoleSet.unwrap(policy.vetoRoleMask));
             uint64 end = ballot.expiresAt;
-            if (end != 0) ballot.expiresAt = _heldOpenTo(ballot, uint64(block.timestamp) + policy.timelock, end);
+            if (end != 0) ballot.expiresAt = _heldOpenTo(ballot, uint64(block.timestamp) + ballot.heldTimelock, end);
         }
     }
 
@@ -73,7 +79,9 @@ abstract contract Ballots is TiConfiguration {
     function _cancel(Ballot storage ballot, Policy memory policy) internal {
         bytes32 tiId = ballot.tiId;
         if (
-            msg.sender != ballot.proposer && !policy.vetoRoleMask.contains(roleOf(tiId, msg.sender))
+            msg.sender != ballot.proposer
+                && !RoleSet.wrap(RoleSet.unwrap(policy.vetoRoleMask) | RoleSet.unwrap(ballot.heldVeto))
+                    .contains(roleOf(tiId, msg.sender))
                 && (Role.unwrap(roleOf(tiId, ballot.proposer)) != 0 || policy.meets(_rolesSigned(ballot)))
         ) revert VetoNotAllowed();
         ballot.state = ProposalState.CANCELLED;
@@ -101,7 +109,7 @@ abstract contract Ballots is TiConfiguration {
         Policy memory policy = _policy(ballot.tiId, kind);
         if (ballot.state != ProposalState.APPROVED) revert QuorumNotReached();
         if (!policy.meets(_rolesSigned(ballot))) revert QuorumNotReached();
-        uint64 executableAt = _timelockStartsAt(ballot, kind) + policy.timelock;
+        uint64 executableAt = _executableAt(ballot, kind);
         if (block.timestamp < executableAt) revert TimelockNotElapsed(executableAt);
     }
 
@@ -145,8 +153,11 @@ abstract contract Ballots is TiConfiguration {
     }
 
     function _executableAt(Ballot storage ballot, PolicyKind kind) internal view returns (uint64) {
-        if (ballot.quorumReachedAt == 0) return 0;
-        return _timelockStartsAt(ballot, kind) + _policy(ballot.tiId, kind).timelock;
+        uint64 quorum = ballot.quorumReachedAt;
+        if (quorum == 0) return 0;
+        uint64 current = _timelockStartsAt(ballot, kind) + _policy(ballot.tiId, kind).timelock;
+        uint64 held = quorum + ballot.heldTimelock;
+        return held > current ? held : current;
     }
 
     /// @dev The quorum, or a later loosening of its policy.

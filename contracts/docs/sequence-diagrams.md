@@ -205,7 +205,7 @@ sequenceDiagram
     B->>G: signProposal(id)
     Note over G: open, within TTL, not overtaken, caller holds a role<br/>no counted signature of that role yet
     G-->>B: ProposalSigned(id, B, role B, {A, B})
-    Note over G: policy met → state APPROVED,<br/>quorumReachedAt = now
+    Note over G: policy met → state APPROVED,<br/>quorumReachedAt = now, its timelock and veto roles held
     G-->>B: QuorumReached(id, executableAt = quorumReachedAt + timelock)
 
     opt timelock > 0
@@ -235,7 +235,7 @@ sequenceDiagram
     participant G as CertificateGovernance
 
     V->>G: cancelProposal(id, reasonHash)
-    Note over G: open, within TTL, caller holds a role,<br/>caller is the proposer or its role is in vetoRoleMask
+    Note over G: open, within TTL, caller holds a role,<br/>caller is the proposer or its role is in vetoRoleMask<br/>or was at the quorum
     G-->>V: ProposalCancelled(id, statusKey, V, reasonHash)
 
     Note over Any,G: a proposal past its TTL

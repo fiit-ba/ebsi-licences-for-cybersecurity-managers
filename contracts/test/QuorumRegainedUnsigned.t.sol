@@ -83,8 +83,9 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         _executesExactlyAt(id);
     }
 
-    /// A shorter timelock while the old one runs: the new length, from the change.
-    function test_AShorterTimelockRunsFromTheChange() public {
+    /// A shorter timelock while the old one runs: the old one still runs out
+    /// (it was in force at the quorum).
+    function test_AShorterTimelockLeavesTheOldDelayRunning() public {
         governance = deploy(_slow());
         uint256 shorter = setPolicy(A, B, REVOKE, policy(2, NONE, ALL, DAY));
         skip(DAY + DAY / 2);
@@ -92,8 +93,8 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         uint64 quorumAt = uint64(vm.getBlockTimestamp());
         applyAdmin(shorter);
         uint64 loosenedAt = uint64(vm.getBlockTimestamp());
-        assertLt(loosenedAt, quorumAt + 2 * DAY, "the old delay still runs");
-        assertEq(governance.getProposal(id).executableAt, loosenedAt + DAY);
+        assertGt(quorumAt + 2 * DAY, loosenedAt + DAY, "the old delay ends later than the restarted one");
+        assertEq(governance.getProposal(id).executableAt, quorumAt + 2 * DAY);
         _executesExactlyAt(id);
     }
 
@@ -171,8 +172,8 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         _executesExactlyAt(id);
     }
 
-    /// A rule change's own ballot restarts after a looser rule-change policy.
-    function test_ARuleChangeWaitsAgainAfterALooserAdminPolicy() public {
+    /// A rule change's own ballot keeps the delay in force at its quorum.
+    function test_ARuleChangeKeepsItsDelayAfterALooserAdminPolicy() public {
         IGovernanceTypes.Policy[4] memory policies = pilotPolicies();
         policies[uint8(ADMIN)].timelock = 2 * DAY;
         governance = deploy(policies);
@@ -183,14 +184,15 @@ contract QuorumRegainedUnsignedTest is GovernanceTest {
         vm.expectEmit(address(governance));
         emit IRuleChanges.AdminQuorumReached(rule, uint64(vm.getBlockTimestamp()) + 2 * DAY);
         signAdmin(rule, C);
+        uint64 held = uint64(vm.getBlockTimestamp()) + 2 * DAY;
         applyAdmin(faster);
-        uint64 restarted = uint64(vm.getBlockTimestamp()) + DAY;
-        assertEq(governance.getAdminProposal(rule).executableAt, restarted);
-        vm.warp(restarted - 1);
+        assertGt(held, uint64(vm.getBlockTimestamp()) + DAY, "later than the restart");
+        assertEq(governance.getAdminProposal(rule).executableAt, held);
+        vm.warp(held - 1);
         vm.prank(A);
-        vm.expectRevert(abi.encodeWithSelector(IGovernanceTypes.TimelockNotElapsed.selector, restarted));
+        vm.expectRevert(abi.encodeWithSelector(IGovernanceTypes.TimelockNotElapsed.selector, held));
         governance.executeAdminProposal(rule);
-        vm.warp(restarted);
+        vm.warp(held);
         executeAdmin(rule, A);
     }
 

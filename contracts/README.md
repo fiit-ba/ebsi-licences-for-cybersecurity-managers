@@ -469,7 +469,8 @@ each way it can see:
 
 - **A looser policy** restarts the timelock of every decision of its kind
   approved before it, including one that never lost its quorum: it is
-  executable one full timelock (the new one) after the change. A policy is
+  executable one full timelock (the new one) after the change, and never
+  before the timelock in force at its quorum ran out. A policy is
   looser unless it is at least as strict in every respect: threshold no
   lower, every required role and every veto role kept, timelock no shorter.
   A change that is stricter in one respect and looser in another counts as
@@ -492,6 +493,17 @@ without anyone signing, and a quorum regained that way would keep its original
 timelock.
 
 ### The veto, and why it is a single signer
+
+**A decision keeps the timelock and the veto it was approved under.** At the
+quorum the ballot stores that policy's timelock and veto roles (in bytes that
+were free). Execution waits for the longer of that timelock and the current
+one, and the veto belongs to every role either policy gives it. A rule change
+approved earlier, applied while a decision waits, can make the decision
+stricter but never weaker: it cannot cut short the delay a veto holder was
+given, or take the veto away. A quorum regained later keeps what was stored
+and adds the policy then in force. A decision whose quorum comes after the
+change follows the new policy, even one opened before; a veto holder that
+objects vetoes the rule change during its own timelock.
 
 `cancelProposal(proposalId, reasonHash)` can be called by **any one signer of
 a role the policy gives the veto** (`vetoRoleMask`), including one who never
@@ -563,8 +575,10 @@ up, when a policy change is proposed and again when it applies, on the whole
 set of policies, so neither side can be moved past the other. Otherwise the
 keys a delay guards against could rewrite a decision's policy, stripping its
 veto and its timelock, before the delay ran out: a rule change now never
-applies before the decision it could weaken, and every role that may stop the
-decision may stop the change too. A role a decision requires may veto rule
+applies before a decision approved ahead of it could execute, a decision
+approved while the change waits keeps the timelock and veto it was approved
+under ([below](#the-veto-and-why-it-is-a-single-signer)), and every role that
+may stop the decision may stop the change too. A role a decision requires may veto rule
 changes as well: with `revoke.requiredRoles = [C]` and only A and B on the
 veto, A and B could otherwise drop C's requirement with no say from C. And
 since a veto needs time, the `admin` policy has a timelock whenever a status
