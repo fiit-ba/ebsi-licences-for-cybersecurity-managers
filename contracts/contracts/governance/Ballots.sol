@@ -52,6 +52,7 @@ abstract contract Ballots is TiConfiguration {
 
         RoleSet before = _rolesSigned(ballot);
         Role role = roleOf(ballot.tiId, msg.sender);
+        if (before.contains(role)) revert RoleAlreadySigned();
         ballot.signatures.push(msg.sender);
         ballot.signedAs[msg.sender] = role;
         signed = before.with(role);

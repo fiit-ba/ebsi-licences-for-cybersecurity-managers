@@ -865,3 +865,33 @@ executed on its old signatures, weeks after the back-office had closed the case.
 - [ ] **Gas budgets.** If the back-office sets a gas limit per transaction, check it against
       the new figures in `contracts/README.md` (`signProposal` about 275,000, `addTi` about
       709,000).
+
+## 21. A role signs a ballot once
+
+Covers the finding that a ballot stored every signature of every key that held a role. A
+cosigner's DID controller could list many keys in its DID document and sign with each. The
+extra signatures changed nothing in the quorum, but every later signature, every execution
+and every view walked the whole list, with a DID Registry call per entry, until signing grew
+too expensive.
+
+### What changed in the contracts
+
+- `signProposal` and `signAdminProposal` refuse a key whose role already has a signature that
+  counts on the ballot, with the new error **`RoleAlreadySigned()`**. A role counts once in
+  the quorum, so no decision changes, and a ballot holds about one entry per role.
+- The same key signing twice is still `AlreadySigned()`, checked first.
+- A second key of the role can still sign once the first signature stops counting (its key
+  removed, replaced or no longer listed in the DID Registry). Each such entry costs the
+  controller a key it drops first, so the list can still grow, but only slowly.
+- ABI: one new error, `RoleAlreadySigned()`. The copies in `back-office/shared/` and
+  `back-office/web/src/blockchain/` are regenerated.
+
+### To do
+
+- [ ] **Explain the refusal.** Add `RoleAlreadySigned` to `refusalReasons()` in
+      `back-office/web/src/blockchain/governance.ts`, for example
+      "Za túto rolu už návrh podpísal iný kľúč."
+- [ ] **Do not offer the signature.** Before sending `signProposal` / `signAdminProposal`,
+      check the proposal view: if `rolesSignedMask` already contains the signer's role
+      (`roleOf`), show who signed for that role instead of the sign button. This applies to a
+      TI with a primary and a backup key in one role: only one of them signs a given proposal.

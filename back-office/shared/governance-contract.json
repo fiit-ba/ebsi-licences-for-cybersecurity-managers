@@ -206,6 +206,11 @@
     },
     {
       "inputs": [],
+      "name": "RoleAlreadySigned",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "SignerRetired",
       "type": "error"
     },
@@ -2408,6 +2413,11 @@
     {
       "inputs": [],
       "name": "ReasonRequired",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RoleAlreadySigned",
       "type": "error"
     },
     {

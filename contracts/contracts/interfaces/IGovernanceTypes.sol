@@ -206,6 +206,8 @@ interface IGovernanceTypes {
     error NotASigner();
     error NotAnOwnSigner();
     error AlreadySigned();
+    /// @notice Another key of the caller's role has signed, and it counts.
+    error RoleAlreadySigned();
     error UnknownProposal();
     error ProposalNotOpen();
     error ProposalAlreadyOpen(uint256 existingProposalId);

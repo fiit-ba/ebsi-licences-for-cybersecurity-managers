@@ -300,7 +300,11 @@ Every signer key holds one of the organisational roles of component 10.2:
 **A quorum counts roles, not keys.** An organisation may hold several keys of
 its role, for example a primary and a backup (component 10.9's key-loss
 procedure). Those keys are still one voice, so "2 of 3" means two of the three
-independent actors.
+independent actors. A role signs a ballot once: a second key of a role whose
+signature counts is refused (`RoleAlreadySigned`), so a cosigner DID that lists
+many keys cannot lengthen the list each signature, execution and view walks.
+Another key of the role signs once the first signature stops counting (its key
+removed, replaced or no longer in the DID Registry).
 
 **A role can also belong to a cosigner.** A cosigner is a DID outside the TI
 with a role (`Cosigner{did, role}`): any key the DID Registry shows for that

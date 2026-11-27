@@ -213,6 +213,11 @@ export const GOVERNANCE_ABI: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "RoleAlreadySigned",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "SignerRetired",
     "type": "error"
   },
@@ -2416,6 +2421,11 @@ export const REGISTRY_ABI: InterfaceAbi = [
   {
     "inputs": [],
     "name": "ReasonRequired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RoleAlreadySigned",
     "type": "error"
   },
   {

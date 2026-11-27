@@ -203,7 +203,7 @@ sequenceDiagram
     G-->>A: ProposalSigned(id, A, role A, {A})
 
     B->>G: signProposal(id)
-    Note over G: open, within TTL, not overtaken, caller holds a role
+    Note over G: open, within TTL, not overtaken, caller holds a role<br/>no counted signature of that role yet
     G-->>B: ProposalSigned(id, B, role B, {A, B})
     Note over G: policy met → state APPROVED,<br/>quorumReachedAt = now
     G-->>B: QuorumReached(id, executableAt = quorumReachedAt + timelock)

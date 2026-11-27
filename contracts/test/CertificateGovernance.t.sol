@@ -384,10 +384,12 @@ contract QuorumTest is GovernanceTest {
     }
 
     function test_CountsRolesNotKeys() public {
-        // Two keys of one organisation are one voice.
+        // Two keys of one organisation are one voice, and it signs once.
         governance = deploy(keys(A, spare, C), roles(ROLE_A, ROLE_A, ROLE_C), pilotPolicies(), pilotTtl);
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
-        sign(1, spare);
+        vm.prank(spare);
+        vm.expectRevert(IGovernanceTypes.RoleAlreadySigned.selector);
+        governance.signProposal(1);
         assertState(1, IGovernanceTypes.ProposalState.PROPOSED);
         sign(1, C);
         assertState(1, IGovernanceTypes.ProposalState.APPROVED);
