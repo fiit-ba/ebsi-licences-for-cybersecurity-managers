@@ -49,12 +49,11 @@ abstract contract SignerRotation {
         bytes32 tiId,
         address[] memory accounts,
         Target[] memory target
-    )
-        internal
-        returns (uint256[] memory changes)
-    {
+    ) internal returns (uint256[] memory changes) {
         for (uint256 i = 0; i < target.length; i++) {
-            if (Role.unwrap(target[i].role) == Role.unwrap(SUPERVISORY)) revert SupervisoryKeyNotRotatable();
+            if (Role.unwrap(target[i].role) == Role.unwrap(SUPERVISORY)) {
+                revert SupervisoryKeyNotRotatable();
+            }
             for (uint256 j = 0; j < i; j++) {
                 if (target[j].key == target[i].key) revert SameKeyForTwoRoles();
             }
@@ -94,13 +93,12 @@ abstract contract SignerRotation {
      * Signers among `accounts`, one per role outside `excluded`, enough
      * for ADMIN - required roles first.
      */
-    function _approvers(
-        ICertificateGovernance governance,
-        bytes32 tiId,
-        address[] memory accounts,
-        RoleSet excluded
-    ) internal view returns (address[] memory chosen) {
-        IGovernanceTypes.Policy memory admin = governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.ADMIN);
+    function _approvers(ICertificateGovernance governance, bytes32 tiId, address[] memory accounts, RoleSet excluded)
+        internal
+        view
+        returns (address[] memory chosen)
+    {
+        IGovernanceTypes.Policy memory admin = governance.getTi(tiId).policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)];
 
         // One account per role, in the order given.
         address[] memory byRole = new address[](9);
@@ -127,7 +125,9 @@ abstract contract SignerRotation {
         }
         if (n < admin.threshold) revert NotEnoughApprovers(admin.threshold, n);
         if (!present.includesAll(admin.requiredRoleMask)) {
-            revert RequiredApproversMissing(RoleSet.wrap(RoleSet.unwrap(admin.requiredRoleMask) & ~RoleSet.unwrap(present)));
+            revert RequiredApproversMissing(RoleSet.wrap(
+                    RoleSet.unwrap(admin.requiredRoleMask) & ~RoleSet.unwrap(present)
+                ));
         }
         assembly {
             mstore(chosen, n)

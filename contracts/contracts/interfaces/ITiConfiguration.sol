@@ -42,9 +42,6 @@ interface ITiConfiguration is ITiAccreditation {
 
     function computeTiId(string calldata did) external pure returns (bytes32);
 
-    /// @notice Refuses an account that holds no role of the TI right now.
-    function requireSigner(bytes32 tiId, address account) external view;
-
     /// @notice Refuses an account that is not the TI's own key now, a cosigner's included.
     function requireOwnSigner(bytes32 tiId, address account) external view;
 
@@ -54,17 +51,6 @@ interface ITiConfiguration is ITiAccreditation {
     /// @notice `isActiveTi`, and before `accreditedUntil`.
     function isAccredited(bytes32 tiId) external view returns (bool);
 
-    function MAX_ROLE() external view returns (uint8);
-
-    function MIN_THRESHOLD() external view returns (uint8);
-
-    function MAX_TIMELOCK() external view returns (uint64);
-
-    function MAX_PROPOSAL_TTL() external view returns (uint64);
-
-    /// @notice How much longer than the TI's longest timelock a proposal lives.
-    function MIN_SIGNING_WINDOW() external view returns (uint64);
-
     /// @notice The role a key signs a TI's proposals with right now, as a
     ///         signer or for a cosigner's DID; 0 for none.
     function roleOf(bytes32 tiId, address account) external view returns (Role);
@@ -73,8 +59,6 @@ interface ITiConfiguration is ITiAccreditation {
     function retired(bytes32 tiId, address account) external view returns (bool);
 
     function isSigner(bytes32 tiId, address account) external view returns (bool);
-
-    function getPolicy(bytes32 tiId, PolicyKind kind) external view returns (Policy memory);
 
     /// @notice Everything that decides a TI's proposals, in one read.
     function getTi(bytes32 tiId) external view returns (TiView memory);

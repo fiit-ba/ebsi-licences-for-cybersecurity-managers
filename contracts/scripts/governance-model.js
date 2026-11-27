@@ -52,14 +52,14 @@ const ENUMS = readEnums();
 const UNITS = {seconds: 1, minutes: 60, hours: 3600, days: 86400, weeks: 604800};
 
 /**
- * Every `uintN public constant NAME = value [unit];` in the contract, as
+ * Every `uintN internal constant NAME = value [unit];` in the contract, as
  * {NAME: number}, units resolved - the bounds a caller checks its own
  * settings against (MAX_TIMELOCK, MAX_PROPOSAL_TTL, MAX_ROLE). Read the same
  * way as the enums above, so they cannot drift from the source either.
  */
 function readLimits(source = readSource()) {
   const limits = {};
-  for (const match of source.matchAll(/uint\d+\s+public\s+constant\s+(\w+)\s*=\s*(\d+)\s*(\w+)?\s*;/g)) {
+  for (const match of source.matchAll(/uint\d+\s+internal\s+constant\s+(\w+)\s*=\s*(\d+)\s*(\w+)?\s*;/g)) {
     const unit = match[3] ? UNITS[match[3]] : 1;
     if (unit === undefined) throw new Error(`${match[1]}: unknown unit ${match[3]}`);
     limits[match[1]] = Number(match[2]) * unit;

@@ -30,6 +30,14 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     /// The end of every TI's accreditation, unless a test sets another.
     uint64 internal constant ACCREDITED_UNTIL = 2_000_000_000;
 
+    // The contract's bounds, internal there (the generated LIMITS export them).
+    uint8 internal constant MAX_TRUST_CHAIN_DEPTH = 32;
+    uint8 internal constant MAX_ROLE = 8;
+    uint8 internal constant MIN_THRESHOLD = 2;
+    uint64 internal constant MAX_TIMELOCK = 90 days;
+    uint64 internal constant MAX_PROPOSAL_TTL = 365 days;
+    uint64 internal constant MIN_SIGNING_WINDOW = 1 days;
+
     // A: the certification body's decision maker
     // B: its independent second approver
     // C: the supervisory authority (NBÚ), external
@@ -344,11 +352,19 @@ abstract contract GovernanceTest is Test, GovernanceConfigFile {
     // -----------------------------------------------------------------------
 
     function assertState(uint256 id, IGovernanceTypes.ProposalState expected) internal view {
-        assertEq(uint8(governance.stateOf(id)), uint8(expected), "proposal state");
+        assertEq(uint8(governance.getProposal(id).state), uint8(expected), "proposal state");
     }
 
     function assertAdminState(uint256 id, IGovernanceTypes.ProposalState expected) internal view {
-        assertEq(uint8(governance.adminStateOf(id)), uint8(expected), "rule change state");
+        assertEq(uint8(governance.getAdminProposal(id).state), uint8(expected), "rule change state");
+    }
+
+    /// Whether `account` is among a proposal's signatures.
+    function signedBy(address[] memory signatures, address account) internal pure returns (bool) {
+        for (uint256 i = 0; i < signatures.length; i++) {
+            if (signatures[i] == account) return true;
+        }
+        return false;
     }
 
     function assertEq(RoleSet actual, RoleSet expected, string memory what) internal pure {

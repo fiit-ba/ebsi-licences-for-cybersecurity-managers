@@ -46,16 +46,16 @@ contract AbiExportTest is GovernanceTest {
         assertFalse(generated.keyExists(_at(fields, expected.length)), "no other field");
     }
 
-    function test_CarriesTheContractsOwnBoundsAsTheDeployedContractHasThem() public view {
+    function test_CarriesTheContractsOwnBounds() public view {
         // Read from the source; a caller checks its settings against them.
         string[] memory names = vm.parseJsonKeys(generated, ".limits");
         assertEq(names.length, 6);
-        assertEq(generated.readUint(".limits.MAX_TRUST_CHAIN_DEPTH"), governance.MAX_TRUST_CHAIN_DEPTH());
-        assertEq(generated.readUint(".limits.MAX_ROLE"), governance.MAX_ROLE());
-        assertEq(generated.readUint(".limits.MIN_THRESHOLD"), governance.MIN_THRESHOLD());
-        assertEq(generated.readUint(".limits.MAX_TIMELOCK"), governance.MAX_TIMELOCK());
-        assertEq(generated.readUint(".limits.MAX_PROPOSAL_TTL"), governance.MAX_PROPOSAL_TTL());
-        assertEq(generated.readUint(".limits.MIN_SIGNING_WINDOW"), governance.MIN_SIGNING_WINDOW());
+        assertEq(generated.readUint(".limits.MAX_TRUST_CHAIN_DEPTH"), MAX_TRUST_CHAIN_DEPTH);
+        assertEq(generated.readUint(".limits.MAX_ROLE"), MAX_ROLE);
+        assertEq(generated.readUint(".limits.MIN_THRESHOLD"), MIN_THRESHOLD);
+        assertEq(generated.readUint(".limits.MAX_TIMELOCK"), MAX_TIMELOCK);
+        assertEq(generated.readUint(".limits.MAX_PROPOSAL_TTL"), MAX_PROPOSAL_TTL);
+        assertEq(generated.readUint(".limits.MIN_SIGNING_WINDOW"), MIN_SIGNING_WINDOW);
     }
 
     // -----------------------------------------------------------------------

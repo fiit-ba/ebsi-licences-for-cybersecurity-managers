@@ -183,10 +183,6 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         return _statusProposalsStorage().proposalCount;
     }
 
-    function hasSigned(uint256 proposalId, address account) external view returns (bool) {
-        return _statusProposalsStorage().proposals[proposalId].ballot.signed[account];
-    }
-
     function openProposalFor(bytes32 statusKey) external view returns (uint256) {
         return _statusProposalsStorage().openProposalFor[statusKey];
     }
@@ -206,14 +202,6 @@ abstract contract StatusProposals is IStatusProposals, Ballots {
         result.rolesSignedMask = _rolesSigned(p.ballot);
         result.proposer = p.ballot.proposer;
         result.expiresAt = _expiresAt(p.ballot, p.actionType.policyKind());
-    }
-
-    function signatureCount(uint256 proposalId) external view returns (uint256) {
-        return _statusProposalsStorage().proposals[proposalId].ballot.signatures.length;
-    }
-
-    function stateOf(uint256 proposalId) external view returns (ProposalState) {
-        return _stateOf(_statusProposalsStorage().proposals[proposalId]);
     }
 
     // -----------------------------------------------------------------------

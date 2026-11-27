@@ -128,7 +128,7 @@ abstract contract DeployedFixture is Test, Networks {
         (statusKey,) = _register();
         id = _propose(keyA, statusKey, IGovernanceTypes.ActionType.REVOKE);
         _sign(keyB, id);
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.APPROVED));
+        assertEq(uint8(governance.getProposal(id).state), uint8(IGovernanceTypes.ProposalState.APPROVED));
     }
 
     /// `by` signs a rule change.
@@ -140,7 +140,7 @@ abstract contract DeployedFixture is Test, Networks {
     /// Waits out an approved rule change's timelock and applies it.
     function _applyAdmin(uint256 change) internal {
         assertEq(
-            uint8(governance.adminStateOf(change)), uint8(IGovernanceTypes.ProposalState.APPROVED), "waits first"
+            uint8(governance.getAdminProposal(change).state), uint8(IGovernanceTypes.ProposalState.APPROVED), "waits first"
         );
         vm.warp(governance.getAdminProposal(change).executableAt);
         vm.prank(keyA);
@@ -261,7 +261,7 @@ contract CertificateLifecycleTest is DeployedFixture {
         _sign(keyB, id);
         vm.prank(nbu);
         governance.cancelProposal(id, REASON);
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.CANCELLED));
+        assertEq(uint8(governance.getProposal(id).state), uint8(IGovernanceTypes.ProposalState.CANCELLED));
         _assertStanding(statusKey, IGovernanceTypes.Standing.VALID);
     }
 
@@ -413,7 +413,7 @@ contract QuorumAfterChangesTest is DeployedFixture {
 
     function test_ARuleChangeWaitsOutItsTimelockThenApplies() public {
         // The pilot gives rule changes the revocation's day.
-        assertEq(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.ADMIN).timelock, DAY);
+        assertEq(governance.getTi(tiId).policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock, DAY);
 
         uint64 ttl = governance.getTi(tiId).proposalTtl;
         vm.prank(keyA);

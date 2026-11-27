@@ -817,84 +817,6 @@
       "type": "event"
     },
     {
-      "inputs": [],
-      "name": "MAX_PROPOSAL_TTL",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MAX_ROLE",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MAX_TIMELOCK",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MAX_TRUST_CHAIN_DEPTH",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MIN_SIGNING_WINDOW",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MIN_THRESHOLD",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "components": [
@@ -997,25 +919,6 @@
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "adminProposalId",
-          "type": "uint256"
-        }
-      ],
-      "name": "adminStateOf",
-      "outputs": [
-        {
-          "internalType": "enum IGovernanceTypes.ProposalState",
-          "name": "",
-          "type": "uint8"
         }
       ],
       "stateMutability": "view",
@@ -1324,52 +1227,6 @@
     {
       "inputs": [
         {
-          "internalType": "bytes32",
-          "name": "tiId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "enum IGovernanceTypes.PolicyKind",
-          "name": "kind",
-          "type": "uint8"
-        }
-      ],
-      "name": "getPolicy",
-      "outputs": [
-        {
-          "components": [
-            {
-              "internalType": "uint8",
-              "name": "threshold",
-              "type": "uint8"
-            },
-            {
-              "internalType": "RoleSet",
-              "name": "requiredRoleMask",
-              "type": "uint8"
-            },
-            {
-              "internalType": "RoleSet",
-              "name": "vetoRoleMask",
-              "type": "uint8"
-            },
-            {
-              "internalType": "uint64",
-              "name": "timelock",
-              "type": "uint64"
-            }
-          ],
-          "internalType": "struct IGovernanceTypes.Policy",
-          "name": "",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "uint256",
           "name": "proposalId",
           "type": "uint256"
@@ -1548,54 +1405,6 @@
           "internalType": "struct IGovernanceTypes.TiView",
           "name": "result",
           "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "proposalId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "hasSigned",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "adminProposalId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "hasSignedAdmin",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
         }
       ],
       "stateMutability": "view",
@@ -1964,24 +1773,6 @@
           "type": "address"
         }
       ],
-      "name": "requireSigner",
-      "outputs": [],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "tiId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
       "name": "retired",
       "outputs": [
         {
@@ -2094,44 +1885,6 @@
       "name": "signProposal",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "proposalId",
-          "type": "uint256"
-        }
-      ],
-      "name": "signatureCount",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "proposalId",
-          "type": "uint256"
-        }
-      ],
-      "name": "stateOf",
-      "outputs": [
-        {
-          "internalType": "enum IGovernanceTypes.ProposalState",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {

@@ -502,7 +502,7 @@ contract AddTiTest is GovernanceFixture {
         vm.prank(taoKey.addr);
         governance.setTiAttribute(tiId, renewed, ACCREDITED_UNTIL);
 
-        assertEq(uint8(governance.stateOf(reinstate)), uint8(IGovernanceTypes.ProposalState.EXPIRED));
+        assertEq(uint8(governance.getProposal(reinstate).state), uint8(IGovernanceTypes.ProposalState.EXPIRED));
         vm.prank(secondKey.addr);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         governance.signProposal(reinstate);
@@ -545,7 +545,7 @@ contract LiveRegistriesTest is GovernanceFixture {
     function test_ACosignerSignsWithAnyKeyOfItsDid() public {
         uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
         _sign(nbuKey.addr, id);
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.APPROVED));
+        assertEq(uint8(governance.getProposal(id).state), uint8(IGovernanceTypes.ProposalState.APPROVED));
     }
 
     function test_ACosignersNewKeyWorksWithoutTouchingThisContract() public {
@@ -553,7 +553,7 @@ contract LiveRegistriesTest is GovernanceFixture {
         _addKey(nbuKey, NBU, "#key-2", rotated);
         uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
         _sign(rotated.addr, id);
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.APPROVED));
+        assertEq(uint8(governance.getProposal(id).state), uint8(IGovernanceTypes.ProposalState.APPROVED));
     }
 
     function test_AKeyRevokedInTheDidRegistryAfterSigningDoesNotCount() public {
@@ -673,8 +673,8 @@ contract IsolationTest is GovernanceFixture {
         vm.prank(ti2Key.addr);
         uint256 id = governance.proposePolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND, 2, RoleSet.wrap(0), RoleSet.wrap(1), 0);
         _admin(id);
-        assertEq(RoleSet.unwrap(governance.getPolicy(ti2Id, IGovernanceTypes.PolicyKind.SUSPEND).vetoRoleMask), 1);
-        assertEq(RoleSet.unwrap(governance.getPolicy(tiId, IGovernanceTypes.PolicyKind.SUSPEND).vetoRoleMask), 7);
+        assertEq(RoleSet.unwrap(governance.getTi(ti2Id).policies[uint8(IGovernanceTypes.PolicyKind.SUSPEND)].vetoRoleMask), 1);
+        assertEq(RoleSet.unwrap(governance.getTi(tiId).policies[uint8(IGovernanceTypes.PolicyKind.SUSPEND)].vetoRoleMask), 7);
     }
 
     function _admin(uint256 id) private {
@@ -768,7 +768,7 @@ contract KeyRelationshipTest is GovernanceFixture {
         _addSigner(key.addr);
         uint256 id = _propose(tiKey.addr, tiId, IGovernanceTypes.ActionType.SUSPEND);
         _sign(key.addr, id);
-        assertEq(uint8(governance.stateOf(id)), uint8(IGovernanceTypes.ProposalState.APPROVED));
+        assertEq(uint8(governance.getProposal(id).state), uint8(IGovernanceTypes.ProposalState.APPROVED));
 
         vm.warp(block.timestamp + 1 days + 1);
         assertFalse(didr.checkController(bytes(TI), key.addr));

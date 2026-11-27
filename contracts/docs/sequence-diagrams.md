@@ -27,8 +27,8 @@ The check has two parts:
 2. **The TI is accredited.** The Trusted Issuers Registry shows the TI's
    accreditation by the TAO, and every step above it up to the RootTAO.
 
-`requireSigner(tiId, account)` checks only the first part. It is used for
-every signature and for a veto, which a cosigner's key gives too.
+Signing and vetoing check only the first part, for the caller. A cosigner's
+key may do both.
 
 What the TI starts or does alone asks for one of its **own** keys, the first
 branch below only: a cosigner's key signs and vetoes, but never acts for the
@@ -45,11 +45,11 @@ sequenceDiagram
     participant D as DID Registry
     participant T as Trusted Issuers Registry
 
-    C->>G: requireActiveOwnSigner(tiId, account), or requireSigner
+    C->>G: requireActiveOwnSigner(tiId, account), or a signature or veto
     alt account is one of the TI's signers
         G->>D: checkController(tiDid, account)
         D-->>G: true / false
-    else requireSigner only: each cosigner in turn
+    else a signature or veto only: each cosigner in turn
         loop until one matches
             G->>D: checkController(cosignerDid, account)
             D-->>G: true / false

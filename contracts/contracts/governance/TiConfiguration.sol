@@ -21,23 +21,23 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     // -----------------------------------------------------------------------
 
     /// @notice Roles are 1..8, so a set of them fits one byte.
-    uint8 public constant MAX_ROLE = 8;
+    uint8 internal constant MAX_ROLE = 8;
 
     /// @notice Every policy needs at least two roles: no single key decides.
-    uint8 public constant MIN_THRESHOLD = 2;
+    uint8 internal constant MIN_THRESHOLD = 2;
 
     /// @notice No timelock longer than this: a longer one is a typo that would
     ///         freeze the TI, not a governance choice.
-    uint64 public constant MAX_TIMELOCK = 90 days;
+    uint64 internal constant MAX_TIMELOCK = 90 days;
 
     /// @notice No proposal lives longer than this.
-    uint64 public constant MAX_PROPOSAL_TTL = 365 days;
+    uint64 internal constant MAX_PROPOSAL_TTL = 365 days;
 
     /// @notice A proposal lives at least this much longer than the TI's
     ///         longest timelock: time to collect the signatures, and then
     ///         to execute. A shorter lifetime would let nothing pass, not
     ///         even the rule change that lengthens it.
-    uint64 public constant MIN_SIGNING_WINDOW = 1 days;
+    uint64 internal constant MIN_SIGNING_WINDOW = 1 days;
 
     // -----------------------------------------------------------------------
     // State
@@ -218,10 +218,6 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
         return Role.unwrap(roleOf(tiId, account)) != 0;
     }
 
-    function getPolicy(bytes32 tiId, PolicyKind kind) external view returns (Policy memory) {
-        return _policy(tiId, kind);
-    }
-
     function getTi(bytes32 tiId) external view returns (TiView memory result) {
         TiConfig storage ti = _ti(tiId);
         result.did = ti.did;
@@ -286,11 +282,7 @@ abstract contract TiConfiguration is ITiConfiguration, TiAccreditation {
     }
 
     function _requireSigner(bytes32 tiId) internal view {
-        requireSigner(tiId, msg.sender);
-    }
-
-    function requireSigner(bytes32 tiId, address account) public view {
-        if (Role.unwrap(roleOf(tiId, account)) == 0) revert NotASigner();
+        if (Role.unwrap(roleOf(tiId, msg.sender)) == 0) revert NotASigner();
     }
 
     /// @dev Asked when something starts and when it takes effect, not of every

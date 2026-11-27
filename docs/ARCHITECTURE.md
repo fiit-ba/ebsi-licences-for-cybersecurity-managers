@@ -337,7 +337,7 @@ Combining a per-issuer multi-signature governance with an on-chain status regist
   - The pilot configuration requires 2 of the 3 roles for every policy and lets any role veto. Revocation has a 24-hour timelock, and proposals expire after 30 days.
   - The production configuration also puts a 24-hour timelock on rule changes.
   - Requiring the supervisory authority on every revocation is only a matter of policy.
-- **Signatures on chain.** Every signer signs directly on the chain, so each approval is independently attributable and timestamped. A role signs a proposal once: another key of a role already counted is refused.
+- **Signatures on chain.** Every signer signs directly on the chain, so each approval is independently attributable and timestamped. A role signs a proposal once: another key of a role already counted is refused, and one whose signature stopped counting is replaced, so a proposal holds one signature per role.
 - **Veto.** Until a proposal is executed, including during its timelock, a single signature of a role allowed to veto cancels it.
   - This is what gives the timelock its purpose: a delay that nobody can interrupt protects against nothing.
   - Even if two keys are compromised, the remaining honest signer can stop the execution alone.

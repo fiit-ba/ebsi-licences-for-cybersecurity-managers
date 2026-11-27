@@ -167,7 +167,7 @@ contract VerifyOnchain is Script, GovernanceConfigFile, Networks {
         internal
         view
     {
-        IGovernanceTypes.ProposalState state = gov.stateOf(id);
+        IGovernanceTypes.ProposalState state = gov.getProposal(id).state;
         console.log(string.concat(label, ": proposal ", vm.toString(id), " ", _stateName(state)));
         require(state == expected, string.concat(label, ": expected ", _stateName(expected), ", got ", _stateName(state)));
     }

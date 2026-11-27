@@ -137,14 +137,6 @@ abstract contract RuleChanges is IRuleChanges, Ballots {
         result.expiresAt = _expiresAt(p.ballot, PolicyKind.ADMIN);
     }
 
-    function hasSignedAdmin(uint256 adminProposalId, address account) external view returns (bool) {
-        return _ruleChangesStorage().adminProposals[adminProposalId].ballot.signed[account];
-    }
-
-    function adminStateOf(uint256 adminProposalId) external view returns (ProposalState) {
-        return _adminState(_ruleChangesStorage().adminProposals[adminProposalId]);
-    }
-
     // -----------------------------------------------------------------------
     // Internals
     // -----------------------------------------------------------------------

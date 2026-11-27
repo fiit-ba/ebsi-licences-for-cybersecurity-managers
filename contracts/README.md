@@ -304,7 +304,10 @@ independent actors. A role signs a ballot once: a second key of a role whose
 signature counts is refused (`RoleAlreadySigned`), so a cosigner DID that lists
 many keys cannot lengthen the list each signature, execution and view walks.
 Another key of the role signs once the first signature stops counting (its key
-removed, replaced or no longer in the DID Registry).
+removed, replaced or no longer in the DID Registry), and takes that entry's
+place: however many keys rotate, the list holds one entry per role. The
+signature it replaces is gone from the list (its key listed again counts for
+nothing); the `ProposalSigned` events keep every signature.
 
 **A role can also belong to a cosigner.** A cosigner is a DID outside the TI
 with a role (`Cosigner{did, role}`): any key the DID Registry shows for that
@@ -451,7 +454,7 @@ lapses. Signing and the veto stay open as long as the proposal does.
 proposal opened before it was stored, which never lapses by time), so nobody
 has to estimate it from the TI's current lifetime. It is the latest end, not a
 promise: a changed standing, a cosigner change or a restored accreditation
-ends a proposal sooner, and `state` (as `stateOf`) is what holds now.
+ends a proposal sooner, and `state` is what holds now.
 
 **A quorum regained restarts the timelock.** A quorum can be lost after it was
 reached: a signer key is removed, replaced or dropped from the DID Registry,

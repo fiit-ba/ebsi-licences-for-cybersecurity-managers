@@ -27,12 +27,12 @@ contract ConstructionTest is GovernanceTest {
         assertEq(Role.unwrap(signerRoles[2]), Role.unwrap(ROLE_C));
         assertEq(governance.getTi(TI_ID).rolesPresentMask, ALL, "roles present");
 
-        IGovernanceTypes.Policy memory revoke = governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE);
+        IGovernanceTypes.Policy memory revoke = governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)];
         assertEq(revoke.threshold, 2);
         assertEq(revoke.requiredRoleMask, NONE, "required roles");
         assertEq(revoke.vetoRoleMask, ALL, "veto roles");
         assertEq(revoke.timelock, DAY); // 24 h, the lower end of 10.4's 24-48 h
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND).timelock, 0);
+        assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.SUSPEND)].timelock, 0);
         assertEq(governance.getTi(TI_ID).proposalTtl, pilotTtl);
         assertEq(governance.getTi(TI_ID).version, 0);
     }
@@ -146,7 +146,7 @@ contract ConstructionTest is GovernanceTest {
     /// least two: one more to be signed and executed in. 0 no longer means
     /// forever.
     function test_RevertWhen_ProposalLifetimeLeavesNoTimeAfterTheLongestTimelock() public {
-        uint64 shortest = DAY + governance.MIN_SIGNING_WINDOW();
+        uint64 shortest = DAY + MIN_SIGNING_WINDOW;
         uint64[3] memory tooShort = [uint64(0), 1, shortest - 1];
         for (uint256 i = 0; i < tooShort.length; i++) {
             vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
@@ -537,7 +537,7 @@ contract ExpiryTest is GovernanceTest {
     function test_ATtlChangeDoesNotReviveAnExpiredProposal() public {
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         skip(pilotTtl);
-        setTtl(A, B, governance.MAX_PROPOSAL_TTL());
+        setTtl(A, B, MAX_PROPOSAL_TTL);
         assertState(1, IGovernanceTypes.ProposalState.EXPIRED);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         sign(1, B);
@@ -547,7 +547,7 @@ contract ExpiryTest is GovernanceTest {
         vm.prank(A);
         uint256 id = governance.proposeAddSigner(TI_ID, spare, ROLE_A);
         skip(pilotTtl);
-        setTtl(A, B, governance.MAX_PROPOSAL_TTL());
+        setTtl(A, B, MAX_PROPOSAL_TTL);
         assertAdminState(id, IGovernanceTypes.ProposalState.EXPIRED);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         signAdmin(id, B);
@@ -788,7 +788,7 @@ contract SelfAdministrationTest is GovernanceTest {
     }
 
     function test_RevertWhen_TheLifetimeWouldEndBeforeATimelockAndTheWindow() public {
-        uint64 shortest = DAY + governance.MIN_SIGNING_WINDOW(); // REVOKE's day, then the window
+        uint64 shortest = DAY + MIN_SIGNING_WINDOW; // REVOKE's day, then the window
         vm.startPrank(A);
         vm.expectRevert(IGovernanceTypes.InvalidTtl.selector);
         governance.proposeProposalTtl(TI_ID, 0);
@@ -800,12 +800,12 @@ contract SelfAdministrationTest is GovernanceTest {
     }
 
     function test_RevertWhen_ATimelockWouldLeaveNoTimeWithinTheLifetime() public {
-        uint64 longest = pilotTtl - governance.MIN_SIGNING_WINDOW();
+        uint64 longest = pilotTtl - MIN_SIGNING_WINDOW;
         vm.expectRevert(IGovernanceTypes.InvalidPolicy.selector);
         vm.prank(A);
         governance.proposePolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN, 2, NONE, ALL, longest + 1);
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, longest)));
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN).timelock, longest);
+        assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock, longest);
     }
 
     function test_RevertWhen_TheCallerIsNotASigner() public {
@@ -948,14 +948,14 @@ contract AuditTest is GovernanceTest {
         propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(1, B);
         assertEq(governance.proposalCount(), 1);
-        assertEq(governance.signatureCount(1), 2);
-        assertTrue(governance.hasSigned(1, B));
-        assertFalse(governance.hasSigned(1, C));
+        assertEq(governance.getProposal(1).signatures.length, 2);
+        assertTrue(signedBy(governance.getProposal(1).signatures, B));
+        assertFalse(signedBy(governance.getProposal(1).signatures, C));
 
         vm.prank(A);
         uint256 change = governance.proposeAddSigner(TI_ID, spare, ROLE_A);
-        assertTrue(governance.hasSignedAdmin(change, A));
-        assertFalse(governance.hasSignedAdmin(change, B));
+        assertTrue(signedBy(governance.getAdminProposal(change).signatures, A));
+        assertFalse(signedBy(governance.getAdminProposal(change).signatures, B));
     }
 }
 
@@ -976,7 +976,7 @@ contract TrustChainTest is GovernanceTest {
         vm.expectCall(
             issuersRegistry,
             abi.encodeCall(IEbsiIssuersRegistry.getLatestRevisionAttribute, (taoDid, loop)),
-            governance.MAX_TRUST_CHAIN_DEPTH()
+            MAX_TRUST_CHAIN_DEPTH
         );
         assertFalse(governance.isActiveTi(looped, TI_ATTRIBUTE));
     }

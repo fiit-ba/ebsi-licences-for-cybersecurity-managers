@@ -123,8 +123,8 @@ contract RotateSignersTest is GovernanceTest, SignerRotation {
 
     function test_EachChangeOfARunKeepsItsQuorumWhicheverAppliesFirst() public {
         uint256[] memory changes = this.rotate(keys(A, B, C), _bodyKeys());
-        assertFalse(governance.hasSignedAdmin(changes[0], B), "A's change: not signed by B");
-        assertFalse(governance.hasSignedAdmin(changes[1], A), "B's change: not signed by A");
+        assertFalse(signedBy(governance.getAdminProposal(changes[0]).signatures, B), "A's change: not signed by B");
+        assertFalse(signedBy(governance.getAdminProposal(changes[1]).signatures, A), "B's change: not signed by A");
         applyAdmin(changes[1], C);
         applyAdmin(changes[0], C);
         assertEq(Role.unwrap(governance.roleOf(TI_ID, newA)), Role.unwrap(ROLE_A));

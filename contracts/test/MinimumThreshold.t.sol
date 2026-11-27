@@ -36,7 +36,6 @@ contract MinimumThresholdTest is GovernanceTest {
 
     /// Two is the floor, at set-up and through a rule change.
     function test_TwoRolesAreTheFloor() public {
-        assertEq(governance.MIN_THRESHOLD(), 2);
         IGovernanceTypes.Policy[4] memory policies = pilotPolicies();
         for (uint256 i = 0; i < 4; i++) {
             policies[i].threshold = 3;
@@ -45,7 +44,7 @@ contract MinimumThresholdTest is GovernanceTest {
         uint256 id = setPolicy(A, B, IGovernanceTypes.PolicyKind.SUSPEND, policy(2, NONE, ALL, 0));
         signAdmin(id, C);
         applyAdmin(id);
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.SUSPEND).threshold, 2);
+        assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.SUSPEND)].threshold, 2);
     }
 
     /// One key alone revokes nothing and changes no rule; it still suspends
@@ -93,6 +92,6 @@ contract MinimumThresholdTest is GovernanceTest {
         s.cosigners[0] = IGovernanceTypes.Cosigner("did:ebsi:zSupervisor", ROLE_C);
         vm.prank(tao);
         bytes32 otherId = governance.addTi(s);
-        assertEq(governance.getPolicy(otherId, IGovernanceTypes.PolicyKind.REVOKE).threshold, 2);
+        assertEq(governance.getTi(otherId).policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].threshold, 2);
     }
 }

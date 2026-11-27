@@ -23,7 +23,7 @@ abstract contract TiAccreditation is ITiAccreditation, Initializable {
     ///         limit, so a chain cannot be longer. Each hop is one more read
     ///         of the Trusted Issuers Registry, and so more gas wherever gas is
     ///         charged (EBSI's production network; its PILOT charges none).
-    uint8 public constant MAX_TRUST_CHAIN_DEPTH = 32;
+    uint8 internal constant MAX_TRUST_CHAIN_DEPTH = 32;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable DID_REGISTRY;

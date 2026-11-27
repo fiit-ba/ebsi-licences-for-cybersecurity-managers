@@ -276,7 +276,7 @@ Covers two MEDIUM findings:
 - The registry checks the same again in `applyExecuted`.
 - **An overtaken proposal** (its action no longer changes the standing, e.g. a SUSPEND
   overtaken by `suspendNow`):
-  - `stateOf` / `getProposal` report it as **`EXPIRED`** (5);
+  - `getProposal` reports it as **`EXPIRED`** (5);
   - `signProposal`, `execute` and `cancelProposal` revert with `ProposalNotOpen()`;
   - the next `proposeAction` for the certificate expires it (emits `ProposalExpired`);
   - anyone may call `expireProposal` on it before its TTL.
@@ -355,7 +355,7 @@ revocation waited out its 24 h timelock, execute it, and name NBÚ again.
   again does not.
 - Every status proposal and rule change records the epoch it opened in. One from an
   earlier epoch is **expired**:
-  - `stateOf`, `getProposal`, `adminStateOf`, `getAdminProposal` report `EXPIRED` (5);
+  - `getProposal` and `getAdminProposal` report `EXPIRED` (5);
   - signing, executing and cancelling it revert with `ProposalNotOpen()`;
   - anyone may call `expireProposal` / `expireAdminProposal` on it at once;
   - the next `proposeAction` for its certificate expires it (emits `ProposalExpired`).
@@ -548,8 +548,7 @@ current `proposalTtl`, wrongly after a lifetime change.
   end of the lifetime fixed at opening. 0 for a proposal opened before it was stored (it
   never lapses by time).
 - It is the latest end, not a promise: a changed standing (overtaken), a cosigner change or
-  a restored accreditation can end a proposal sooner. **`state` (as `stateOf` /
-  `adminStateOf`) is authoritative.**
+  a restored accreditation can end a proposal sooner. **`state` is authoritative.**
 - ABI change: the tuple returned by both views gains a field at the end. The generated
   copies are regenerated. Because the field is last and the tuple is dynamic, a decoder
   with the old 11 / 9 fields still reads them correctly.
@@ -614,7 +613,8 @@ licences permanently or take over the TI's rules.
 - Two keys of one role count once, so a TI needs two roles: two of its own, or one of its
   own and a cosigner's.
 - `suspendNow` stays the only act of one signature.
-- ABI: one new view, `MIN_THRESHOLD()`.
+- ABI: the view `MIN_THRESHOLD()` added here is gone again (§23): read it from the generated
+  `LIMITS`.
 
 ### To do
 
@@ -809,7 +809,7 @@ it, with no new quorum, timelock or veto window.
 
 - A `SET_POLICY` change of a kind, or a `SET_PROPOSAL_TTL` change, opened **before** another
   change set the same policy (or the lifetime) is **overtaken**. It reads `EXPIRED` in
-  `getAdminProposal` / `adminStateOf`; `signAdminProposal`, `cancelAdminProposal` and
+  `getAdminProposal`; `signAdminProposal`, `cancelAdminProposal` and
   `executeAdminProposal` revert with `ProposalNotOpen`; anyone may close it with
   `expireAdminProposal` (`AdminProposalExpired`).
 - Changes of other rules do not overtake it, and signer changes (`ADD_SIGNER`,
@@ -881,8 +881,8 @@ too expensive.
   the quorum, so no decision changes, and a ballot holds about one entry per role.
 - The same key signing twice is still `AlreadySigned()`, checked first.
 - A second key of the role can still sign once the first signature stops counting (its key
-  removed, replaced or no longer listed in the DID Registry). Each such entry costs the
-  controller a key it drops first, so the list can still grow, but only slowly.
+  removed, replaced or no longer listed in the DID Registry). It takes that entry's place
+  (§23), so the list does not grow.
 - ABI: one new error, `RoleAlreadySigned()`. The copies in `back-office/shared/` and
   `back-office/web/src/blockchain/` are regenerated.
 
@@ -931,3 +931,38 @@ drop the supervisory authority's veto. The revocation then executed at once, and
 - [ ] **Watch pending loosenings.** A decision approved after a rule change applies follows
       the new policy. Show the supervisory authority every pending rule change that loosens
       a policy, with its `executableAt`, so it can veto it in time.
+
+## 23. A rotated key takes its role's place, and unused views are gone
+
+Follow-up to §21, from the review of its fix. A key whose signature stopped counting freed its
+role, so a cosigner's DID controller could still grow the list: add K1, sign, drop K1, add K2,
+sign, drop K2, and so on, one entry each time.
+
+### What changed in the contracts
+
+- A key that signs for a role whose entry stopped counting **takes that entry's place** in
+  `signatures` instead of being appended. A ballot holds one entry per role, however many
+  keys rotate.
+- The replaced signature is gone from the list: its key, listed again, counts for nothing and
+  cannot sign again (`AlreadySigned`). The `ProposalSigned` / `AdminProposalSigned` events
+  keep every signature.
+- Only an entry given in the signer's own role is taken over. An entry from before roles were
+  recorded is never taken over.
+- To make room under EIP-170, views nothing calls are removed: `hasSigned`, `hasSignedAdmin`,
+  `signatureCount`, `stateOf`, `adminStateOf`, `getPolicy`, `requireSigner`, and the constant
+  getters `MAX_ROLE()`, `MIN_THRESHOLD()`, `MAX_TIMELOCK()`, `MAX_PROPOSAL_TTL()`,
+  `MIN_SIGNING_WINDOW()`, `MAX_TRUST_CHAIN_DEPTH()`. The same data is in `getProposal`,
+  `getAdminProposal` and `getTi`; the constants are in the generated `LIMITS`, with the
+  same values.
+- ABI: those functions are removed. The copies in `back-office/shared/` and
+  `back-office/web/src/blockchain/` are regenerated. CertificateGovernance is now 23,823 B.
+
+### To do
+
+- [ ] **Read the signatures as a current list.** `getProposal(..).signatures` lists one key
+      per role that signed: a key that replaced a lapsed one appears in its place. For the
+      history of who signed, and when, read the `ProposalSigned` events.
+- [ ] **Use the views that remain.** `stateOf` / `adminStateOf` → `getProposal(..).state` /
+      `getAdminProposal(..).state`; `getPolicy` → `getTi(..).policies[kind]`; `hasSigned` →
+      `signatures` of the view; the limits → `LIMITS` from the generated ABI module. The
+      back-office calls none of the removed functions today; keep it that way in new code.

@@ -274,7 +274,7 @@ contract OwnKeysOnlyTest is GovernanceTest {
     function test_TheChecks() public {
         governance.requireOwnSigner(TI_ID, A);
         governance.requireActiveOwnSigner(TI_ID, B);
-        governance.requireSigner(TI_ID, supervisor);
+        assertTrue(governance.isSigner(TI_ID, supervisor));
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);
         governance.requireOwnSigner(TI_ID, supervisor);
         vm.expectRevert(IGovernanceTypes.NotAnOwnSigner.selector);

@@ -23,7 +23,7 @@ contract StaleRuleChangesTest is GovernanceTest {
         vm.prank(A);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         governance.executeAdminProposal(stale);
-        assertEq(RoleSet.unwrap(governance.getPolicy(TI_ID, REVOKE).requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
+        assertEq(RoleSet.unwrap(governance.getTi(TI_ID).policies[uint8(REVOKE)].requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
 
         vm.expectEmit(address(governance));
         emit IRuleChanges.AdminProposalExpired(stale);
@@ -78,7 +78,7 @@ contract StaleRuleChangesTest is GovernanceTest {
         executeAdmin(ttl, A);
         assertAdminState(revoke, IGovernanceTypes.ProposalState.APPROVED);
         executeAdmin(revoke, A);
-        assertEq(RoleSet.unwrap(governance.getPolicy(TI_ID, REVOKE).requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
+        assertEq(RoleSet.unwrap(governance.getTi(TI_ID).policies[uint8(REVOKE)].requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
         assertEq(governance.getTi(TI_ID).proposalTtl, pilotTtl + DAY);
     }
 
@@ -119,7 +119,7 @@ contract StaleRuleChangesTest is GovernanceTest {
         uint256 cancelled = setPolicy(A, B, REVOKE, policy(2, NONE, both(ROLE_A, ROLE_B), DAY));
         cancelAdmin(cancelled, C);
         applyAdmin(waiting);
-        assertEq(RoleSet.unwrap(governance.getPolicy(TI_ID, REVOKE).requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
+        assertEq(RoleSet.unwrap(governance.getTi(TI_ID).policies[uint8(REVOKE)].requiredRoleMask), RoleSet.unwrap(only(ROLE_C)));
     }
 
     /// Signer changes are never overtaken: keys rotated in parallel all apply.
@@ -152,7 +152,7 @@ contract StaleRuleChangesTest is GovernanceTest {
         assertAdminState(before, IGovernanceTypes.ProposalState.EXPIRED);
         assertAdminState(same, IGovernanceTypes.ProposalState.APPROVED);
         applyAdmin(same);
-        assertEq(governance.getPolicy(TI_ID, REVOKE).threshold, 3);
+        assertEq(governance.getTi(TI_ID).policies[uint8(REVOKE)].threshold, 3);
     }
 
     /// An executed change stays EXECUTED when a later one sets its rule again.

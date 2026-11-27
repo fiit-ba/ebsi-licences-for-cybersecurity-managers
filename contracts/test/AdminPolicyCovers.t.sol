@@ -88,7 +88,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
     function test_AcceptsChangesThatKeepRuleChangesTheStrictest() public {
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.ADMIN, policy(2, NONE, ALL, 2 * DAY)));
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, only(ROLE_C), 2 * DAY)));
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).timelock, 2 * DAY);
+        assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].timelock, 2 * DAY);
     }
 
     /// Each passes alone; the second is refused at execution.
@@ -126,7 +126,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
             policies[kind].timelock = DAY;
             policies[3].timelock = DAY;
             governance = deploy(policies);
-            assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN).timelock, DAY);
+            assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock, DAY);
         }
     }
 
@@ -177,7 +177,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
         cancelAdmin(drop, C);
         assertAdminState(drop, IGovernanceTypes.ProposalState.CANCELLED);
         assertEq(
-            RoleSet.unwrap(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).requiredRoleMask),
+            RoleSet.unwrap(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask),
             RoleSet.unwrap(only(ROLE_C))
         );
     }
@@ -286,7 +286,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
     /// A TI from the old pilot (ADMIN without delay) must raise ADMIN first.
     function test_ATiSetUpBeforeTheRuleRaisesItsRuleChangesFirst() public {
         _forgeLegacyAdminWithoutDelay();
-        assertEq(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.ADMIN).timelock, 0);
+        assertEq(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.ADMIN)].timelock, 0);
 
         _expectRefused(IGovernanceTypes.PolicyKind.REVOKE, policy(2, NONE, ALL, DAY));
         uint256 rotation = addSigner(A, B, spare, ROLE_A);
@@ -296,7 +296,7 @@ contract AdminPolicyCoversTest is GovernanceTest {
         assertAdminState(raise, IGovernanceTypes.ProposalState.EXECUTED);
         applyAdmin(setPolicy(A, B, IGovernanceTypes.PolicyKind.REVOKE, policy(2, only(ROLE_C), ALL, DAY)));
         assertEq(
-            RoleSet.unwrap(governance.getPolicy(TI_ID, IGovernanceTypes.PolicyKind.REVOKE).requiredRoleMask),
+            RoleSet.unwrap(governance.getTi(TI_ID).policies[uint8(IGovernanceTypes.PolicyKind.REVOKE)].requiredRoleMask),
             RoleSet.unwrap(only(ROLE_C))
         );
     }

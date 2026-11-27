@@ -263,8 +263,6 @@ contract PermissiveGovernance {
     constructor(address certificateRegistry_) {
         certificateRegistry = certificateRegistry_;
     }
-
-    function requireSigner(bytes32, address) external pure {}
 }
 
 /// Answers every call with the same bytes.

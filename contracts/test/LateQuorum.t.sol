@@ -143,7 +143,7 @@ contract LateQuorumTest is GovernanceTest {
 
     /// Capped at MAX_PROPOSAL_TTL from opening: past it, the approval lapses.
     function test_TheExtensionIsCapped() public {
-        uint64 max = governance.MAX_PROPOSAL_TTL();
+        uint64 max = MAX_PROPOSAL_TTL;
         governance = deploy(keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilotPolicies(), max);
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         uint64 cap = governance.getProposal(id).proposedAt + max;
@@ -161,7 +161,7 @@ contract LateQuorumTest is GovernanceTest {
 
     /// A later restart near the cap does not push past it either.
     function test_ALaterRestartStopsAtTheCap() public {
-        uint64 max = governance.MAX_PROPOSAL_TTL();
+        uint64 max = MAX_PROPOSAL_TTL;
         governance = deploy(keys(A, B, C), roles(ROLE_A, ROLE_B, ROLE_C), pilotPolicies(), max - DAY);
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         uint64 cap = governance.getProposal(id).proposedAt + max;

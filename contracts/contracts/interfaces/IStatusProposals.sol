@@ -88,14 +88,6 @@ interface IStatusProposals is IGovernanceTypes {
     /// @notice `state` is authoritative; `expiresAt` is the latest end.
     function getProposal(uint256 proposalId) external view returns (ProposalView memory);
 
-    function hasSigned(uint256 proposalId, address account) external view returns (bool);
-
-    function signatureCount(uint256 proposalId) external view returns (uint256);
-
     /// @notice The open proposal for a certificate, or 0.
     function openProposalFor(bytes32 statusKey) external view returns (uint256);
-
-    /// @notice State as of now: EXPIRED for a proposal past its time to live,
-    ///         even before anyone has called `expireProposal`.
-    function stateOf(uint256 proposalId) external view returns (ProposalState);
 }

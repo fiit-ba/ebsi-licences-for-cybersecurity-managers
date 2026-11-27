@@ -2,7 +2,7 @@ pragma solidity 0.8.26;
 
 import {GovernanceTest} from "./GovernanceTest.sol";
 import {IGovernanceTypes} from "../contracts/interfaces/IGovernanceTypes.sol";
-import {Role} from "../contracts/libraries/Roles.sol";
+import {Role, RoleSet} from "../contracts/libraries/Roles.sol";
 import {StubDidRegistry} from "./RegistryStubs.sol";
 
 /// A role signs a ballot once: a second key of a role that counts is refused,
@@ -90,6 +90,7 @@ contract OneSignaturePerRoleTest is GovernanceTest {
 
         sign(id, secondKey);
         assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "D counts again");
+        assertEq(governance.getProposal(id).signatures[1], secondKey, "in the first key's place");
         execute(id, A);
     }
 
@@ -102,26 +103,71 @@ contract OneSignaturePerRoleTest is GovernanceTest {
 
         sign(id, spare);
         assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_B), "B counts again");
+        assertEq(governance.getProposal(id).signatures.length, 2, "in B's place");
         skip(DAY);
         execute(id, A);
     }
 
-    /// What is left: each further entry costs the controller a key it drops
-    /// first, and the signatures of one role still count as one voice.
-    function test_AKeyListedAgainCountsAsTheSameVoice() public {
+    /// Audit: dropping each key after it signed let the next one add an entry.
+    /// The next key takes the dropped one's place instead.
+    function test_RotatingKeysKeepsOneEntryPerRole() public {
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.SUSPEND, REASON_GIVEN);
+        StubDidRegistry(didRegistry).setController(COSIGNER, secondKey, false);
+        address key = cosigner;
+        for (uint256 i = 0; i < 20; i++) {
+            if (i > 0) {
+                StubDidRegistry(didRegistry).setController(COSIGNER, key, false);
+                key = address(uint160(0x10000 + i));
+                StubDidRegistry(didRegistry).setController(COSIGNER, key, true);
+            }
+            sign(id, key);
+        }
+        address[] memory signatures = governance.getProposal(id).signatures;
+        assertEq(signatures.length, 2, "one entry per role");
+        assertEq(signatures[1], key, "the latest key");
+        assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "A and D");
+    }
+
+    /// A signature taken over does not come back: its key listed again
+    /// counts for nothing, and cannot sign again either.
+    function test_ASignatureTakenOverDoesNotComeBack() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(id, cosigner);
         StubDidRegistry(didRegistry).setController(COSIGNER, cosigner, false);
         sign(id, secondKey);
         StubDidRegistry(didRegistry).setController(COSIGNER, cosigner, true);
+        StubDidRegistry(didRegistry).setController(COSIGNER, secondKey, false);
 
-        assertEq(governance.getProposal(id).signatures.length, 3);
-        assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "D once");
-        address third = makeAddr("third key of the cosigner");
-        StubDidRegistry(didRegistry).setController(COSIGNER, third, true);
-        vm.prank(third);
-        vm.expectRevert(IGovernanceTypes.RoleAlreadySigned.selector);
+        assertEq(governance.getProposal(id).signatures.length, 2);
+        assertEq(governance.getProposal(id).rolesSignedMask, only(ROLE_A), "the first key's signature is gone");
+        vm.prank(cosigner);
+        vm.expectRevert(IGovernanceTypes.AlreadySigned.selector);
         governance.signProposal(id);
+    }
+
+    /// Only an entry of the signer's own role is taken over: another role's
+    /// lapsed entry stays, and counts again when its key is listed again.
+    function test_AnotherRolesLapsedEntryStays() public {
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        sign(id, B);
+        _listForTheTi(B, false);
+        sign(id, cosigner);
+        address[] memory signatures = governance.getProposal(id).signatures;
+        assertEq(signatures.length, 3, "appended");
+        assertEq(signatures[1], B, "B's entry stays");
+        _listForTheTi(B, true);
+        assertEq(uint8(RoleSet.unwrap(governance.getProposal(id).rolesSignedMask)), 0x0b, "A, B and D");
+    }
+
+    /// A signature from before roles were recorded holds no role's place: a
+    /// key signing after it lapsed is appended.
+    function test_ASignatureFromBeforeIsNotTakenOver() public {
+        uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
+        sign(id, cosigner);
+        vm.store(address(governance), keccak256(abi.encode(cosigner, _proposalSlot(id) + 8)), bytes32(0));
+        StubDidRegistry(didRegistry).setController(COSIGNER, cosigner, false);
+        sign(id, secondKey);
+        assertEq(governance.getProposal(id).signatures.length, 3);
     }
 
     /// The same for a rule change: a second key signs once the first stops counting.
@@ -134,6 +180,7 @@ contract OneSignaturePerRoleTest is GovernanceTest {
 
         signAdmin(id, secondKey);
         assertEq(governance.getAdminProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "D counts again");
+        assertEq(governance.getAdminProposal(id).signatures.length, 2, "in the first key's place");
         applyAdmin(id);
         assertAdminState(id, IGovernanceTypes.ProposalState.EXECUTED);
     }
@@ -143,10 +190,7 @@ contract OneSignaturePerRoleTest is GovernanceTest {
     function test_RevertWhen_AnotherKeySignsForARoleASignatureFromBeforeHolds() public {
         uint256 id = propose(A, CERTIFICATE, IGovernanceTypes.ActionType.REVOKE, REASON_GIVEN);
         sign(id, cosigner);
-        bytes32 location =
-            keccak256(abi.encode(uint256(keccak256("plr.storage.StatusProposals")) - 1)) & ~bytes32(uint256(0xff));
-        uint256 proposal = uint256(keccak256(abi.encode(id, uint256(location) + 2)));
-        vm.store(address(governance), keccak256(abi.encode(cosigner, proposal + 8)), bytes32(0));
+        vm.store(address(governance), keccak256(abi.encode(cosigner, _proposalSlot(id) + 8)), bytes32(0));
         assertEq(governance.getProposal(id).rolesSignedMask, both(ROLE_A, ROLE_D), "counts as D");
 
         vm.prank(secondKey);
@@ -163,6 +207,18 @@ contract OneSignaturePerRoleTest is GovernanceTest {
         vm.prank(secondKey);
         vm.expectRevert(IGovernanceTypes.ProposalNotOpen.selector);
         governance.signProposal(id);
+    }
+
+    function _listForTheTi(address key, bool listed) private {
+        StubDidRegistry(didRegistry).setController(TI_DID, A, true);
+        StubDidRegistry(didRegistry).setController(TI_DID, C, true);
+        StubDidRegistry(didRegistry).setController(TI_DID, key, listed);
+    }
+
+    function _proposalSlot(uint256 id) private pure returns (uint256) {
+        bytes32 location =
+            keccak256(abi.encode(uint256(keccak256("plr.storage.StatusProposals")) - 1)) & ~bytes32(uint256(0xff));
+        return uint256(keccak256(abi.encode(id, uint256(location) + 2)));
     }
 
     function _nameCosigner() private {

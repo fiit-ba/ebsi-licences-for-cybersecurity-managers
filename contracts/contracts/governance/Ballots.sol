@@ -57,7 +57,14 @@ abstract contract Ballots is TiConfiguration {
         RoleSet before = _rolesSigned(ballot);
         Role role = roleOf(ballot.tiId, msg.sender);
         if (before.contains(role)) revert RoleAlreadySigned();
-        ballot.signatures.push(msg.sender);
+        // A lapsed entry of the role is taken over: one entry per role, however many keys rotate.
+        address[] storage signatures = ballot.signatures;
+        uint256 slot = signatures.length;
+        for (uint256 i = 0; i < signatures.length; i++) {
+            if (Role.unwrap(ballot.signedAs[signatures[i]]) == Role.unwrap(role)) slot = i;
+        }
+        if (slot < signatures.length) signatures[slot] = msg.sender;
+        else signatures.push(msg.sender);
         ballot.signedAs[msg.sender] = role;
         signed = before.with(role);
 
